@@ -492,57 +492,60 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
       display: 'flex',
       flexDirection: 'column'
     }}>
-      <div style={{
-        padding: '12px 20px',
-        background: 'linear-gradient(to bottom, #1a1a1a, #0d0d0d)',
-        borderBottom: '1px solid #333',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        color: 'white',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.5)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '24px' }}>🔒</span>
-          <div>
-            <div style={{ fontWeight: 'bold', fontSize: '16px' }}>Secure PDF Viewer</div>
-            <div style={{ fontSize: '11px', color: '#888' }}>Protected content - Copying and printing disabled</div>
-          </div>
-        </div>
-        <button 
-          onClick={onClose}
-          style={{
-            background: '#dc2626',
-            color: 'white',
-            padding: '10px 20px',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '14px',
-            transition: 'background 0.2s'
-          }}
-          onMouseOver={(e) => e.target.style.background = '#b91c1c'}
-          onMouseOut={(e) => e.target.style.background = '#dc2626'}
-        >
-          Close
-        </button>
-      </div>
+       <div style={{
+         padding: '8px 16px',
+         background: 'linear-gradient(to bottom, #1a1a1a, #0d0d0d)',
+         borderBottom: '1px solid #333',
+         display: 'flex',
+         justifyContent: 'space-between',
+         alignItems: 'center',
+         color: 'white',
+         boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
+         minHeight: '50px'
+       }}>
+         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+           <span style={{ fontSize: '20px', flexShrink: 0 }}>🔒</span>
+           <div style={{ minWidth: 0, flex: 1 }}>
+             <div style={{ fontWeight: 'bold', fontSize: '14px', lineHeight: '1.2' }}>Secure PDF Viewer</div>
+             <div style={{ fontSize: '10px', color: '#888', lineHeight: '1.2' }}>Protected content</div>
+           </div>
+         </div>
+         <button 
+           onClick={onClose}
+           style={{
+             background: '#dc2626',
+             color: 'white',
+             padding: '8px 16px',
+             border: 'none',
+             borderRadius: '6px',
+             cursor: 'pointer',
+             fontWeight: '600',
+             fontSize: '12px',
+             transition: 'background 0.2s',
+             flexShrink: 0
+           }}
+           onMouseOver={(e) => e.target.style.background = '#b91c1c'}
+           onMouseOut={(e) => e.target.style.background = '#dc2626'}
+         >
+           Close
+         </button>
+       </div>
       
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-        {pdfUrl && (
-          <iframe 
-            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
-            style={{
-              width: '100%',
-              height: '100%',
-              border: 'none',
-              display: 'block'
-            }}
-            title="Secure PDF Viewer"
-            allow="fullscreen"
-          />
-        )}
+         {pdfUrl && (
+           <iframe 
+             src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+             style={{
+               width: '100%',
+               height: '100%',
+               border: 'none',
+               display: 'block',
+               minHeight: 'calc(100vh - 50px)'
+             }}
+             title="Secure PDF Viewer"
+             allow="fullscreen"
+           />
+         )}
       </div>
     </div>
   );

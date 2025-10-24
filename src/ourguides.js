@@ -52,6 +52,8 @@ function OurGuides() {
         console.log('Database response:', { guidesData, error });
         console.log('Number of guides found:', guidesData?.length || 0);
         console.log('First guide data:', guidesData?.[0]);
+        console.log('User authentication status:', user ? 'Authenticated' : 'Not authenticated');
+        console.log('Loading guides regardless of authentication status...');
 
         if (error) {
           console.error('Error fetching guides:', error);
@@ -191,9 +193,65 @@ function OurGuides() {
     };
   }, [guides]);
 
-  const openPreview = (guide) => {
-    // Open the preview PDF directly in a new tab
-    window.open(guide.pdfPath, '_blank');
+  const openPreview = async (guide) => {
+    try {
+      console.log('=== PREVIEW DEBUG ===');
+      console.log('Guide object:', guide);
+      console.log('Guide ID:', guide.id);
+      console.log('Guide title:', guide.title);
+      
+      // Fetch preview from guide_previews table using correct column names
+      console.log('Fetching from guide_previews table...');
+      const { data: previewData, error } = await supabase
+        .from('guide_previews')
+        .select('*')
+        .eq('guide_id', guide.id)
+        .maybeSingle();
+      
+      console.log('Preview query result:', { previewData, error });
+      
+      if (error) {
+        console.error('Error fetching preview:', error);
+        alert('Error loading preview. Please try again later.');
+        return;
+      }
+      
+      if (previewData && previewData.preview_url) {
+        console.log('✅ Using preview from guide_previews table:', previewData.preview_url);
+        window.open(previewData.preview_url, '_blank');
+      } else {
+        console.log('❌ No preview found in guide_previews table');
+        console.log('Trying alternative approach - fetching all previews...');
+        
+        // Try to get all previews and see what's available
+        const { data: allPreviews, error: allPreviewsError } = await supabase
+          .from('guide_previews')
+          .select('*');
+        
+        console.log('All previews in database:', allPreviews);
+        console.log('All previews error:', allPreviewsError);
+        
+        // Try to find a preview by title match
+        if (allPreviews && allPreviews.length > 0) {
+          const matchingPreview = allPreviews.find(preview => 
+            preview.preview_title && guide.title && 
+            preview.preview_title.toLowerCase().includes(guide.title.toLowerCase())
+          );
+          
+          if (matchingPreview) {
+            console.log('✅ Found matching preview by title:', matchingPreview.preview_url);
+            window.open(matchingPreview.preview_url, '_blank');
+            return;
+          }
+        }
+        
+        console.log('❌ No preview available for this guide');
+        alert('Preview not available for this guide. Please contact support.');
+      }
+    } catch (error) {
+      console.error('Error in openPreview:', error);
+      alert('Error loading preview. Please try again later.');
+    }
   };
 
 
