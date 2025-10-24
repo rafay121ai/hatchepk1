@@ -1,0 +1,277 @@
+/* Secure PDF Viewer Styles */
+.pdf-viewer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pdf-viewer-container {
+  width: 95%;
+  height: 95%;
+  background: #ffffff;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.pdf-header {
+  background: #73160f;
+  color: #ffffff;
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.pdf-info h3 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+  font-family: 'Georgia', serif;
+}
+
+.security-indicators {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.security-badge {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.3rem 0.8rem;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.session-info {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.close-pdf-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #ffffff;
+  font-size: 1.5rem;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.close-pdf-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
+}
+
+.pdf-content {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.pdf-iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #f5f5f5;
+}
+
+.pdf-footer {
+  background: #f8f5e8;
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+  border-top: 1px solid #e0e0e0;
+}
+
+.security-warning {
+  flex: 1;
+  font-size: 0.9rem;
+  color: #d32f2f;
+  font-weight: 500;
+}
+
+.session-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  background: #4caf50;
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Loading States */
+.pdf-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid #ffffff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.pdf-loading p {
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+/* Error States */
+.pdf-error {
+  background: #ffffff;
+  padding: 3rem 2rem;
+  border-radius: 10px;
+  text-align: center;
+  max-width: 400px;
+  margin: 2rem;
+}
+
+.pdf-error h3 {
+  color: #d32f2f;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  font-family: 'Georgia', serif;
+}
+
+.pdf-error p {
+  color: #666;
+  font-size: 1rem;
+  margin-bottom: 2rem;
+  line-height: 1.5;
+}
+
+.close-pdf-btn {
+  background: #73160f;
+  color: #ffffff;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.close-pdf-btn:hover {
+  background: #8b1a13;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(115, 22, 15, 0.3);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .pdf-viewer-container {
+    width: 98%;
+    height: 98%;
+  }
+  
+  .pdf-header {
+    padding: 0.8rem 1rem;
+  }
+  
+  .pdf-info h3 {
+    font-size: 1.1rem;
+  }
+  
+  .security-indicators {
+    flex-direction: column;
+    gap: 0.3rem;
+    align-items: flex-start;
+  }
+  
+  .security-badge,
+  .session-info {
+    font-size: 0.7rem;
+  }
+  
+  .pdf-footer {
+    padding: 0.8rem 1rem;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+  }
+  
+  .security-warning {
+    font-size: 0.8rem;
+  }
+  
+  .session-status {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .pdf-header {
+    padding: 0.6rem 0.8rem;
+  }
+  
+  .pdf-info h3 {
+    font-size: 1rem;
+  }
+  
+  .close-pdf-btn {
+    width: 35px;
+    height: 35px;
+    font-size: 1.2rem;
+  }
+  
+  .pdf-footer {
+    padding: 0.6rem 0.8rem;
+  }
+  
+  .security-warning {
+    font-size: 0.75rem;
+  }
+}
