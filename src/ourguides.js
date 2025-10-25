@@ -428,7 +428,7 @@ function OurGuides() {
                       className="view-btn"
                       onClick={() => {
                         console.log('View guide clicked for:', guide.title);
-                        window.open(`/secure-pdf-viewer?guide=${guide.id}`, '_blank');
+                        navigate('/your-guides');
                       }}
                     >
                       View Guide

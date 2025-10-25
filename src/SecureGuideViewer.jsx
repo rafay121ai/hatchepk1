@@ -275,6 +275,22 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
       }
 
       console.log("Checking orders table...");
+      
+      // First, fetch the guide to get its title
+      const { data: guide, error: guideError } = await supabase
+        .from('guides')
+        .select('title')
+        .eq('id', guideId)
+        .maybeSingle();
+      
+      if (guideError) {
+        console.error('Guide fetch error:', guideError);
+        return false;
+      }
+      
+      const guideTitle = guide?.title || '';
+      console.log('Guide title:', guideTitle);
+      
       const { data: orders, error: orderError } = await supabase
         .from('orders')
         .select('*')
@@ -289,9 +305,10 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
       if (orders && orders.length > 0) {
         const hasOrder = orders.some(order => {
           const productName = order.product_name || '';
-          const matches = productName.includes(guideId) || 
-                         productName.toLowerCase().includes(guideId.toLowerCase());
-          console.log(`Order ${order.id}: ${productName} - Match: ${matches}`);
+          // Compare guide title with product name
+          const matches = productName.toLowerCase().includes(guideTitle.toLowerCase()) ||
+                         guideTitle.toLowerCase().includes(productName.toLowerCase());
+          console.log(`Order ${order.id}: "${productName}" vs Guide "${guideTitle}" - Match: ${matches}`);
           return matches;
         });
 
