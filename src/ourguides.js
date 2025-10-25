@@ -204,60 +204,48 @@ function OurGuides() {
   // Mobile-compatible function to open previews
   const openPreviewInNewTab = (url) => {
     console.log('Opening preview URL:', url);
-    console.log('Is mobile device:', isMobile);
     
-    if (isMobile) {
-      try {
-        console.log('Using mobile-optimized preview opening');
-        
-        // Method 1: Direct window.open with proper parameters
-        const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
-        
-        // If popup blocked, use fallback
-        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-          console.log('Popup blocked, using link click method');
-          
-          // Method 2: Create invisible link and click it
-          const link = document.createElement('a');
-          link.href = url;
-          link.target = '_blank';
-          link.rel = 'noopener noreferrer';
-          link.style.display = 'none';
-          
-          document.body.appendChild(link);
-          
-          // Use touch event for better mobile support
-          const clickEvent = new MouseEvent('click', {
-            bubbles: true,
-            cancelable: true,
-            view: window
-          });
-          
-          link.dispatchEvent(clickEvent);
-          
-          setTimeout(() => {
-            if (document.body.contains(link)) {
-              document.body.removeChild(link);
-            }
-          }, 100);
-        } else {
-          console.log('Preview opened successfully via window.open');
+    // Detect mobile at the time of click
+    const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
+                          window.innerWidth <= 768;
+    console.log('Is mobile device:', isMobileDevice);
+    
+    try {
+      // Create a temporary link element and trigger click - works better on mobile
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_self';
+      link.rel = 'noopener noreferrer';
+      
+      // Make it visible but tiny for better mobile compatibility
+      link.style.position = 'fixed';
+      link.style.top = '0';
+      link.style.left = '0';
+      link.style.width = '1px';
+      link.style.height = '1px';
+      link.style.opacity = '0';
+      link.style.pointerEvents = 'none';
+      
+      document.body.appendChild(link);
+      
+      // Trigger click
+      link.click();
+      
+      // Remove after a short delay
+      setTimeout(() => {
+        if (document.body.contains(link)) {
+          document.body.removeChild(link);
         }
-      } catch (error) {
-        console.error('Error opening preview on mobile:', error);
-        // Last resort: navigate to URL
-        window.location.href = url;
-      }
-    } else {
-      // Desktop version
+      }, 100);
+      
+      console.log('Preview opened via link click method');
+    } catch (error) {
+      console.error('Link click method failed:', error);
+      // Fallback: try window.open
       try {
-        const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
-        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-          console.log('Popup blocked, falling back to same window');
-          window.location.href = url;
-        }
-      } catch (error) {
-        console.error('Error opening preview:', error);
+        window.open(url, '_self', 'noopener,noreferrer');
+      } catch (e) {
+        console.error('All methods failed, navigating directly:', e);
         window.location.href = url;
       }
     }
