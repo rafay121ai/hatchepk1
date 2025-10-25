@@ -85,95 +85,6 @@ function Checkout() {
   };
 
 
-  // Test referral ID storage
-  const testReferralId = async () => {
-    try {
-      // Check what's currently in localStorage
-      const currentRefId = localStorage.getItem("hatche_referral_id");
-      console.log('Current referral ID in localStorage:', currentRefId);
-      
-      // Check what referral IDs exist in the affiliates table
-      const { supabase } = await import('./supabaseClient');
-      const { data: affiliates, error } = await supabase
-        .from('affiliates')
-        .select('ref_id')
-        .not('ref_id', 'is', null);
-      
-      if (error) {
-        console.error('Error fetching affiliates:', error);
-        alert('Error fetching affiliates from database');
-        return;
-      }
-      
-      console.log('Available affiliate referral IDs:', affiliates);
-      
-      if (affiliates && affiliates.length > 0) {
-        // Use the first valid referral ID
-        const validRefId = affiliates[0].ref_id;
-        localStorage.setItem("hatche_referral_id", validRefId);
-        console.log('Valid referral ID stored:', validRefId);
-        alert(`Current: ${currentRefId}\nStored: ${validRefId}\nAvailable: ${affiliates.map(a => a.ref_id).join(', ')}`);
-      } else {
-        // No valid referral IDs found
-        console.log('No affiliate records found in database');
-        alert(`Current: ${currentRefId}\nNo affiliate records found in database.`);
-      }
-    } catch (err) {
-      console.error('Error in testReferralId:', err);
-      alert('Error testing referral ID');
-    }
-  };
-
-  // Test database connection
-  const testDatabaseConnection = async () => {
-    try {
-      console.log('=== TESTING DATABASE CONNECTION ===');
-      const { supabase } = await import('./supabaseClient');
-      
-      // Test basic connection
-      const { data, error } = await supabase
-        .from('orders')
-        .select('*')
-        .limit(1);
-      
-      console.log('Database connection test result:', { data, error });
-      
-      if (error) {
-        console.error('Database connection failed:', error);
-        alert(`Database connection failed: ${error.message}`);
-      } else {
-        console.log('Database connection successful');
-        
-        // Test inserting a simple order
-        const testOrder = {
-          customer_email: 'test@example.com',
-          customer_name: 'Test User',
-          product_name: 'Test Guide',
-          amount: 10.00,
-          by_ref_id: sessionStorage.getItem('refId') || null,
-          order_status: 'completed'
-        };
-        
-        console.log('Testing order insertion with:', testOrder);
-        
-        const { data: insertData, error: insertError } = await supabase
-          .from('orders')
-          .insert(testOrder);
-        
-        console.log('Test insertion result:', { data: insertData, error: insertError });
-        
-        if (insertError) {
-          alert(`Test insertion failed: ${insertError.message}`);
-        } else {
-          alert('Database connection and test insertion successful!');
-        }
-      }
-    } catch (err) {
-      console.error('Database connection test error:', err);
-      alert(`Database connection test error: ${err.message}`);
-    }
-  };
-
   const handlePayment = async () => {
     setIsProcessing(true);
     setError('');
@@ -354,35 +265,6 @@ function Checkout() {
       <div className="checkout-container">
         <div className="checkout-header">
           <h1>Checkout</h1>
-          <div style={{ marginBottom: '10px' }}>
-            <button 
-              onClick={testReferralId}
-              style={{
-                background: '#28a745',
-                color: 'white',
-                border: 'none',
-                padding: '8px 16px',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                marginRight: '10px'
-              }}
-            >
-              Test Referral ID
-            </button>
-            <button 
-              onClick={testDatabaseConnection}
-              style={{
-                background: '#007bff',
-                color: 'white',
-                border: 'none',
-                padding: '8px 16px',
-                borderRadius: '4px',
-                cursor: 'pointer'
-              }}
-            >
-              Test Database Connection
-            </button>
-          </div>
           <div className="checkout-steps">
             <div className={`step ${step >= 1 ? 'active' : ''}`}>
               <span className="step-number">1</span>
