@@ -3,12 +3,32 @@ import { supabase } from './supabaseClient';
 
 export default function SecureGuideViewer({ guideId, user, onClose, guideData }) {
   const viewer = useRef(null);
+  const canvasContainerRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pdfUrl, setPdfUrl] = useState(null);
   const deviceIdRef = useRef(null);
   const sessionIdRef = useRef(null);
   const heartbeatRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [pdfDoc, setPdfDoc] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [rendering, setRendering] = useState(false);
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
+                     window.innerWidth <= 768;
+      setIsMobile(mobile);
+      console.log('Is mobile device:', mobile);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     console.log("SecureGuideViewer mounted");
@@ -24,12 +44,10 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
           throw new Error("User not authenticated");
         }
 
-        // Generate identifiers
         deviceIdRef.current = generateDeviceFingerprint();
         sessionIdRef.current = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
         console.log("Device/Session IDs generated");
 
-        // Verify purchase
         console.log("Step 2: Verifying purchase");
         const hasAccess = await verifyPurchaseAccess(guideId, user);
         if (!hasAccess) {
@@ -37,7 +55,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
         }
         console.log("✓ Purchase verified");
 
-        // Check concurrent sessions
         console.log("Step 3: Checking concurrent sessions");
         const canAccess = await checkConcurrentSessions(guideId, user, deviceIdRef.current);
         if (!canAccess) {
@@ -45,7 +62,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
         }
         console.log("✓ Concurrent session check passed");
 
-        // Fetch guide
         console.log("Step 4: Fetching guide data");
         const { data: guide, error: guideError } = await supabase
           .from("guides")
@@ -64,12 +80,10 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
 
         console.log("✓ Guide fetched:", guide);
 
-        // Record session
         console.log("Step 5: Recording session");
         await recordAccessSession(guideId, user, deviceIdRef.current, sessionIdRef.current);
         console.log("✓ Session recorded");
 
-        // Get PDF URL
         console.log("Step 6: Getting PDF URL");
         let finalPdfUrl;
         
@@ -80,7 +94,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
           console.log("Creating new signed URL");
           let filePath = guide.file_url;
           
-          // Clean up the file path
           if (filePath.includes('/storage/v1/object/public/guides/')) {
             filePath = filePath.split('/storage/v1/object/public/guides/')[1];
           } else if (filePath.includes('/storage/v1/object/sign/guides/')) {
@@ -107,7 +120,11 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
         console.log("✓ PDF URL ready");
         setPdfUrl(finalPdfUrl);
         
-        // Start heartbeat
+        // Load PDF.js for mobile rendering
+        if (isMobile) {
+          await loadPdfWithPdfJs(finalPdfUrl);
+        }
+        
         heartbeatRef.current = setInterval(() => {
           updateSessionHeartbeat(sessionIdRef.current);
         }, 30000);
@@ -124,7 +141,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
 
     initializeViewer();
 
-    // Cleanup
     return () => {
       console.log("Cleaning up viewer");
       if (heartbeatRef.current) {
@@ -134,12 +150,114 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
         closeSession(sessionIdRef.current);
       }
     };
-  }, [guideId, user]);
+  }, [guideId, user, isMobile]);
+
+  // Load PDF.js library and render PDF
+  const loadPdfWithPdfJs = async (url) => {
+    try {
+      // Load PDF.js from CDN
+      if (!window.pdfjsLib) {
+        await new Promise((resolve, reject) => {
+          const script = document.createElement('script');
+          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+          script.onload = resolve;
+          script.onerror = reject;
+          document.head.appendChild(script);
+        });
+        
+        // Set worker
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      }
+
+      // Load the PDF document
+      const loadingTask = window.pdfjsLib.getDocument(url);
+      const pdf = await loadingTask.promise;
+      setPdfDoc(pdf);
+      setTotalPages(pdf.numPages);
+      console.log('PDF loaded with', pdf.numPages, 'pages');
+      
+      // Render first page
+      await renderPage(pdf, 1);
+    } catch (err) {
+      console.error('Error loading PDF:', err);
+      setError('Failed to load PDF document');
+    }
+  };
+
+  // Render a specific page
+  const renderPage = async (pdf, pageNum) => {
+    if (rendering || !pdf) return;
+    
+    setRendering(true);
+    try {
+      const page = await pdf.getPage(pageNum);
+      const container = canvasContainerRef.current;
+      if (!container) return;
+
+      // Clear previous content
+      container.innerHTML = '';
+
+      // Calculate scale based on container width
+      const containerWidth = container.clientWidth || window.innerWidth;
+      const viewport = page.getViewport({ scale: 1 });
+      const scale = containerWidth / viewport.width;
+      const scaledViewport = page.getViewport({ scale });
+
+      // Get device pixel ratio for crisp rendering
+      const pixelRatio = window.devicePixelRatio || 1;
+      const outputScale = pixelRatio;
+
+      // Create canvas
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      
+      // Set canvas size with device pixel ratio
+      canvas.width = scaledViewport.width * outputScale;
+      canvas.height = scaledViewport.height * outputScale;
+      
+      // Scale context for high DPI
+      context.scale(outputScale, outputScale);
+      
+      // Set CSS size (1x)
+      canvas.style.width = `${scaledViewport.width}px`;
+      canvas.style.height = `${scaledViewport.height}px`;
+      canvas.style.display = 'block';
+      canvas.style.maxWidth = '100%';
+
+      container.appendChild(canvas);
+
+      // Render PDF page
+      const renderContext = {
+        canvasContext: context,
+        viewport: scaledViewport
+      };
+      
+      await page.render(renderContext).promise;
+      setCurrentPage(pageNum);
+    } catch (err) {
+      console.error('Error rendering page:', err);
+    } finally {
+      setRendering(false);
+    }
+  };
+
+  // Navigation handlers
+  const goToPreviousPage = () => {
+    if (currentPage > 1 && pdfDoc) {
+      renderPage(pdfDoc, currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages && pdfDoc) {
+      renderPage(pdfDoc, currentPage + 1);
+    }
+  };
 
   const verifyPurchaseAccess = async (guideId, user) => {
     try {
       console.log("Checking purchases table...");
-      // First check purchases table
       const { data: purchase, error: purchaseError } = await supabase
         .from('purchases')
         .select('*')
@@ -157,7 +275,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
       }
 
       console.log("Checking orders table...");
-      // Check orders table
       const { data: orders, error: orderError } = await supabase
         .from('orders')
         .select('*')
@@ -231,7 +348,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
 
       if (error) {
         console.error('Concurrent session check error (allowing access):', error);
-        return true; // Allow on error
+        return true;
       }
 
       const uniqueDevices = new Set();
@@ -322,7 +439,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
     }
   };
 
-  // Security effect
+  // Security effect (for both mobile and desktop)
   useEffect(() => {
     if (!pdfUrl) return;
 
@@ -367,6 +484,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
         -webkit-user-select: none !important;
         -moz-user-select: none !important;
         -ms-user-select: none !important;
+        -webkit-touch-callout: none !important;
       }
     `;
     document.head.appendChild(style);
@@ -480,6 +598,134 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
     );
   }
 
+  // Mobile view: Custom PDF renderer with PDF.js
+  if (isMobile) {
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: '#000',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        WebkitTouchCallout: 'none'
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '12px 16px',
+          background: 'linear-gradient(to bottom, #1a1a1a, #0d0d0d)',
+          borderBottom: '1px solid #333',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          color: 'white',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
+          minHeight: '60px',
+          flexShrink: 0
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+            <span style={{ fontSize: '20px', flexShrink: 0 }}>🔒</span>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div style={{ fontWeight: 'bold', fontSize: '14px', lineHeight: '1.2' }}>Secure PDF Viewer</div>
+              <div style={{ fontSize: '10px', color: '#888', lineHeight: '1.2' }}>
+                Page {currentPage} of {totalPages}
+              </div>
+            </div>
+          </div>
+          <button 
+            onClick={onClose}
+            style={{
+              background: '#dc2626',
+              color: 'white',
+              padding: '8px 16px',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '12px',
+              flexShrink: 0
+            }}
+          >
+            Close
+          </button>
+        </div>
+
+        {/* PDF Content */}
+        <div 
+          ref={canvasContainerRef}
+          style={{
+            flex: 1,
+            overflow: 'auto',
+            backgroundColor: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '0',
+            WebkitOverflowScrolling: 'touch',
+            width: '100%',
+            minHeight: 'calc(100vh - 140px)'
+          }}
+        />
+
+        {/* Navigation Controls */}
+        <div style={{
+          padding: '12px 16px',
+          background: '#1a1a1a',
+          borderTop: '1px solid #333',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '16px',
+          flexShrink: 0
+        }}>
+          <button
+            onClick={goToPreviousPage}
+            disabled={currentPage === 1}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: currentPage === 1 ? '#333' : '#73160f',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+              opacity: currentPage === 1 ? 0.5 : 1
+            }}
+          >
+            ← Previous
+          </button>
+          <span style={{ color: 'white', fontSize: '14px', fontWeight: '600' }}>
+            {currentPage} / {totalPages}
+          </span>
+          <button
+            onClick={goToNextPage}
+            disabled={currentPage === totalPages}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: currentPage === totalPages ? '#333' : '#73160f',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+              opacity: currentPage === totalPages ? 0.5 : 1
+            }}
+          >
+            Next →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop view: Show iframe
   return (
     <div className="secure-pdf-viewer" style={{
       position: 'fixed',
@@ -492,60 +738,60 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
       display: 'flex',
       flexDirection: 'column'
     }}>
-       <div style={{
-         padding: '8px 16px',
-         background: 'linear-gradient(to bottom, #1a1a1a, #0d0d0d)',
-         borderBottom: '1px solid #333',
-         display: 'flex',
-         justifyContent: 'space-between',
-         alignItems: 'center',
-         color: 'white',
-         boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
-         minHeight: '50px'
-       }}>
-         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-           <span style={{ fontSize: '20px', flexShrink: 0 }}>🔒</span>
-           <div style={{ minWidth: 0, flex: 1 }}>
-             <div style={{ fontWeight: 'bold', fontSize: '14px', lineHeight: '1.2' }}>Secure PDF Viewer</div>
-             <div style={{ fontSize: '10px', color: '#888', lineHeight: '1.2' }}>Protected content</div>
-           </div>
-         </div>
-         <button 
-           onClick={onClose}
-           style={{
-             background: '#dc2626',
-             color: 'white',
-             padding: '8px 16px',
-             border: 'none',
-             borderRadius: '6px',
-             cursor: 'pointer',
-             fontWeight: '600',
-             fontSize: '12px',
-             transition: 'background 0.2s',
-             flexShrink: 0
-           }}
-           onMouseOver={(e) => e.target.style.background = '#b91c1c'}
-           onMouseOut={(e) => e.target.style.background = '#dc2626'}
-         >
-           Close
-         </button>
-       </div>
+      <div style={{
+        padding: '8px 16px',
+        background: 'linear-gradient(to bottom, #1a1a1a, #0d0d0d)',
+        borderBottom: '1px solid #333',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        color: 'white',
+        boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
+        minHeight: '50px'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+          <span style={{ fontSize: '20px', flexShrink: 0 }}>🔒</span>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontWeight: 'bold', fontSize: '14px', lineHeight: '1.2' }}>Secure PDF Viewer</div>
+            <div style={{ fontSize: '10px', color: '#888', lineHeight: '1.2' }}>Protected content</div>
+          </div>
+        </div>
+        <button 
+          onClick={onClose}
+          style={{
+            background: '#dc2626',
+            color: 'white',
+            padding: '8px 16px',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '12px',
+            transition: 'background 0.2s',
+            flexShrink: 0
+          }}
+          onMouseOver={(e) => e.target.style.background = '#b91c1c'}
+          onMouseOut={(e) => e.target.style.background = '#dc2626'}
+        >
+          Close
+        </button>
+      </div>
       
       <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-         {pdfUrl && (
-           <iframe 
-             src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
-             style={{
-               width: '100%',
-               height: '100%',
-               border: 'none',
-               display: 'block',
-               minHeight: 'calc(100vh - 50px)'
-             }}
-             title="Secure PDF Viewer"
-             allow="fullscreen"
-           />
-         )}
+        {pdfUrl && (
+          <iframe 
+            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+            style={{
+              width: '100%',
+              height: '100%',
+              border: 'none',
+              display: 'block',
+              minHeight: 'calc(100vh - 50px)'
+            }}
+            title="Secure PDF Viewer"
+            allow="fullscreen"
+          />
+        )}
       </div>
     </div>
   );

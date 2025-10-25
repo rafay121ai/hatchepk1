@@ -12,6 +12,21 @@ function OurGuides() {
   const [guides, setGuides] = useState([]);
   const [loading, setLoading] = useState(true);
   const [visibleCards, setVisibleCards] = useState(new Set());
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
+                     window.innerWidth <= 768;
+      setIsMobile(mobile);
+      console.log('Is mobile device:', mobile);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     const loadGuides = async () => {
@@ -21,7 +36,6 @@ function OurGuides() {
         
         // Test user_sessions table access (non-blocking, background only)
         console.log('Testing user_sessions table access in background...');
-        // Run this in background without blocking guides loading
         setTimeout(() => {
           supabase.from('user_sessions').select('*').limit(1)
             .then(({ data: sessionsData, error: sessionsError }) => {
@@ -33,7 +47,7 @@ function OurGuides() {
             .catch(sessionsErr => {
               console.warn('User sessions catch error (non-critical):', sessionsErr.message);
             });
-        }, 1000); // Run after 1 second delay
+        }, 1000);
         
         // Test basic connection first
         const { data: testData, error: testError } = await supabase
@@ -58,7 +72,6 @@ function OurGuides() {
         if (error) {
           console.error('Error fetching guides:', error);
           console.log('Falling back to default guide');
-          // Fallback to default guide if database fails
           setGuides([{
             id: 1,
             title: "The Creator Gold Rush for Pakistani Women",
@@ -83,7 +96,6 @@ function OurGuides() {
           
           if (!guidesData || guidesData.length === 0) {
             console.log('No guides found in database, using fallback');
-            // No guides in database, use fallback
             setGuides([{
               id: 1,
               title: "The Creator Gold Rush for Pakistani Women",
@@ -104,31 +116,29 @@ function OurGuides() {
               file_url: "/preview.pdf"
             }]);
           } else {
-            // Transform database data to match component structure
             console.log('Transforming guides data...');
             const transformedGuides = guidesData.map(guide => ({
-            ...guide,
-            cover: "/creatortitle.png", // Default cover image
-            previewChapters: [
-              "Chapter 1: Introduction to the Creator Economy",
-              "Chapter 2: Building Your Personal Brand",
-              "Chapter 3: Content Creation Strategies",
-              "Chapter 4: Monetization Methods",
-              "Chapter 5: Social Media Marketing"
-            ],
-            totalChapters: 12,
-            author: "Hatche Team",
-            rating: 4.9,
-            students: 500,
-            pdfPath: guide.file_url
-          }));
-          console.log('Transformed guides:', transformedGuides);
-          setGuides(transformedGuides);
+              ...guide,
+              cover: "/creatortitle.png",
+              previewChapters: [
+                "Chapter 1: Introduction to the Creator Economy",
+                "Chapter 2: Building Your Personal Brand",
+                "Chapter 3: Content Creation Strategies",
+                "Chapter 4: Monetization Methods",
+                "Chapter 5: Social Media Marketing"
+              ],
+              totalChapters: 12,
+              author: "Hatche Team",
+              rating: 4.9,
+              students: 500,
+              pdfPath: guide.file_url
+            }));
+            console.log('Transformed guides:', transformedGuides);
+            setGuides(transformedGuides);
           }
         }
       } catch (error) {
         console.error('Error loading guides:', error);
-        // Fallback to default guide
         setGuides([{
           id: 1,
           title: "The Creator Gold Rush for Pakistani Women",
@@ -164,7 +174,6 @@ function OurGuides() {
       
       guideCards.forEach((card, index) => {
         const rect = card.getBoundingClientRect();
-        // Card is visible when it's in the viewport
         const isVisible = rect.top < window.innerHeight && rect.bottom > 0;
         if (isVisible) {
           newVisibleCards.add(index);
@@ -174,7 +183,6 @@ function OurGuides() {
       setVisibleCards(newVisibleCards);
     };
 
-    // Use throttled scroll event for better performance
     let scrollTimeout;
     const throttledScroll = () => {
       if (scrollTimeout) return;
@@ -185,7 +193,7 @@ function OurGuides() {
     };
 
     window.addEventListener('scroll', throttledScroll);
-    handleScroll(); // Check initial state
+    handleScroll();
 
     return () => {
       window.removeEventListener('scroll', throttledScroll);
@@ -193,14 +201,77 @@ function OurGuides() {
     };
   }, [guides]);
 
+  // Mobile-compatible function to open previews
+  const openPreviewInNewTab = (url) => {
+    console.log('Opening preview URL:', url);
+    console.log('Is mobile device:', isMobile);
+    
+    if (isMobile) {
+      try {
+        console.log('Using mobile-optimized preview opening');
+        
+        // Method 1: Direct window.open with proper parameters
+        const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+        
+        // If popup blocked, use fallback
+        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+          console.log('Popup blocked, using link click method');
+          
+          // Method 2: Create invisible link and click it
+          const link = document.createElement('a');
+          link.href = url;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.style.display = 'none';
+          
+          document.body.appendChild(link);
+          
+          // Use touch event for better mobile support
+          const clickEvent = new MouseEvent('click', {
+            bubbles: true,
+            cancelable: true,
+            view: window
+          });
+          
+          link.dispatchEvent(clickEvent);
+          
+          setTimeout(() => {
+            if (document.body.contains(link)) {
+              document.body.removeChild(link);
+            }
+          }, 100);
+        } else {
+          console.log('Preview opened successfully via window.open');
+        }
+      } catch (error) {
+        console.error('Error opening preview on mobile:', error);
+        // Last resort: navigate to URL
+        window.location.href = url;
+      }
+    } else {
+      // Desktop version
+      try {
+        const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
+        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+          console.log('Popup blocked, falling back to same window');
+          window.location.href = url;
+        }
+      } catch (error) {
+        console.error('Error opening preview:', error);
+        window.location.href = url;
+      }
+    }
+  };
+
   const openPreview = async (guide) => {
     try {
       console.log('=== PREVIEW DEBUG ===');
       console.log('Guide object:', guide);
       console.log('Guide ID:', guide.id);
       console.log('Guide title:', guide.title);
+      console.log('Is mobile:', isMobile);
       
-      // Fetch preview from guide_previews table using correct column names
+      // Fetch preview from guide_previews table
       console.log('Fetching from guide_previews table...');
       const { data: previewData, error } = await supabase
         .from('guide_previews')
@@ -218,12 +289,11 @@ function OurGuides() {
       
       if (previewData && previewData.preview_url) {
         console.log('✅ Using preview from guide_previews table:', previewData.preview_url);
-        window.open(previewData.preview_url, '_blank');
+        openPreviewInNewTab(previewData.preview_url);
       } else {
         console.log('❌ No preview found in guide_previews table');
         console.log('Trying alternative approach - fetching all previews...');
         
-        // Try to get all previews and see what's available
         const { data: allPreviews, error: allPreviewsError } = await supabase
           .from('guide_previews')
           .select('*');
@@ -231,7 +301,6 @@ function OurGuides() {
         console.log('All previews in database:', allPreviews);
         console.log('All previews error:', allPreviewsError);
         
-        // Try to find a preview by title match
         if (allPreviews && allPreviews.length > 0) {
           const matchingPreview = allPreviews.find(preview => 
             preview.preview_title && guide.title && 
@@ -240,7 +309,7 @@ function OurGuides() {
           
           if (matchingPreview) {
             console.log('✅ Found matching preview by title:', matchingPreview.preview_url);
-            window.open(matchingPreview.preview_url, '_blank');
+            openPreviewInNewTab(matchingPreview.preview_url);
             return;
           }
         }
@@ -254,21 +323,16 @@ function OurGuides() {
     }
   };
 
-
   const handlePurchase = async (guide) => {
     console.log('Purchase button clicked for guide:', guide.title);
     console.log('Navigating to checkout with guide data:', guide);
     
-    // Scroll to top before navigation
     window.scrollTo({
       top: 0,
       behavior: 'smooth'
     });
     
-    // Small delay to allow scroll to start before navigation
     setTimeout(() => {
-      // Redirect to checkout with guide data and return path
-      // The ProtectedRoute will handle authentication
       navigate('/checkout', { 
         state: { 
           guide: guide,
@@ -278,8 +342,6 @@ function OurGuides() {
       });
     }, 100);
   };
-
-  // Authentication handler removed (was unused)
 
   // Check for purchase success message
   useEffect(() => {
@@ -293,7 +355,6 @@ function OurGuides() {
 
   return (
     <div className="our-guides-page">
-      {/* Success Message */}
       {showSuccessMessage && (
         <div className="success-message">
           <div className="success-content">
@@ -324,74 +385,83 @@ function OurGuides() {
 
       {/* Guides Grid */}
       <section className="guides-grid-section">
-          <div className="guides-grid">
-            {loading ? (
-              <div className="loading-message">Loading guides...</div>
-            ) : guides.length === 0 ? (
-              <div className="no-guides-message">No guides available. (Debug: guides.length = {guides.length})</div>
-            ) : (
-              guides.map((guide, index) => (
+        <div className="guides-grid">
+          {loading ? (
+            <div className="loading-message">Loading guides...</div>
+          ) : guides.length === 0 ? (
+            <div className="no-guides-message">No guides available. (Debug: guides.length = {guides.length})</div>
+          ) : (
+            guides.map((guide, index) => (
               <div key={guide.id} className="guide-card">
                 <div className="guide-cover">
                   <img src={guide.cover} alt={guide.title} />
-                  {visibleCards.has(index) && (
+                  {(visibleCards.has(index) || isMobile) && (
                     <div className="guide-overlay">
                       <button 
                         className="preview-btn"
-                        onClick={() => openPreview(guide)}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('Preview button clicked for:', guide.title);
+                          openPreview(guide);
+                        }}
+                        onTouchEnd={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          console.log('Preview button touched for:', guide.title);
+                          openPreview(guide);
+                        }}
                       >
                         Preview
                       </button>
                     </div>
                   )}
                 </div>
-              
-              <div className="guide-content">
-                <div className="guide-meta">
-                  <span className="guide-author">By {guide.author}</span>
-                  <div className="guide-rating">
-                    <span className="stars">★★★★★</span>
-                    <span className="rating-text">{guide.rating} ({guide.students} students)</span>
+                
+                <div className="guide-content">
+                  <div className="guide-meta">
+                    <span className="guide-author">By {guide.author}</span>
+                    <div className="guide-rating">
+                      <span className="stars">★★★★★</span>
+                      <span className="rating-text">{guide.rating} ({guide.students} students)</span>
+                    </div>
                   </div>
+                  
+                  <h3 className="guide-title">{guide.title}</h3>
+                  <p className="guide-description">{guide.description}</p>
+                  
+                  <div className="guide-stats">
+                    <span className="chapters">{guide.totalChapters} Chapters</span>
+                    <span className="price">${guide.price}</span>
+                  </div>
+                  
+                  {user && user.purchasedGuides && user.purchasedGuides.includes(guide.id) ? (
+                    <button 
+                      className="view-btn"
+                      onClick={() => {
+                        console.log('View guide clicked for:', guide.title);
+                        window.open(`/secure-pdf-viewer?guide=${guide.id}`, '_blank');
+                      }}
+                    >
+                      View Guide
+                    </button>
+                  ) : (
+                    <button 
+                      className="purchase-btn"
+                      onClick={() => {
+                        console.log('Purchase button clicked for:', guide.title);
+                        handlePurchase(guide);
+                      }}
+                    >
+                      Purchase Guide
+                    </button>
+                  )}
                 </div>
-                
-                <h3 className="guide-title">{guide.title}</h3>
-                <p className="guide-description">{guide.description}</p>
-                
-                <div className="guide-stats">
-                  <span className="chapters">{guide.totalChapters} Chapters</span>
-                  <span className="price">${guide.price}</span>
-                </div>
-                
-                {user && user.purchasedGuides && user.purchasedGuides.includes(guide.id) ? (
-                  <button 
-                    className="view-btn"
-                    onClick={() => {
-                      console.log('View guide clicked for:', guide.title);
-                      // Open secure PDF viewer
-                      window.open(`/secure-pdf-viewer?guide=${guide.id}`, '_blank');
-                    }}
-                  >
-                    View Guide
-                  </button>
-                ) : (
-                  <button 
-                    className="purchase-btn"
-                    onClick={() => {
-                      console.log('Purchase button clicked for:', guide.title);
-                      handlePurchase(guide);
-                    }}
-                  >
-                    Purchase Guide
-                  </button>
-                )}
               </div>
-            </div>
-              ))
-            )}
+            ))
+          )}
         </div>
       </section>
-
     </div>
   );
 }
