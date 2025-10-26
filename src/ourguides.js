@@ -420,7 +420,7 @@ function OurGuides() {
                   
                   <div className="guide-stats">
                     <span className="chapters">{guide.totalChapters} Chapters</span>
-                    <span className="price">${guide.price}</span>
+                    <span className="price">PKR {guide.price}</span>
                   </div>
                   
                   {user && user.purchasedGuides && user.purchasedGuides.includes(guide.id) ? (

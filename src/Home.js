@@ -15,6 +15,10 @@ function Home() {
     setIsVisible(true);
   }, []);
 
+  const navigateToAffiliateProgram = () => {
+    navigate('/affiliate-program');
+  };
+
   useEffect(() => {
     const handleScroll = () => {
       const howItWorksSection = document.querySelector('.how-it-works');
@@ -155,7 +159,7 @@ function Home() {
                 <p className="testimonial-text">
                   "My daughter loves her learning journey! She's mastering new skills while having fun, and the progress has been incredible. We couldn't be happier!"
                 </p>
-                <div className="testimonial-author">Sophia T.</div>
+                <div className="testimonial-author">Ayesha K.</div>
               </div>
               
               <div className="testimonial-card">
@@ -169,7 +173,7 @@ function Home() {
                 <p className="testimonial-text">
                   "I joined the courses for fun, but I ended up finding a second family. The energy, the content, the community—everything is amazing!"
                 </p>
-                <div className="testimonial-author">Daniel K.</div>
+                <div className="testimonial-author">Ahmed R.</div>
               </div>
               
               <div className="testimonial-card">
@@ -183,7 +187,7 @@ function Home() {
                 <p className="testimonial-text">
                   "The perfect mix of structure and creativity. The instructors push you to be your best while keeping the learning fun and inspiring!"
                 </p>
-                <div className="testimonial-author">Olivia S.</div>
+                <div className="testimonial-author">Fatima A.</div>
               </div>
               
               <div className="testimonial-card">
@@ -197,7 +201,7 @@ function Home() {
                 <p className="testimonial-text">
                   "I never thought I could learn effectively online, but this platform changed everything! The instructors are patient and supportive, and now I feel more confident than ever."
                 </p>
-                <div className="testimonial-author">Emma R.</div>
+                <div className="testimonial-author">Zainab M.</div>
               </div>
               
               <div className="testimonial-card">
@@ -211,7 +215,7 @@ function Home() {
                 <p className="testimonial-text">
                   "The best place to grow as a learner! The courses are well-structured, and I've improved so much in just a few months! Highly recommend!"
                 </p>
-                <div className="testimonial-author">Lucas M.</div>
+                <div className="testimonial-author">Hassan S.</div>
               </div>
 
               {/* Duplicate testimonials for seamless loop */}
@@ -226,7 +230,7 @@ function Home() {
                 <p className="testimonial-text">
                   "My daughter loves her learning journey! She's mastering new skills while having fun, and the progress has been incredible. We couldn't be happier!"
                 </p>
-                <div className="testimonial-author">Sophia T.</div>
+                <div className="testimonial-author">Ayesha K.</div>
               </div>
               
               <div className="testimonial-card">
@@ -240,7 +244,7 @@ function Home() {
                 <p className="testimonial-text">
                   "I joined the courses for fun, but I ended up finding a second family. The energy, the content, the community—everything is amazing!"
                 </p>
-                <div className="testimonial-author">Daniel K.</div>
+                <div className="testimonial-author">Ahmed R.</div>
               </div>
               
               <div className="testimonial-card">
@@ -254,7 +258,7 @@ function Home() {
                 <p className="testimonial-text">
                   "The perfect mix of structure and creativity. The instructors push you to be your best while keeping the learning fun and inspiring!"
                 </p>
-                <div className="testimonial-author">Olivia S.</div>
+                <div className="testimonial-author">Fatima A.</div>
               </div>
               
               <div className="testimonial-card">
@@ -268,7 +272,7 @@ function Home() {
                 <p className="testimonial-text">
                   "I never thought I could learn effectively online, but this platform changed everything! The instructors are patient and supportive, and now I feel more confident than ever."
                 </p>
-                <div className="testimonial-author">Emma R.</div>
+                <div className="testimonial-author">Zainab M.</div>
               </div>
               
               <div className="testimonial-card">
@@ -282,7 +286,7 @@ function Home() {
                 <p className="testimonial-text">
                   "The best place to grow as a learner! The courses are well-structured, and I've improved so much in just a few months! Highly recommend!"
                 </p>
-                <div className="testimonial-author">Lucas M.</div>
+                <div className="testimonial-author">Hassan S.</div>
               </div>
             </div>
           </div>
@@ -299,7 +303,7 @@ function Home() {
           </p>
           
           <div className="affiliate-cards">
-            <div className="affiliate-card">
+            <div className="affiliate-card" onClick={navigateToAffiliateProgram}>
               <div className="card-age">1K - 10K followers</div>
               <h3 className="card-title">Nano Influencers</h3>
               <p className="card-description">
@@ -325,7 +329,7 @@ function Home() {
               </div>
             </div>
             
-            <div className="affiliate-card featured">
+            <div className="affiliate-card featured" onClick={navigateToAffiliateProgram}>
               <div className="popular-tag">Popular</div>
               <div className="card-age">10K - 100K followers</div>
               <h3 className="card-title">Micro Influencers</h3>
@@ -352,7 +356,7 @@ function Home() {
               </div>
             </div>
             
-            <div className="affiliate-card">
+            <div className="affiliate-card" onClick={navigateToAffiliateProgram}>
               <div className="card-age">100K+ followers</div>
               <h3 className="card-title">Macro Influencers</h3>
               <p className="card-description">

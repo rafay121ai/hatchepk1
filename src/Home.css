@@ -578,6 +578,7 @@
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   position: relative;
   border: 2px solid transparent;
+  cursor: pointer;
 }
 
 .affiliate-card:hover {

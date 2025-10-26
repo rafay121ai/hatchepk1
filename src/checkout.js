@@ -414,20 +414,20 @@ function Checkout() {
                         <h4>{guide.title}</h4>
                         <p>Digital Guide</p>
                       </div>
-                      <div className="item-price">${guide.price}</div>
+                      <div className="item-price">PKR {guide.price}</div>
                     </div>
                     <div className="order-total">
                       <div className="total-row">
                         <span>Subtotal:</span>
-                        <span>${guide.price}</span>
+                        <span>PKR {guide.price}</span>
                       </div>
                       <div className="total-row">
                         <span>Tax:</span>
-                        <span>$0.00</span>
+                        <span>PKR 0.00</span>
                       </div>
                       <div className="total-row total">
                         <span>Total:</span>
-                        <span>${guide.price}</span>
+                        <span>PKR {guide.price}</span>
                       </div>
                     </div>
                   </div>
@@ -469,7 +469,7 @@ function Checkout() {
                   onClick={handlePayment}
                   disabled={isProcessing}
                 >
-                  {isProcessing ? 'Processing...' : `Pay $${guide.price}`}
+                  {isProcessing ? 'Processing...' : `Pay PKR ${guide.price}`}
                 </button>
               )}
             </div>
@@ -483,21 +483,21 @@ function Checkout() {
                   <h4>{guide.title}</h4>
                   <p>Digital Guide</p>
                 </div>
-                <div className="item-price">${guide.price}</div>
+                <div className="item-price">PKR {guide.price}</div>
               </div>
               
               <div className="summary-total">
                 <div className="total-row">
                   <span>Subtotal:</span>
-                  <span>${guide.price}</span>
+                  <span>PKR {guide.price}</span>
                 </div>
                 <div className="total-row">
                   <span>Tax:</span>
-                  <span>$0.00</span>
+                  <span>PKR 0.00</span>
                 </div>
                 <div className="total-row total">
                   <span>Total:</span>
-                  <span>${guide.price}</span>
+                  <span>PKR {guide.price}</span>
                 </div>
               </div>
             </div>

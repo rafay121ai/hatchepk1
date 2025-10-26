@@ -138,14 +138,14 @@
   width: 100%;
   height: auto;
   overflow: hidden;
-  aspect-ratio: 16 / 9; /* Adjust based on actual image ratio */
+  aspect-ratio: 16 / 9;
   background: #f0f0f0;
 }
 
 .guide-cover img {
   width: 100%;
   height: 100%;
-  object-fit: contain; /* Changed from cover to contain to show full image */
+  object-fit: contain;
   transition: transform 0.3s ease;
 }
 
@@ -167,10 +167,28 @@
   transition: opacity 0.3s ease;
 }
 
+/* Desktop: Show on hover */
+@media (min-width: 769px) {
+  .guide-card:hover .guide-overlay {
+    opacity: 1;
+  }
+}
 
-/* Hover animation - show preview button on hover */
-.guide-card:hover .guide-overlay {
-  opacity: 1;
+/* Mobile: Always show preview button when card is visible */
+@media (max-width: 768px) {
+  .guide-overlay {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.5);
+  }
+  
+  /* Make sure button is easily tappable on mobile */
+  .preview-btn {
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    min-width: 120px;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
 }
 
 .preview-btn {
@@ -183,9 +201,12 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(115, 22, 15, 0.3);
 }
 
-.preview-btn:hover {
+.preview-btn:hover,
+.preview-btn:active {
   background: #8b1a13;
   transform: scale(1.05);
 }
@@ -272,9 +293,12 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(115, 22, 15, 0.3);
 }
 
-.purchase-btn:hover {
+.purchase-btn:hover,
+.purchase-btn:active {
   background: #8b1a13;
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(115, 22, 15, 0.3);
@@ -291,9 +315,12 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: rgba(76, 175, 80, 0.3);
 }
 
-.view-btn:hover {
+.view-btn:hover,
+.view-btn:active {
   background: #45a049;
   transform: translateY(-2px);
   box-shadow: 0 5px 15px rgba(76, 175, 80, 0.3);
@@ -481,13 +508,6 @@
   .preview-content {
     padding: 1.5rem;
   }
-}
-
-@media (max-width: 768px) {
-  .guides-grid {
-    grid-template-columns: 1fr;
-    gap: 2rem;
-  }
   
   .guide-cover {
     aspect-ratio: 16 / 9;
@@ -520,5 +540,14 @@
   
   .guide-cover {
     aspect-ratio: 16 / 9;
+  }
+  
+  /* Make buttons more touch-friendly on small screens */
+  .preview-btn,
+  .purchase-btn,
+  .view-btn {
+    padding: 1rem;
+    font-size: 1rem;
+    min-height: 48px;
   }
 }

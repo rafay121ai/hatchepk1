@@ -100,7 +100,7 @@ function AffiliateDashboard() {
           }}>
             <h3>Total Sales</h3>
             <div style={{ fontSize: '2em', fontWeight: 'bold', color: '#17a2b8' }}>
-              ${stats.total_sales_amount || 0}
+              PKR {stats.total_sales_amount || 0}
             </div>
           </div>
           
@@ -112,7 +112,7 @@ function AffiliateDashboard() {
           }}>
             <h3>Total Earnings</h3>
             <div style={{ fontSize: '2em', fontWeight: 'bold', color: '#28a745' }}>
-              ${stats.total_commission_earned || 0}
+              PKR {stats.total_commission_earned || 0}
             </div>
           </div>
         </div>
@@ -152,10 +152,10 @@ function AffiliateDashboard() {
                       {conversion.product_name}
                     </td>
                     <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      ${conversion.product_price}
+                      PKR {conversion.product_price}
                     </td>
                     <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      ${conversion.commission_amount}
+                      PKR {conversion.commission_amount}
                     </td>
                     <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
                       <span style={{
@@ -204,10 +204,10 @@ function AffiliateDashboard() {
                       {payout.payout_date ? new Date(payout.payout_date).toLocaleDateString() : 'Pending'}
                     </td>
                     <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      ${payout.total_commission}
+                      PKR {payout.total_commission}
                     </td>
                     <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      ${payout.payout_amount}
+                      PKR {payout.payout_amount}
                     </td>
                     <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
                       <span style={{
