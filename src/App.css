@@ -421,7 +421,7 @@ body {
     top: 0;
     left: 0;
     width: 100%;
-    height: 20vh;
+    height: 100vh;
     background: rgba(255, 252, 224, 0.98);
     backdrop-filter: blur(10px);
     display: flex !important;
@@ -623,8 +623,6 @@ body {
     left: 0;
     width: 100%;
     height: 100vh;
-    min-height: 20vh;
-    max-height: 100vh;
     background: rgba(253, 252, 241, 0.98);
     backdrop-filter: blur(10px);
     display: flex !important;

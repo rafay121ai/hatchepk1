@@ -22,8 +22,10 @@ function YourGuides() {
 
       try {
         // Fetch user's purchased guides from the orders table
-        console.log('Fetching orders for user:', user.email);
-        console.log('Supabase client:', supabase);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Fetching orders for user:', user.email);
+          console.log('Supabase client:', supabase);
+        }
         
         const { data: orders, error: ordersError } = await supabase
           .from('orders')
@@ -31,9 +33,11 @@ function YourGuides() {
           .eq('customer_email', user.email)
           .eq('order_status', 'completed');
 
-        console.log('Orders found:', orders);
-        console.log('Orders error:', ordersError);
-        console.log('User email:', user.email);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Orders found:', orders);
+          console.log('Orders error:', ordersError);
+          console.log('User email:', user.email);
+        }
         
         // Also try to fetch all orders to see if the table exists
         const { data: allOrders, error: allOrdersError } = await supabase
@@ -41,21 +45,27 @@ function YourGuides() {
           .select('*')
           .limit(5);
         
-        console.log('All orders sample:', allOrders);
-        console.log('All orders error:', allOrdersError);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('All orders sample:', allOrders);
+          console.log('All orders error:', allOrdersError);
+        }
 
         if (ordersError) {
           console.error('Error fetching orders:', ordersError);
           setUserGuides([]);
         } else if (!orders || orders.length === 0) {
-          console.log('No completed orders found for user:', user.email);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('No completed orders found for user:', user.email);
+          }
           setUserGuides([]);
         } else {
           // For each order, fetch the corresponding guide data
           const guidesWithData = await Promise.all(
             orders.map(async (order) => {
               // Match guide by product name (title) since guide_id column doesn't exist
-              console.log('Looking up guide by title:', order.product_name);
+              if (process.env.NODE_ENV === 'development') {
+                console.log('Looking up guide by title:', order.product_name);
+              }
               const { data: guideData, error: guideError } = await supabase
                 .from('guides')
                 .select('*')
@@ -97,7 +107,9 @@ function YourGuides() {
             })
           );
           
-          console.log('Final guides data:', guidesWithData);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Final guides data:', guidesWithData);
+          }
           setUserGuides(guidesWithData);
         }
       } catch (error) {

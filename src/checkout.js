@@ -150,12 +150,16 @@ function Checkout() {
           const refId = sessionStorage.getItem('refId');
           const refTimestamp = sessionStorage.getItem('refTimestamp');
           
-          console.log('Checkout - Referral ID from sessionStorage:', refId);
-          console.log('Checkout - Referral timestamp:', refTimestamp);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Checkout - Referral ID from sessionStorage:', refId);
+            console.log('Checkout - Referral timestamp:', refTimestamp);
+          }
           
           // Clear expired referral (6 hours = 6 * 60 * 60 * 1000 ms)
           if (refTimestamp && Date.now() - parseInt(refTimestamp) > 6 * 60 * 60 * 1000) {
-            console.log('Referral ID expired, clearing...');
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Referral ID expired, clearing...');
+            }
             sessionStorage.removeItem('refId');
             sessionStorage.removeItem('refTimestamp');
           }
@@ -169,20 +173,26 @@ function Checkout() {
             order_status: 'completed',
           };
           
-          console.log('Attempting to insert order:', orderPayload);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Attempting to insert order:', orderPayload);
+          }
           
           const { data: orderData, error: orderError } = await supabase
             .from('orders')
             .insert(orderPayload);
 
-          console.log('Order insert result:', { orderData, orderError });
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Order insert result:', { orderData, orderError });
+          }
 
           if (orderError) {
             console.error('Order recording failed:', orderError);
             // Don't fail the payment, just log it
           } else {
-            console.log('Order successfully created:', orderData);
-            console.log('Conversion will be created automatically by database trigger');
+            if (process.env.NODE_ENV === 'development') {
+              console.log('Order successfully created:', orderData);
+              console.log('Conversion will be created automatically by database trigger');
+            }
           }
         } catch (orderErr) {
           console.error('Order recording exception:', orderErr);

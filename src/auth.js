@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './auth.css';
 import { supabase } from './supabaseClient';
 
@@ -12,6 +12,26 @@ function Auth({ onLogin, onClose }) {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const firstInputRef = useRef(null);
+  const previousActiveElement = useRef(null);
+
+  // Focus management
+  useEffect(() => {
+    // Store the previously focused element
+    previousActiveElement.current = document.activeElement;
+    
+    // Focus the first input when modal opens
+    if (firstInputRef.current) {
+      firstInputRef.current.focus();
+    }
+    
+    // Cleanup: restore focus when modal closes
+    return () => {
+      if (previousActiveElement.current) {
+        previousActiveElement.current.focus();
+      }
+    };
+  }, []);
 
   const handleInputChange = (e) => {
     setFormData({
@@ -130,6 +150,7 @@ function Auth({ onLogin, onClose }) {
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <input
+              ref={firstInputRef}
               type="email"
               id="email"
               name="email"

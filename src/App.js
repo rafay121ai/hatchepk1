@@ -17,6 +17,7 @@ import ProtectedRoute from './ProtectedRoute';
 import Navigation from './Navigation';
 import DatabaseTest from './DatabaseTest';
 import Policies from './Policies';
+import ErrorBoundary from './components/ErrorBoundary';
 // Using public folder - no import needed, just use the path
 
 // Google Analytics
@@ -91,7 +92,7 @@ function App() {
     
     // Initialize referral tracking first
     const referralId = initializeReferralTracking();
-    if (referralId) {
+    if (referralId && process.env.NODE_ENV === 'development') {
       console.log('Referral tracking initialized with ID:', referralId);
     }
     
@@ -118,24 +119,26 @@ function App() {
 
         {/* Routes with fade-in wrapper */}
         <div className="page-content fade-in">
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/about-us" element={<AboutUs />} />
-            <Route path="/our-guides" element={<OurGuides />} />
-            <Route path="/your-guides" element={<YourGuides />} />
-            <Route path="/affiliate-program" element={<Affiliate />} />
-            <Route path="/checkout" element={
-              <ProtectedRoute>
-                <Checkout />
-              </ProtectedRoute>
-            } />
-            <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
-            <Route path="/database-test" element={<DatabaseTest />} />
-            <Route path="/return-policy" element={<Policies />} />
-            <Route path="/privacy-policy" element={<Policies />} />
-            <Route path="/refund-policy" element={<Policies />} />
-            <Route path="/terms-conditions" element={<Policies />} />
-          </Routes>
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/about-us" element={<AboutUs />} />
+              <Route path="/our-guides" element={<OurGuides />} />
+              <Route path="/your-guides" element={<YourGuides />} />
+              <Route path="/affiliate-program" element={<Affiliate />} />
+              <Route path="/checkout" element={
+                <ProtectedRoute>
+                  <Checkout />
+                </ProtectedRoute>
+              } />
+              <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
+              <Route path="/database-test" element={<DatabaseTest />} />
+              <Route path="/return-policy" element={<Policies />} />
+              <Route path="/privacy-policy" element={<Policies />} />
+              <Route path="/refund-policy" element={<Policies />} />
+              <Route path="/terms-conditions" element={<Policies />} />
+            </Routes>
+          </ErrorBoundary>
         </div>
 
         {/* Footer */}

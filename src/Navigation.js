@@ -19,7 +19,9 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
   };
 
   const handleAuthClick = () => {
-    console.log('Login button clicked!');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Login button clicked!');
+    }
     setShowAuth(true);
     closeMenu();
     document.body.classList.add('auth-modal-open');
@@ -32,7 +34,9 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
 
   const handleUserIconClick = (e) => {
     e.stopPropagation();
-    console.log('User icon clicked, current state:', showUserDropdown);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('User icon clicked, current state:', showUserDropdown);
+    }
     setShowUserDropdown(!showUserDropdown);
   };
 

@@ -55,7 +55,9 @@ function Affiliate() {
           setAffiliateStatus(null);
         } else if (data) {
           setAffiliateStatus(data);
-          console.log('Affiliate status:', data);
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Affiliate status:', data);
+          }
         } else {
           setAffiliateStatus(null);
         }
@@ -148,14 +150,18 @@ function Affiliate() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    console.log('=== FORM SUBMISSION STARTED ===');
-    console.log('User:', user);
-    console.log('Form Data:', formData);
-    console.log('Selected Tier:', selectedTier);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('=== FORM SUBMISSION STARTED ===');
+      console.log('User:', user);
+      console.log('Form Data:', formData);
+      console.log('Selected Tier:', selectedTier);
+    }
     
     // Check if user is logged in
     if (!user) {
-      console.log('User not logged in, redirecting to login');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('User not logged in, redirecting to login');
+      }
       setSubmitStatus("Please log in to submit your application");
       setTimeout(() => {
         setSubmitStatus('');
@@ -171,7 +177,9 @@ function Affiliate() {
       return;
     }
     
-    console.log('User is logged in, proceeding with submission');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('User is logged in, proceeding with submission');
+    }
     setIsSubmitting(true);
     setSubmitStatus('');
     
@@ -198,16 +206,18 @@ function Affiliate() {
       // Get stored referral ID
       const storedReferralId = getStoredReferralId();
       
-      console.log('Submitting affiliate application with data:', {
-        tier: formData.tier,
-        tier_name: tierInfo.name,
-        commission: commissionDecimal,
-        email: formData.email,
-        instagram_username: formData.instagramUsername,
-        follower_count: formData.followerCount,
-        motivation: formData.motivation,
-        referral_source: storedReferralId
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Submitting affiliate application with data:', {
+          tier: formData.tier,
+          tier_name: tierInfo.name,
+          commission: commissionDecimal,
+          email: formData.email,
+          instagram_username: formData.instagramUsername,
+          follower_count: formData.followerCount,
+          motivation: formData.motivation,
+          referral_source: storedReferralId
+        });
+      }
       
       const { data, error } = await supabase
         .from("affiliates")
@@ -227,7 +237,9 @@ function Affiliate() {
           },
         ]);
 
-      console.log('Supabase response:', { data, error });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Supabase response:', { data, error });
+      }
 
       if (error) {
         console.error("Supabase error details:", {
@@ -239,7 +251,9 @@ function Affiliate() {
         setSubmitStatus(`Error: ${error.message}`);
         setTimeout(() => setSubmitStatus(''), 5000);
       } else {
-        console.log("Affiliate application submitted successfully:", data);
+        if (process.env.NODE_ENV === 'development') {
+          console.log("Affiliate application submitted successfully:", data);
+        }
         setSubmitStatus("success");
         setShowSuccessModal(true);
         

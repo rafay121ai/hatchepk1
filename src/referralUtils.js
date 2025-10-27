@@ -28,7 +28,9 @@ export const storeReferralId = (referralId) => {
       // Store in sessionStorage for session-only persistence
       sessionStorage.setItem('refId', referralId.trim());
       sessionStorage.setItem('refTimestamp', Date.now().toString());
-      console.log('Referral ID stored for session:', referralId);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Referral ID stored for session:', referralId);
+      }
     } catch (error) {
       console.error('Error storing referral ID:', error);
     }
@@ -54,7 +56,9 @@ export const getStoredReferralId = () => {
 export const clearReferralId = () => {
   try {
     localStorage.removeItem(REFERRAL_KEY);
-    console.log('Referral ID cleared');
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Referral ID cleared');
+    }
   } catch (error) {
     console.error('Error clearing referral ID:', error);
   }
@@ -65,11 +69,15 @@ export const clearReferralId = () => {
  * Should be called when the app loads
  */
 export const initializeReferralTracking = () => {
-  console.log('Initializing referral tracking...');
-  console.log('Current URL:', window.location.href);
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Initializing referral tracking...');
+    console.log('Current URL:', window.location.href);
+  }
   
   const referralId = extractReferralId();
-  console.log('Extracted referral ID:', referralId);
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Extracted referral ID:', referralId);
+  }
   
   if (referralId) {
     storeReferralId(referralId);
@@ -77,11 +85,15 @@ export const initializeReferralTracking = () => {
     // Clean up the URL by removing the ref parameter
     cleanUrlFromReferral();
     
-    console.log('Referral tracking initialized with ID:', referralId);
+    if (process.env.NODE_ENV === 'development') {
+      console.log('Referral tracking initialized with ID:', referralId);
+    }
     return referralId;
   }
   
-  console.log('No referral ID found in URL');
+  if (process.env.NODE_ENV === 'development') {
+    console.log('No referral ID found in URL');
+  }
   return null;
 };
 
@@ -94,7 +106,9 @@ export const cleanUrlFromReferral = () => {
     if (url.searchParams.has(REFERRAL_PARAM)) {
       url.searchParams.delete(REFERRAL_PARAM);
       window.history.replaceState({}, document.title, url.pathname + url.search);
-      console.log('URL cleaned of referral parameter');
+      if (process.env.NODE_ENV === 'development') {
+        console.log('URL cleaned of referral parameter');
+      }
     }
   } catch (error) {
     console.error('Error cleaning URL:', error);
