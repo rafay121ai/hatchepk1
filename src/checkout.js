@@ -182,29 +182,7 @@ function Checkout() {
             // Don't fail the payment, just log it
           } else {
             console.log('Order successfully created:', orderData);
-          }
-
-          // Also create conversion record if there's a referral
-          if (refId) {
-            console.log('Creating conversion record for referral:', refId);
-            const conversionPayload = {
-              affiliate_ref_id: refId,
-              customer_email: user ? user.email : formData.email,
-              purchase_amount: parseFloat(guide.price),
-              // commission_rate and commission_amount will be calculated by trigger
-            };
-            
-            const { data: conversionData, error: conversionError } = await supabase
-              .from('conversions')
-              .insert(conversionPayload);
-              
-            console.log('Conversion insert result:', { conversionData, conversionError });
-            
-            if (conversionError) {
-              console.error('Conversion recording failed:', conversionError);
-            } else {
-              console.log('Conversion successfully created:', conversionData);
-            }
+            console.log('Conversion will be created automatically by database trigger');
           }
         } catch (orderErr) {
           console.error('Order recording exception:', orderErr);
