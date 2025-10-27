@@ -90,7 +90,10 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
             <li><Link to="/about-us" onClick={closeMenu}>About Us</Link></li>
             {user ? (
               <li>
-                <div className="user-menu">
+                <div className="user-menu" style={{
+                  position: 'relative',
+                  display: 'inline-block'
+                }}>
                   <div style={{ fontSize: '10px', color: 'red' }}>
                     Dropdown state: {showUserDropdown ? 'OPEN' : 'CLOSED'}
                   </div>
@@ -117,20 +120,25 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
                       top: '100%',
                       right: '0',
                       backgroundColor: 'white',
-                      border: '1px solid #ccc',
+                      border: '2px solid #73160f',
                       borderRadius: '8px',
-                      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+                      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
                       minWidth: '200px',
-                      zIndex: 10001,
-                      marginTop: '5px'
+                      zIndex: 99999,
+                      marginTop: '10px',
+                      padding: '10px 0',
+                      display: 'block',
+                      visibility: 'visible',
+                      opacity: '1'
                     }}>
-                      <div className="dropdown-item user-info">
+                      <div className="dropdown-item user-info" style={{ padding: '8px 16px', borderBottom: '1px solid #eee' }}>
                         <span className="user-email">{user.email}</span>
                       </div>
                       {isAffiliate && (
                         <Link 
                           to="/affiliate-program" 
                           className="dropdown-item" 
+                          style={{ padding: '8px 16px', display: 'block', textDecoration: 'none', color: '#73160f' }}
                           onClick={() => {
                             setShowUserDropdown(false);
                             closeMenu();
@@ -139,7 +147,11 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
                           Affiliate Dashboard
                         </Link>
                       )}
-                      <button className="dropdown-item logout-btn" onClick={handleLogout}>
+                      <button 
+                        className="dropdown-item logout-btn" 
+                        style={{ padding: '8px 16px', width: '100%', textAlign: 'left', border: 'none', background: 'none', color: '#d32f2f' }}
+                        onClick={handleLogout}
+                      >
                         Logout
                       </button>
                     </div>
