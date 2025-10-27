@@ -150,8 +150,12 @@ function Checkout() {
           const refId = sessionStorage.getItem('refId');
           const refTimestamp = sessionStorage.getItem('refTimestamp');
           
+          console.log('Checkout - Referral ID from sessionStorage:', refId);
+          console.log('Checkout - Referral timestamp:', refTimestamp);
+          
           // Clear expired referral
           if (refTimestamp && Date.now() - parseInt(refTimestamp) > 6 * 60 * 60 * 1000) {
+            console.log('Referral ID expired, clearing...');
             sessionStorage.removeItem('refId');
             sessionStorage.removeItem('refTimestamp');
           }

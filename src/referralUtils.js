@@ -25,7 +25,10 @@ export const extractReferralId = (url = window.location.href) => {
 export const storeReferralId = (referralId) => {
   if (referralId && referralId.trim()) {
     try {
+      // Store in both localStorage and sessionStorage for compatibility
       localStorage.setItem(REFERRAL_KEY, referralId.trim());
+      sessionStorage.setItem('refId', referralId.trim());
+      sessionStorage.setItem('refTimestamp', Date.now().toString());
       console.log('Referral ID stored:', referralId);
     } catch (error) {
       console.error('Error storing referral ID:', error);
@@ -63,15 +66,23 @@ export const clearReferralId = () => {
  * Should be called when the app loads
  */
 export const initializeReferralTracking = () => {
+  console.log('Initializing referral tracking...');
+  console.log('Current URL:', window.location.href);
+  
   const referralId = extractReferralId();
+  console.log('Extracted referral ID:', referralId);
+  
   if (referralId) {
     storeReferralId(referralId);
     
     // Clean up the URL by removing the ref parameter
     cleanUrlFromReferral();
     
+    console.log('Referral tracking initialized with ID:', referralId);
     return referralId;
   }
+  
+  console.log('No referral ID found in URL');
   return null;
 };
 
