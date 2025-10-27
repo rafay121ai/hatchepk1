@@ -16,6 +16,7 @@ import { initializeDatabase } from './databaseUtils';
 import ProtectedRoute from './ProtectedRoute';
 import Navigation from './Navigation';
 import DatabaseTest from './DatabaseTest';
+import Policies from './Policies';
 // Using public folder - no import needed, just use the path
 
 // Google Analytics
@@ -94,16 +95,6 @@ function App() {
       console.log('Referral tracking initialized with ID:', referralId);
     }
     
-    // Check for referral ID in URL and store in sessionStorage
-    const urlParams = new URLSearchParams(window.location.search);
-    const ref = urlParams.get('ref');
-    
-    if (ref) {
-      sessionStorage.setItem('refId', ref);
-      sessionStorage.setItem('refTimestamp', Date.now().toString());
-      console.log('Referral ID detected and stored:', ref);
-    }
-    
     
     // Test Supabase connection and initialize database
     const runTests = async () => {
@@ -140,6 +131,10 @@ function App() {
             } />
             <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
             <Route path="/database-test" element={<DatabaseTest />} />
+            <Route path="/return-policy" element={<Policies />} />
+            <Route path="/privacy-policy" element={<Policies />} />
+            <Route path="/refund-policy" element={<Policies />} />
+            <Route path="/terms-conditions" element={<Policies />} />
           </Routes>
         </div>
 
@@ -155,6 +150,15 @@ function App() {
                   <li><Link to="/our-guides">Business Guides</Link></li>
                   <li><Link to="/our-guides">Creative Guides</Link></li>
                   <li><Link to="/our-guides">Tech Guides</Link></li>
+                </ul>
+              </div>
+              <div className="footer-column">
+                <h3 className="footer-heading">Policies</h3>
+                <ul className="footer-links">
+                  <li><Link to="/return-policy">Return Policy</Link></li>
+                  <li><Link to="/privacy-policy">Privacy Policy</Link></li>
+                  <li><Link to="/refund-policy">Refund Policy</Link></li>
+                  <li><Link to="/terms-conditions">Terms & Conditions</Link></li>
                 </ul>
               </div>
               <div className="footer-column">

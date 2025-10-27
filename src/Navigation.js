@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { supabase } from './supabaseClient';
@@ -10,9 +10,11 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
   const [showAuth, setShowAuth] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [isAffiliate, setIsAffiliate] = useState(false);
+  const userMenuRef = useRef(null);
 
   const handleLogout = async () => {
     await logout();
+    setShowUserDropdown(false);
     closeMenu();
   };
 
@@ -28,17 +30,26 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
     document.body.classList.remove('auth-modal-open');
   };
 
+  const handleUserIconClick = (e) => {
+    e.stopPropagation();
+    console.log('User icon clicked, current state:', showUserDropdown);
+    setShowUserDropdown(!showUserDropdown);
+  };
+
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (showUserDropdown && !event.target.closest('.user-menu')) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
         setShowUserDropdown(false);
       }
     };
 
-    document.addEventListener('click', handleClickOutside);
+    if (showUserDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
     return () => {
-      document.removeEventListener('click', handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [showUserDropdown]);
 
@@ -90,24 +101,12 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
             <li><Link to="/about-us" onClick={closeMenu}>About Us</Link></li>
             {user ? (
               <li>
-                <div className="user-menu" style={{
-                  position: 'relative',
-                  display: 'inline-block'
-                }}>
-                  <div style={{ fontSize: '10px', color: 'red' }}>
-                    Dropdown state: {showUserDropdown ? 'OPEN' : 'CLOSED'}
-                  </div>
+                <div className="user-menu" ref={userMenuRef}>
                   <button 
                     className="user-icon-btn" 
-                    onClick={() => {
-                      console.log('User icon clicked! Current dropdown state:', showUserDropdown);
-                      setShowUserDropdown(!showUserDropdown);
-                    }}
-                    style={{ 
-                      position: 'relative',
-                      zIndex: 1000,
-                      pointerEvents: 'auto'
-                    }}
+                    onClick={handleUserIconClick}
+                    aria-expanded={showUserDropdown}
+                    aria-haspopup="true"
                   >
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" fill="currentColor"/>
@@ -115,30 +114,14 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
                     </svg>
                   </button>
                   {showUserDropdown && (
-                    <div className="user-dropdown" style={{
-                      position: 'absolute',
-                      top: '100%',
-                      right: '0',
-                      backgroundColor: 'white',
-                      border: '2px solid #73160f',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-                      minWidth: '200px',
-                      zIndex: 99999,
-                      marginTop: '10px',
-                      padding: '10px 0',
-                      display: 'block',
-                      visibility: 'visible',
-                      opacity: '1'
-                    }}>
-                      <div className="dropdown-item user-info" style={{ padding: '8px 16px', borderBottom: '1px solid #eee' }}>
+                    <div className="user-dropdown">
+                      <div className="dropdown-item user-info">
                         <span className="user-email">{user.email}</span>
                       </div>
                       {isAffiliate && (
                         <Link 
                           to="/affiliate-program" 
                           className="dropdown-item" 
-                          style={{ padding: '8px 16px', display: 'block', textDecoration: 'none', color: '#73160f' }}
                           onClick={() => {
                             setShowUserDropdown(false);
                             closeMenu();
@@ -147,11 +130,7 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
                           Affiliate Dashboard
                         </Link>
                       )}
-                      <button 
-                        className="dropdown-item logout-btn" 
-                        style={{ padding: '8px 16px', width: '100%', textAlign: 'left', border: 'none', background: 'none', color: '#d32f2f' }}
-                        onClick={handleLogout}
-                      >
+                      <button className="dropdown-item logout-btn" onClick={handleLogout}>
                         Logout
                       </button>
                     </div>

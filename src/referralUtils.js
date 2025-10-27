@@ -25,11 +25,10 @@ export const extractReferralId = (url = window.location.href) => {
 export const storeReferralId = (referralId) => {
   if (referralId && referralId.trim()) {
     try {
-      // Store in both localStorage and sessionStorage for compatibility
-      localStorage.setItem(REFERRAL_KEY, referralId.trim());
+      // Store in sessionStorage for session-only persistence
       sessionStorage.setItem('refId', referralId.trim());
       sessionStorage.setItem('refTimestamp', Date.now().toString());
-      console.log('Referral ID stored:', referralId);
+      console.log('Referral ID stored for session:', referralId);
     } catch (error) {
       console.error('Error storing referral ID:', error);
     }

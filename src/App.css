@@ -818,6 +818,23 @@ h1, h2, h3, h4, h5, h6, p, span, a, li {
   hyphens: auto;
 }
 
+/* FIX: Override mobile dropdown styles for desktop */
+@media (min-width: 769px) {
+  .nav-links .user-dropdown {
+    position: fixed !important;
+    top: 90px !important;
+    right: 20px !important;
+    background: white !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid #e0e0e0 !important;
+    min-width: 220px !important;
+    z-index: 99999 !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+}
+
 /* NEW: Accessibility - Focus visible */
 button:focus-visible,
 a:focus-visible,
