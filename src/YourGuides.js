@@ -54,33 +54,15 @@ function YourGuides() {
           // For each order, fetch the corresponding guide data
           const guidesWithData = await Promise.all(
             orders.map(async (order) => {
-              // Try to find the guide by guide_id first, then fallback to title match
-              let guideData = null;
-              let guideError = null;
+              // Match guide by product name (title) since guide_id column doesn't exist
+              console.log('Looking up guide by title:', order.product_name);
+              const { data: guideData, error: guideError } = await supabase
+                .from('guides')
+                .select('*')
+                .eq('title', order.product_name)
+                .maybeSingle();
               
-              if (order.guide_id) {
-                // Use guide_id if available (newer orders)
-                console.log('Looking up guide by ID:', order.guide_id);
-                const { data, error } = await supabase
-                  .from('guides')
-                  .select('*')
-                  .eq('id', order.guide_id)
-                  .maybeSingle();
-                guideData = data;
-                guideError = error;
-                console.log('Guide found by ID:', guideData, 'Error:', guideError);
-              } else {
-                // Fallback to title match (older orders)
-                console.log('Looking up guide by title:', order.product_name);
-                const { data, error } = await supabase
-                  .from('guides')
-                  .select('*')
-                  .eq('title', order.product_name)
-                  .maybeSingle();
-                guideData = data;
-                guideError = error;
-                console.log('Guide found by title:', guideData, 'Error:', guideError);
-              }
+              console.log('Guide found by title:', guideData, 'Error:', guideError);
               
               if (guideError || !guideData) {
                 console.warn('Guide not found for order:', order.product_name, 'Error:', guideError);

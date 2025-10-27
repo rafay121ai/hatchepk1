@@ -160,7 +160,6 @@ function Checkout() {
             customer_email: user ? user.email : formData.email,
             customer_name: `${formData.firstName} ${formData.lastName}`,
             product_name: guide.title,
-            guide_id: guide.id, // Add guide ID for reliable matching
             amount: parseFloat(guide.price),
             by_ref_id: refId || null,
             order_status: 'completed',
