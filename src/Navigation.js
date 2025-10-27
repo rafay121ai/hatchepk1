@@ -91,9 +91,20 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
             {user ? (
               <li>
                 <div className="user-menu">
+                  <div style={{ fontSize: '10px', color: 'red' }}>
+                    Dropdown state: {showUserDropdown ? 'OPEN' : 'CLOSED'}
+                  </div>
                   <button 
                     className="user-icon-btn" 
-                    onClick={() => setShowUserDropdown(!showUserDropdown)}
+                    onClick={() => {
+                      console.log('User icon clicked! Current dropdown state:', showUserDropdown);
+                      setShowUserDropdown(!showUserDropdown);
+                    }}
+                    style={{ 
+                      position: 'relative',
+                      zIndex: 1000,
+                      pointerEvents: 'auto'
+                    }}
                   >
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" fill="currentColor"/>
@@ -101,7 +112,18 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
                     </svg>
                   </button>
                   {showUserDropdown && (
-                    <div className="user-dropdown">
+                    <div className="user-dropdown" style={{
+                      position: 'absolute',
+                      top: '100%',
+                      right: '0',
+                      backgroundColor: 'white',
+                      border: '1px solid #ccc',
+                      borderRadius: '8px',
+                      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+                      minWidth: '200px',
+                      zIndex: 10001,
+                      marginTop: '5px'
+                    }}>
                       <div className="dropdown-item user-info">
                         <span className="user-email">{user.email}</span>
                       </div>
