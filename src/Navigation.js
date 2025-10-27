@@ -17,6 +17,7 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
   };
 
   const handleAuthClick = () => {
+    console.log('Login button clicked!');
     setShowAuth(true);
     closeMenu();
     document.body.classList.add('auth-modal-open');
@@ -125,7 +126,15 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
               </li>
             ) : (
               <li>
-                <button className="auth-btn" onClick={handleAuthClick}>
+                <button 
+                  className="auth-btn" 
+                  onClick={handleAuthClick}
+                  style={{ 
+                    position: 'relative',
+                    zIndex: 1000,
+                    pointerEvents: 'auto'
+                  }}
+                >
                   Login / Sign Up
                 </button>
               </li>
