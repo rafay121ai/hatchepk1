@@ -23,6 +23,8 @@ function YourGuides() {
       try {
         // Fetch user's purchased guides from the orders table
         console.log('Fetching orders for user:', user.email);
+        console.log('Supabase client:', supabase);
+        
         const { data: orders, error: ordersError } = await supabase
           .from('orders')
           .select('*')
@@ -32,6 +34,15 @@ function YourGuides() {
         console.log('Orders found:', orders);
         console.log('Orders error:', ordersError);
         console.log('User email:', user.email);
+        
+        // Also try to fetch all orders to see if the table exists
+        const { data: allOrders, error: allOrdersError } = await supabase
+          .from('orders')
+          .select('*')
+          .limit(5);
+        
+        console.log('All orders sample:', allOrders);
+        console.log('All orders error:', allOrdersError);
 
         if (ordersError) {
           console.error('Error fetching orders:', ordersError);

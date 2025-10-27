@@ -15,8 +15,7 @@ import { initializeDatabase } from './databaseUtils';
 // import { testDatabaseAccess } from './debugDatabase';
 import ProtectedRoute from './ProtectedRoute';
 import Navigation from './Navigation';
-import ComponentTest from './ComponentTest';
-import QuickTest from './QuickTest';
+import DatabaseTest from './DatabaseTest';
 // Using public folder - no import needed, just use the path
 
 // Google Analytics
@@ -142,6 +141,7 @@ function App() {
             <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
             <Route path="/component-test" element={<ComponentTest />} />
             <Route path="/quick-test" element={<QuickTest />} />
+            <Route path="/database-test" element={<DatabaseTest />} />
           </Routes>
         </div>
 

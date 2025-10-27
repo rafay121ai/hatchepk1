@@ -166,13 +166,19 @@ function Checkout() {
             order_status: 'completed',
           };
           
+          console.log('Attempting to insert order:', orderPayload);
+          
           const { data: orderData, error: orderError } = await supabase
             .from('orders')
             .insert(orderPayload);
 
+          console.log('Order insert result:', { orderData, orderError });
+
           if (orderError) {
             console.error('Order recording failed:', orderError);
             // Don't fail the payment, just log it
+          } else {
+            console.log('Order successfully created:', orderData);
           }
         } catch (orderErr) {
           console.error('Order recording exception:', orderErr);
