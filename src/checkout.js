@@ -212,17 +212,35 @@ function Checkout() {
   };
 
   const processPayment = async () => {
-    // Simulate payment gateway
+    // Simulate payment gateway with more realistic behavior
     return new Promise((resolve) => {
       setTimeout(() => {
-        // Simulate 95% success rate
-        const success = Math.random() > 0.05;
-        resolve({
-          success,
-          paymentId: success ? 'pay_' + Math.random().toString(36).substr(2, 9) : null,
-          error: success ? null : 'Payment declined. Please check your card details.',
-        });
-      }, 1500);
+        // Simulate 90% success rate (more realistic)
+        const success = Math.random() > 0.1;
+        
+        if (success) {
+          resolve({
+            success: true,
+            paymentId: 'pay_' + Math.random().toString(36).substr(2, 9),
+            error: null,
+          });
+        } else {
+          // More realistic error messages
+          const errors = [
+            'Payment declined. Please check your card details.',
+            'Insufficient funds. Please try a different payment method.',
+            'Card verification failed. Please contact your bank.',
+            'Payment timeout. Please try again.'
+          ];
+          const randomError = errors[Math.floor(Math.random() * errors.length)];
+          
+          resolve({
+            success: false,
+            paymentId: null,
+            error: randomError,
+          });
+        }
+      }, 2000); // Increased delay for more realistic feel
     });
   };
 
@@ -263,6 +281,16 @@ function Checkout() {
       <div className="checkout-container">
         <div className="checkout-header">
           <h1>Checkout</h1>
+          <div className="demo-notice" style={{
+            backgroundColor: '#fff3cd',
+            border: '1px solid #ffeaa7',
+            borderRadius: '8px',
+            padding: '12px',
+            marginBottom: '20px',
+            color: '#856404'
+          }}>
+            <strong>Demo Mode:</strong> This is a simulated checkout process. No real payments will be processed.
+          </div>
           <div className="checkout-steps">
             <div className={`step ${step >= 1 ? 'active' : ''}`}>
               <span className="step-number">1</span>
