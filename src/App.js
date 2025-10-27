@@ -139,8 +139,6 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
-            <Route path="/component-test" element={<ComponentTest />} />
-            <Route path="/quick-test" element={<QuickTest />} />
             <Route path="/database-test" element={<DatabaseTest />} />
           </Routes>
         </div>
