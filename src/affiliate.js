@@ -4,6 +4,7 @@ import './affiliate.css';
 import { supabase } from './supabaseClient';
 import { getStoredReferralId } from './referralUtils';
 import { useAuth } from './AuthContext';
+import AffiliateDashboard from './AffiliateDashboard';
 
 function Affiliate() {
   const { user } = useAuth();
@@ -21,6 +22,8 @@ function Affiliate() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitStatus, setSubmitStatus] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [affiliateStatus, setAffiliateStatus] = useState(null);
+  const [isLoadingStatus, setIsLoadingStatus] = useState(true);
 
   // Update email when user changes
   useEffect(() => {
@@ -32,6 +35,59 @@ function Affiliate() {
     }
   }, [user]);
 
+  // Check affiliate status when component loads
+  useEffect(() => {
+    const checkAffiliateStatus = async () => {
+      if (!user?.email) {
+        setIsLoadingStatus(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('affiliates')
+          .select('status, ref_id, tier, tier_name, commission')
+          .eq('email', user.email)
+          .maybeSingle();
+
+        if (error) {
+          console.error('Error checking affiliate status:', error);
+          setAffiliateStatus(null);
+        } else if (data) {
+          setAffiliateStatus(data);
+          console.log('Affiliate status:', data);
+        } else {
+          setAffiliateStatus(null);
+        }
+      } catch (err) {
+        console.error('Exception checking affiliate status:', err);
+        setAffiliateStatus(null);
+      } finally {
+        setIsLoadingStatus(false);
+      }
+    };
+
+    checkAffiliateStatus();
+  }, [user]);
+
+  // Function to refresh affiliate status
+  const refreshAffiliateStatus = async () => {
+    if (!user?.email) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('affiliates')
+        .select('status, ref_id, tier, tier_name, commission')
+        .eq('email', user.email)
+        .maybeSingle();
+
+      if (!error && data) {
+        setAffiliateStatus(data);
+      }
+    } catch (err) {
+      console.error('Error refreshing affiliate status:', err);
+    }
+  };
 
   const tiers = [
     {
@@ -212,6 +268,68 @@ function Affiliate() {
     }
   };
 
+  // Show loading state while checking affiliate status
+  if (isLoadingStatus) {
+    return (
+      <div className="affiliate-page">
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>Checking your affiliate status...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show dashboard for approved affiliates
+  if (affiliateStatus && affiliateStatus.status === 'approved') {
+    return (
+      <div className="affiliate-page">
+        <section className="affiliate-hero">
+          <div className="affiliate-hero-content">
+            <h1 className="affiliate-hero-title">
+              <span>Welcome to your</span>
+              <span>Affiliate Dashboard</span>
+            </h1>
+            <p className="affiliate-hero-description">
+              Track your performance, view earnings, and manage your affiliate activities.
+            </p>
+            <div className="affiliate-info">
+              <p><strong>Tier:</strong> {affiliateStatus.tier_name}</p>
+              <p><strong>Commission:</strong> {affiliateStatus.commission}%</p>
+              <p><strong>Referral ID:</strong> {affiliateStatus.ref_id}</p>
+            </div>
+          </div>
+        </section>
+        <AffiliateDashboard />
+      </div>
+    );
+  }
+
+  // Show pending status message
+  if (affiliateStatus && affiliateStatus.status === 'pending') {
+    return (
+      <div className="affiliate-page">
+        <section className="affiliate-hero">
+          <div className="affiliate-hero-content">
+            <h1 className="affiliate-hero-title">
+              <span>Application</span>
+              <span>Under Review</span>
+            </h1>
+            <p className="affiliate-hero-description">
+              Thank you for your interest in our affiliate program! Your application is currently under review. 
+              We'll notify you once it's been processed.
+            </p>
+            <div className="status-info">
+              <p><strong>Status:</strong> Pending Approval</p>
+              <p><strong>Tier Applied:</strong> {affiliateStatus.tier_name}</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
+  // Show application form for non-affiliates
   return (
     <div className="affiliate-page">
       {/* Hero Section */}
@@ -408,7 +526,10 @@ function Affiliate() {
               <p>We'll review your application and get back to you within 48 hours.</p>
               <button 
                 className="success-modal-btn"
-                onClick={() => setShowSuccessModal(false)}
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  refreshAffiliateStatus();
+                }}
               >
                 Got it!
               </button>

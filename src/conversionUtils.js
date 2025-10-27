@@ -100,6 +100,12 @@ export const getAffiliateStats = async (affiliateRefId) => {
       total_sales_amount: data.reduce((sum, c) => sum + parseFloat(c.purchase_amount || 0), 0),
       total_commission_earned: data
         .filter(c => c.status === 'approved')
+        .reduce((sum, c) => sum + parseFloat(c.commission_amount || 0), 0),
+      pending_commission_amount: data
+        .filter(c => c.status === 'pending')
+        .reduce((sum, c) => sum + parseFloat(c.commission_amount || 0), 0),
+      rejected_commission_amount: data
+        .filter(c => c.status === 'rejected')
         .reduce((sum, c) => sum + parseFloat(c.commission_amount || 0), 0)
     };
 

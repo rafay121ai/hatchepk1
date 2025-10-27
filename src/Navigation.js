@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from './AuthContext';
+import { supabase } from './supabaseClient';
 import Auth from './auth';
 import './auth-nav.css';
 
@@ -8,6 +9,7 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
   const { user, logout } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [isAffiliate, setIsAffiliate] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -38,6 +40,36 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
       document.removeEventListener('click', handleClickOutside);
     };
   }, [showUserDropdown]);
+
+  // Check if user is an approved affiliate
+  useEffect(() => {
+    const checkAffiliateStatus = async () => {
+      if (!user?.email) {
+        setIsAffiliate(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('affiliates')
+          .select('status')
+          .eq('email', user.email)
+          .eq('status', 'approved')
+          .maybeSingle();
+
+        if (!error && data) {
+          setIsAffiliate(true);
+        } else {
+          setIsAffiliate(false);
+        }
+      } catch (err) {
+        console.error('Error checking affiliate status:', err);
+        setIsAffiliate(false);
+      }
+    };
+
+    checkAffiliateStatus();
+  }, [user]);
 
   return (
     <>
@@ -72,6 +104,18 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
                       <div className="dropdown-item user-info">
                         <span className="user-email">{user.email}</span>
                       </div>
+                      {isAffiliate && (
+                        <Link 
+                          to="/affiliate-program" 
+                          className="dropdown-item" 
+                          onClick={() => {
+                            setShowUserDropdown(false);
+                            closeMenu();
+                          }}
+                        >
+                          Affiliate Dashboard
+                        </Link>
+                      )}
                       <button className="dropdown-item logout-btn" onClick={handleLogout}>
                         Logout
                       </button>
