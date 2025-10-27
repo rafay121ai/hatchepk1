@@ -1,0 +1,92 @@
+/* src/components/Button.css */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  text-decoration: none;
+  position: relative;
+  min-height: 44px;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn-primary {
+  background: #73160f;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(115, 22, 15, 0.3);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #8b1a13;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(115, 22, 15, 0.4);
+}
+
+.btn-secondary {
+  background: #f0f0f0;
+  color: #2c2c2c;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #e0e0e0;
+  transform: translateY(-2px);
+}
+
+.btn-outline {
+  background: transparent;
+  border: 2px solid #73160f;
+  color: #73160f;
+}
+
+.btn-outline:hover:not(:disabled) {
+  background: #73160f;
+  color: #ffffff;
+}
+
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  min-height: 36px;
+}
+
+.btn-lg {
+  padding: 1rem 2rem;
+  font-size: 1.125rem;
+  min-height: 52px;
+}
+
+.spinner-small {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .btn {
+    min-height: 48px;
+    padding: 0.875rem 1.25rem;
+  }
+}

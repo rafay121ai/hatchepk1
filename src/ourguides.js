@@ -98,7 +98,7 @@ function OurGuides() {
             console.log('No guides found in database, using fallback');
             setGuides([{
               id: 1,
-              title: "The Creator Gold Rush for Pakistani Women",
+              title: "The Creator Gold Rush for Pakistani Women.\nBuild Influence, Income & Identity.",
               cover: "/creatortitle.png",
               description: "A comprehensive guide for Pakistani women to build successful online businesses and become content creators in the digital economy. Learn how to monetize your skills, build a personal brand, and create sustainable income streams through digital platforms.",
               price: 29.99,
