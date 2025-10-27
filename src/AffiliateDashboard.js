@@ -49,6 +49,27 @@ function AffiliateDashboard() {
           if (statsResult.success) setStats(statsResult.stats);
           if (conversionsResult.success) setRecentConversions(conversionsResult.conversions);
           if (payoutsResult.success) setPayoutHistory(payoutsResult.payouts);
+          
+          // Also fetch payout summary from payouts table
+          try {
+            const { data: payoutData, error: payoutError } = await supabase
+              .from('payouts')
+              .select('*')
+              .eq('affiliate_ref_id', refId)
+              .maybeSingle();
+              
+            if (!payoutError && payoutData) {
+              console.log('Payout data found:', payoutData);
+              // Add payout info to stats
+              setStats(prev => ({
+                ...prev,
+                total_payout_amount: payoutData.total_commission || 0,
+                payout_status: payoutData.status || 'pending'
+              }));
+            }
+          } catch (err) {
+            console.error('Error fetching payout data:', err);
+          }
         }
       } catch (error) {
         console.error('Error loading dashboard data:', error);
