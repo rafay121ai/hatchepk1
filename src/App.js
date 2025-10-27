@@ -15,7 +15,39 @@ import { initializeDatabase } from './databaseUtils';
 // import { testDatabaseAccess } from './debugDatabase';
 import ProtectedRoute from './ProtectedRoute';
 import Navigation from './Navigation';
+import ComponentTest from './ComponentTest';
+import QuickTest from './QuickTest';
 // Using public folder - no import needed, just use the path
+
+// Google Analytics
+const GA_TRACKING_ID = 'G-M8M2WM9PVN';
+
+// Initialize Google Analytics
+const initGA = () => {
+  if (typeof window !== 'undefined' && window.gtag) {
+    window.gtag('config', GA_TRACKING_ID);
+  }
+};
+
+// Track page views
+const trackPageView = (url) => {
+  if (typeof window !== 'undefined' && window.gtag) {
+    window.gtag('config', GA_TRACKING_ID, {
+      page_location: url,
+    });
+  }
+};
+
+// Track custom events
+export const trackEvent = (action, category, label, value) => {
+  if (typeof window !== 'undefined' && window.gtag) {
+    window.gtag('event', action, {
+      event_category: category,
+      event_label: label,
+      value: value,
+    });
+  }
+};
 
 // ScrollToTop component to handle scroll and fade-in
 function ScrollToTop() {
@@ -24,6 +56,9 @@ function ScrollToTop() {
   useEffect(() => {
     // Scroll to top instantly
     window.scrollTo(0, 0);
+    
+    // Track page view for Google Analytics
+    trackPageView(window.location.href);
     
     // Add fade-in animation to page content
     const pageContent = document.querySelector('.page-content');
@@ -51,6 +86,9 @@ function App() {
 
   // Initialize referral tracking, test Supabase connection, and initialize database
   useEffect(() => {
+    // Initialize Google Analytics
+    initGA();
+    
     // Initialize referral tracking first
     const referralId = initializeReferralTracking();
     if (referralId) {
@@ -102,6 +140,8 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
+            <Route path="/component-test" element={<ComponentTest />} />
+            <Route path="/quick-test" element={<QuickTest />} />
           </Routes>
         </div>
 
@@ -124,7 +164,7 @@ function App() {
                 <ul className="footer-links">
                   <li><a href="tel:+1234567890">+1 234 567 890</a></li>
                   <li><a href="mailto:info@hatche.com">info@hatche.com</a></li>
-                  <li><Link to="/about-us">Get in Touch</Link></li>
+                  <li><a href="https://www.instagram.com/hatchepk/" target="_blank" rel="noopener noreferrer">Get in Touch</a></li>
                 </ul>
               </div>
             </div>

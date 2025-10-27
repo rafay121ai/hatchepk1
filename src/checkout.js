@@ -1,230 +1,223 @@
+// Enhanced checkout.js with proper validation and loading states
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './checkout.css';
 import { useAuth } from './AuthContext';
+
+// Import validation utilities
+import { validators, useFormValidation } from './utils/validation';
 
 function Checkout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, updateUser } = useAuth();
   const [guide, setGuide] = useState(null);
-  
-  console.log('Checkout component rendered');
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    zipCode: '',
-    country: 'United States',
-    cardNumber: '',
-    expiryDate: '',
-    cvv: '',
-    cardName: ''
-  });
+  const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState('');
-  const [step, setStep] = useState(1); // 1: Info, 2: Payment, 3: Confirmation
+  const [submitError, setSubmitError] = useState('');
 
-  useEffect(() => {
-    console.log('Checkout page loaded, location.state:', location.state);
-    
-    // Get guide data from navigation state
-    if (location.state?.guide) {
-      console.log('Guide data received:', location.state.guide);
-      setGuide(location.state.guide);
-    } else {
-      console.log('No guide data found, redirecting to our-guides');
-      // Redirect back if no guide selected
-      navigate('/our-guides');
-    }
-
-    // Pre-fill form with user data if available
-    if (user) {
-      setFormData(prev => ({
-        ...prev,
-        email: user.email,
-        phone: user.phone
-      }));
-    }
-  }, [location.state, navigate, user]);
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  // Define validation rules
+  const validationRules = {
+    firstName: validators.name,
+    lastName: validators.name,
+    email: validators.email,
+    phone: validators.phone,
+    cardNumber: validators.cardNumber,
+    expiryDate: validators.expiryDate,
+    cvv: validators.cvv,
+    cardName: validators.name,
   };
 
+  // Use custom validation hook
+  const {
+    values: formData,
+    errors,
+    touched,
+    handleChange: handleInputChange,
+    handleBlur,
+    validateAll,
+    setValues,
+  } = useFormValidation(
+    {
+      firstName: '',
+      lastName: '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+      address: '',
+      city: '',
+      state: '',
+      zipCode: '',
+      country: 'Pakistan',
+      cardNumber: '',
+      expiryDate: '',
+      cvv: '',
+      cardName: '',
+    },
+    validationRules
+  );
+
+  useEffect(() => {
+    if (location.state?.guide) {
+      setGuide(location.state.guide);
+    } else {
+      navigate('/our-guides');
+    }
+  }, [location.state, navigate]);
+
+  // Update form when user changes
+  useEffect(() => {
+    if (user) {
+      setValues(prev => ({
+        ...prev,
+        email: user.email,
+        phone: user.phone || '',
+      }));
+    }
+  }, [user, setValues]);
+
   const handleNextStep = () => {
+    setSubmitError('');
+    
     if (step === 1) {
-      // Validate personal information
-      if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone) {
-        setError('Please fill in all required fields');
+      // Validate step 1 fields
+      const step1Fields = ['firstName', 'lastName', 'email', 'phone'];
+      const step1Errors = {};
+      let hasError = false;
+
+      step1Fields.forEach(field => {
+        const error = validationRules[field](formData[field]);
+        if (error) {
+          step1Errors[field] = error;
+          hasError = true;
+        }
+      });
+
+      if (hasError) {
+        setSubmitError('Please correct the errors above');
         return;
       }
+      
       setStep(2);
     } else if (step === 2) {
-      // Validate payment information
-      if (!formData.cardNumber || !formData.expiryDate || !formData.cvv || !formData.cardName) {
-        setError('Please fill in all payment fields');
+      // Validate step 2 fields
+      const step2Fields = ['cardNumber', 'expiryDate', 'cvv', 'cardName'];
+      const step2Errors = {};
+      let hasError = false;
+
+      step2Fields.forEach(field => {
+        const error = validationRules[field](formData[field]);
+        if (error) {
+          step2Errors[field] = error;
+          hasError = true;
+        }
+      });
+
+      if (hasError) {
+        setSubmitError('Please correct the errors above');
         return;
       }
+      
       setStep(3);
     }
-    setError('');
   };
 
   const handlePreviousStep = () => {
     setStep(step - 1);
-    setError('');
+    setSubmitError('');
   };
 
 
   const handlePayment = async () => {
-    setIsProcessing(true);
-    setError('');
-    
-    // Safety net: Check if referral ID exists
-    if (!sessionStorage.getItem('refId')) {
-      console.log("No referral detected, proceeding without ref_id");
+    if (!validateAll()) {
+      setSubmitError('Please fill in all required fields correctly');
+      return;
     }
 
-    // Log payment attempt details for debugging
-    console.log('=== PAYMENT ATTEMPT START ===');
-    console.log('User:', user);
-    console.log('Guide:', guide);
-    console.log('Form Data:', formData);
-    console.log('Referral ID from localStorage:', localStorage.getItem('hatche_referral_id'));
-    console.log('Current URL:', window.location.href);
+    setIsProcessing(true);
+    setSubmitError('');
 
     try {
-      // Simulate payment processing
+      // Simulate payment processing with realistic delay
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // In production, integrate with Stripe/PayPal here
       const paymentResult = await processPayment();
       
       if (paymentResult.success) {
-        // Note: Conversion tracking is handled automatically by database trigger
-        console.log('Order recorded - conversion will be tracked automatically by database trigger');
-
-        // Record order in Supabase orders table
+        // Record order in Supabase
         try {
           const { supabase } = await import('./supabaseClient');
           
-          console.log('=== ORDER INSERTION DEBUG ===');
-          console.log('Supabase client:', supabase);
-          console.log('User data:', user);
-          console.log('Form data:', formData);
-          console.log('Guide data:', guide);
-          console.log('localStorage refId:', localStorage.getItem("hatche_referral_id"));
-          
-          // Ensure ref only applies if it exists in URL or session
-          let refId = sessionStorage.getItem('refId');
-          
-          // Optional: Clear expired referral if older than a few hours
+          const refId = sessionStorage.getItem('refId');
           const refTimestamp = sessionStorage.getItem('refTimestamp');
+          
+          // Clear expired referral
           if (refTimestamp && Date.now() - parseInt(refTimestamp) > 6 * 60 * 60 * 1000) {
             sessionStorage.removeItem('refId');
             sessionStorage.removeItem('refTimestamp');
-            refId = null;
-            console.log('Referral ID expired and removed');
           }
           
-          console.log('Retrieved referral ID from sessionStorage:', refId);
-          
-          // Final check before sending
           const orderPayload = {
             customer_email: user ? user.email : formData.email,
             customer_name: `${formData.firstName} ${formData.lastName}`,
             product_name: guide.title,
-            amount: parseFloat(guide.price), // Ensure it's a number
-            by_ref_id: refId || null, // ✅ Will be null if no referral exists
-            order_status: "completed", // This matches the default in your SQL
+            guide_id: guide.id, // Add guide ID for reliable matching
+            amount: parseFloat(guide.price),
+            by_ref_id: refId || null,
+            order_status: 'completed',
           };
-          
-          // Validate required fields
-          if (!orderPayload.customer_email) {
-            throw new Error('Customer email is required');
-          }
-          if (!orderPayload.customer_name) {
-            throw new Error('Customer name is required');
-          }
-          if (!orderPayload.product_name) {
-            throw new Error('Product name is required');
-          }
-          if (!orderPayload.amount || isNaN(orderPayload.amount)) {
-            throw new Error('Valid amount is required');
-          }
-          
-          console.log('Order payload to be inserted:', orderPayload);
           
           const { data: orderData, error: orderError } = await supabase
             .from('orders')
             .insert(orderPayload);
 
-          console.log('Supabase response:', { data: orderData, error: orderError });
-
           if (orderError) {
-            console.error('=== ORDER INSERTION ERROR ===');
-            console.error('Error details:', orderError);
-            console.error('Error message:', orderError.message);
-            console.error('Error code:', orderError.code);
-            console.error('Error details:', orderError.details);
-            console.error('Error hint:', orderError.hint);
-          } else {
-            console.log('=== ORDER INSERTION SUCCESS ===');
-            console.log('Order recorded successfully:', orderData);
+            console.error('Order recording failed:', orderError);
+            // Don't fail the payment, just log it
           }
         } catch (orderErr) {
-          console.error('=== ORDER INSERTION EXCEPTION ===');
-          console.error('Exception details:', orderErr);
-          console.error('Exception message:', orderErr.message);
-          console.error('Exception stack:', orderErr.stack);
+          console.error('Order recording exception:', orderErr);
+          // Don't fail the payment
         }
 
-        // Update user's purchased guides in localStorage for immediate UI update
+        // Update user's purchased guides
         if (user) {
           const updatedUser = {
             ...user,
-            purchasedGuides: [...(user.purchasedGuides || []), guide.id]
+            purchasedGuides: [...(user.purchasedGuides || []), guide.id],
           };
           updateUser(updatedUser);
         }
 
-        // Redirect to guides page with success message
-        navigate('/our-guides', { 
-          state: { 
-            purchaseSuccess: true, 
+        // Redirect with success
+        navigate('/our-guides', {
+          state: {
+            purchaseSuccess: true,
             guideTitle: guide.title,
-            conversionTracked: true
-          } 
+            conversionTracked: true,
+          },
         });
       } else {
         throw new Error(paymentResult.error || 'Payment failed');
       }
     } catch (err) {
-      setError(err.message);
+      setSubmitError(err.message || 'Payment processing failed. Please try again.');
     } finally {
       setIsProcessing(false);
     }
   };
 
   const processPayment = async () => {
-    // Simulate payment processing
-    // In production, integrate with Stripe/PayPal
+    // Simulate payment gateway
     return new Promise((resolve) => {
       setTimeout(() => {
+        // Simulate 95% success rate
+        const success = Math.random() > 0.05;
         resolve({
-          success: true,
-          paymentId: 'pay_' + Math.random().toString(36).substr(2, 9)
+          success,
+          paymentId: success ? 'pay_' + Math.random().toString(36).substr(2, 9) : null,
+          error: success ? null : 'Payment declined. Please check your card details.',
         });
-      }, 1000);
+      }, 1500);
     });
   };
 
@@ -295,8 +288,17 @@ function Checkout() {
                       name="firstName"
                       value={formData.firstName}
                       onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      className={touched.firstName && errors.firstName ? 'error' : ''}
+                      aria-invalid={touched.firstName && errors.firstName ? 'true' : 'false'}
+                      aria-describedby={errors.firstName ? 'firstName-error' : undefined}
                       required
                     />
+                    {touched.firstName && errors.firstName && (
+                      <span id="firstName-error" className="field-error" role="alert">
+                        {errors.firstName}
+                      </span>
+                    )}
                   </div>
                   <div className="form-group">
                     <label htmlFor="lastName">Last Name *</label>
@@ -306,11 +308,16 @@ function Checkout() {
                       name="lastName"
                       value={formData.lastName}
                       onChange={handleInputChange}
+                      onBlur={handleBlur}
+                      className={touched.lastName && errors.lastName ? 'error' : ''}
                       required
                     />
+                    {touched.lastName && errors.lastName && (
+                      <span className="field-error" role="alert">{errors.lastName}</span>
+                    )}
                   </div>
                 </div>
-                
+
                 <div className="form-group">
                   <label htmlFor="email">Email Address *</label>
                   <input
@@ -319,10 +326,15 @@ function Checkout() {
                     name="email"
                     value={formData.email}
                     onChange={handleInputChange}
+                    onBlur={handleBlur}
+                    className={touched.email && errors.email ? 'error' : ''}
                     required
                   />
+                  {touched.email && errors.email && (
+                    <span className="field-error" role="alert">{errors.email}</span>
+                  )}
                 </div>
-                
+
                 <div className="form-group">
                   <label htmlFor="phone">Phone Number *</label>
                   <input
@@ -331,8 +343,13 @@ function Checkout() {
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
+                    onBlur={handleBlur}
+                    className={touched.phone && errors.phone ? 'error' : ''}
                     required
                   />
+                  {touched.phone && errors.phone && (
+                    <span className="field-error" role="alert">{errors.phone}</span>
+                  )}
                 </div>
               </div>
             )}
@@ -348,10 +365,15 @@ function Checkout() {
                     name="cardName"
                     value={formData.cardName}
                     onChange={handleInputChange}
+                    onBlur={handleBlur}
+                    className={touched.cardName && errors.cardName ? 'error' : ''}
                     required
                   />
+                  {touched.cardName && errors.cardName && (
+                    <span className="field-error" role="alert">{errors.cardName}</span>
+                  )}
                 </div>
-                
+
                 <div className="form-group">
                   <label htmlFor="cardNumber">Card Number *</label>
                   <input
@@ -361,14 +383,19 @@ function Checkout() {
                     value={formData.cardNumber}
                     onChange={(e) => {
                       const formatted = formatCardNumber(e.target.value);
-                      setFormData(prev => ({ ...prev, cardNumber: formatted }));
+                      handleInputChange({ target: { name: 'cardNumber', value: formatted } });
                     }}
+                    onBlur={handleBlur}
                     placeholder="1234 5678 9012 3456"
                     maxLength="19"
+                    className={touched.cardNumber && errors.cardNumber ? 'error' : ''}
                     required
                   />
+                  {touched.cardNumber && errors.cardNumber && (
+                    <span className="field-error" role="alert">{errors.cardNumber}</span>
+                  )}
                 </div>
-                
+
                 <div className="form-row">
                   <div className="form-group">
                     <label htmlFor="expiryDate">Expiry Date *</label>
@@ -379,12 +406,17 @@ function Checkout() {
                       value={formData.expiryDate}
                       onChange={(e) => {
                         const formatted = formatExpiryDate(e.target.value);
-                        setFormData(prev => ({ ...prev, expiryDate: formatted }));
+                        handleInputChange({ target: { name: 'expiryDate', value: formatted } });
                       }}
+                      onBlur={handleBlur}
                       placeholder="MM/YY"
                       maxLength="5"
+                      className={touched.expiryDate && errors.expiryDate ? 'error' : ''}
                       required
                     />
+                    {touched.expiryDate && errors.expiryDate && (
+                      <span className="field-error" role="alert">{errors.expiryDate}</span>
+                    )}
                   </div>
                   <div className="form-group">
                     <label htmlFor="cvv">CVV *</label>
@@ -394,10 +426,15 @@ function Checkout() {
                       name="cvv"
                       value={formData.cvv}
                       onChange={handleInputChange}
+                      onBlur={handleBlur}
                       placeholder="123"
                       maxLength="4"
+                      className={touched.cvv && errors.cvv ? 'error' : ''}
                       required
                     />
+                    {touched.cvv && errors.cvv && (
+                      <span className="field-error" role="alert">{errors.cvv}</span>
+                    )}
                   </div>
                 </div>
               </div>
@@ -441,35 +478,42 @@ function Checkout() {
               </div>
             )}
 
-            {error && <div className="error-message">{error}</div>}
+            {submitError && (
+              <div className="error-message" role="alert">{submitError}</div>
+            )}
 
             <div className="form-actions">
               {step > 1 && (
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="btn-secondary"
                   onClick={handlePreviousStep}
+                  disabled={isProcessing}
                 >
                   Previous
                 </button>
               )}
-              
+
               {step < 3 ? (
-                <button 
-                  type="button" 
-                  className="btn-primary"
-                  onClick={handleNextStep}
-                >
+                <button type="button" className="btn-primary" onClick={handleNextStep}>
                   Next
                 </button>
               ) : (
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   className="btn-primary"
                   onClick={handlePayment}
                   disabled={isProcessing}
+                  aria-busy={isProcessing}
                 >
-                  {isProcessing ? 'Processing...' : `Pay PKR ${guide.price}`}
+                  {isProcessing ? (
+                    <>
+                      <span className="spinner-small" aria-hidden="true"></span>
+                      Processing...
+                    </>
+                  ) : (
+                    `Pay PKR ${guide.price}`
+                  )}
                 </button>
               )}
             </div>

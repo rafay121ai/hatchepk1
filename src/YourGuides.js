@@ -31,6 +31,7 @@ function YourGuides() {
 
         console.log('Orders found:', orders);
         console.log('Orders error:', ordersError);
+        console.log('User email:', user.email);
 
         if (ordersError) {
           console.error('Error fetching orders:', ordersError);
@@ -42,15 +43,36 @@ function YourGuides() {
           // For each order, fetch the corresponding guide data
           const guidesWithData = await Promise.all(
             orders.map(async (order) => {
-              // Try to find the guide by title match
-              const { data: guideData, error: guideError } = await supabase
-                .from('guides')
-                .select('*')
-                .eq('title', order.product_name)
-                .maybeSingle(); // ✅ won't throw 406 if no rows found
+              // Try to find the guide by guide_id first, then fallback to title match
+              let guideData = null;
+              let guideError = null;
               
-              if (guideError) {
-                console.warn('Guide not found for order:', order.product_name);
+              if (order.guide_id) {
+                // Use guide_id if available (newer orders)
+                console.log('Looking up guide by ID:', order.guide_id);
+                const { data, error } = await supabase
+                  .from('guides')
+                  .select('*')
+                  .eq('id', order.guide_id)
+                  .maybeSingle();
+                guideData = data;
+                guideError = error;
+                console.log('Guide found by ID:', guideData, 'Error:', guideError);
+              } else {
+                // Fallback to title match (older orders)
+                console.log('Looking up guide by title:', order.product_name);
+                const { data, error } = await supabase
+                  .from('guides')
+                  .select('*')
+                  .eq('title', order.product_name)
+                  .maybeSingle();
+                guideData = data;
+                guideError = error;
+                console.log('Guide found by title:', guideData, 'Error:', guideError);
+              }
+              
+              if (guideError || !guideData) {
+                console.warn('Guide not found for order:', order.product_name, 'Error:', guideError);
                 // Return order data with fallback
                 return {
                   id: order.id,
@@ -82,6 +104,7 @@ function YourGuides() {
             })
           );
           
+          console.log('Final guides data:', guidesWithData);
           setUserGuides(guidesWithData);
         }
       } catch (error) {
