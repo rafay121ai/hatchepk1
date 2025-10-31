@@ -74,7 +74,7 @@ import CryptoJS from 'crypto-js';
 export async function getPayFastToken(data) {
   // For frontend, this should call a backend API endpoint
   // Backend will handle the actual token generation with SECURED_KEY
-  const backendUrl = process.env.REACT_APP_BACKEND_API_URL || 'http://localhost:3001';
+  const backendUrl = process.env.REACT_APP_BACKEND_API_URL || 'https://hatchepk1.vercel.app';
   
   // Prepare request body matching Next.js format
   const requestBody = {

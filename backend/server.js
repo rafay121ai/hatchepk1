@@ -20,7 +20,7 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({
-  origin: process.env.NEXT_PUBLIC_APP_URL || process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: process.env.NEXT_PUBLIC_APP_URL || process.env.FRONTEND_URL || 'https://hatchepk1.vercel.app',
   credentials: true
 }));
 app.use(bodyParser.json());

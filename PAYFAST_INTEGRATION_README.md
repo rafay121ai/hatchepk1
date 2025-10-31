@@ -45,7 +45,7 @@ npm install
 **Frontend `.env.local` (root directory):**
 ```bash
 # Backend API URL
-REACT_APP_BACKEND_API_URL=http://localhost:3001
+REACT_APP_BACKEND_API_URL=https://hatchepk1.vercel.app
 
 # PayFast Configuration (Public)
 REACT_APP_PAYFAST_MERCHANT_NAME=Hatche
@@ -84,7 +84,7 @@ SUPABASE_KEY=your_supabase_key
 **Root `.env.example`:**
 ```bash
 # Backend API URL
-REACT_APP_BACKEND_API_URL=http://localhost:3001
+REACT_APP_BACKEND_API_URL=https://hatchepk1.vercel.app
 
 # PayFast Configuration (Public)
 REACT_APP_PAYFAST_MERCHANT_NAME=Hatche
@@ -120,7 +120,7 @@ SUPABASE_KEY=your_supabase_key
 3. Customer clicks "Pay" button
 
 ### Step 2: Get Access Token
-1. Frontend calls `POST http://localhost:3001/api/payment/get-token`
+1. Frontend calls `POST https://hatchepk1.vercel.app/api/payment/get-token`
 2. Backend requests token from PayFast API
 3. Backend returns JSON with:
    ```json
@@ -168,7 +168,7 @@ npm start
 ```bash
 cd backend
 npm start
-# Runs on http://localhost:3001
+# Runs on https://hatchepk1.vercel.app
 ```
 
 ### Test Cards (Sandbox Environment)
