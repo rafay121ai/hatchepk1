@@ -18,6 +18,8 @@ import Navigation from './Navigation';
 import DatabaseTest from './DatabaseTest';
 import Policies from './Policies';
 import ErrorBoundary from './components/ErrorBoundary';
+import PaymentSuccess from './PaymentSuccess';
+import PaymentCancel from './PaymentCancel';
 // Using public folder - no import needed, just use the path
 
 // Google Analytics
@@ -137,6 +139,8 @@ function App() {
               <Route path="/privacy-policy" element={<Policies />} />
               <Route path="/refund-policy" element={<Policies />} />
               <Route path="/terms-conditions" element={<Policies />} />
+              <Route path="/payment/success" element={<PaymentSuccess />} />
+              <Route path="/payment/failure" element={<PaymentCancel />} />
             </Routes>
           </ErrorBoundary>
         </div>

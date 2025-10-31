@@ -1,0 +1,197 @@
+.payment-cancel-page {
+  min-height: 100vh;
+  background-color: #f9fafb;
+  padding: 3rem 1rem;
+}
+
+.payment-cancel-container {
+  max-width: 28rem;
+  margin: 0 auto;
+}
+
+.payment-cancel-card {
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  padding: 2rem;
+  text-align: center;
+}
+
+.cancel-icon {
+  margin: 0 auto;
+  width: 4rem;
+  height: 4rem;
+  background-color: #fee2e2;
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.cancel-icon-svg {
+  width: 2.5rem;
+  height: 2.5rem;
+  color: #dc2626;
+}
+
+.payment-cancel-title {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #111827;
+  margin-bottom: 0.5rem;
+}
+
+.payment-cancel-message {
+  color: #4b5563;
+  margin-bottom: 2rem;
+}
+
+.error-details {
+  background-color: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 0.375rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+.error-details-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #991b1b;
+  text-transform: uppercase;
+  margin-bottom: 0.75rem;
+}
+
+.error-details-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.error-detail-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.error-detail-label {
+  font-size: 0.875rem;
+  color: #b91c1c;
+  display: block;
+  margin-bottom: 0.25rem;
+}
+
+.error-detail-message {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #991b1b;
+}
+
+.error-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.error-detail-value {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #991b1b;
+}
+
+.common-issues {
+  background-color: #f9fafb;
+  border-radius: 0.375rem;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+.common-issues-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.75rem;
+}
+
+.common-issues-list {
+  font-size: 0.875rem;
+  color: #4b5563;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.common-issue-item {
+  display: flex;
+  align-items: flex-start;
+}
+
+.issue-bullet {
+  margin-right: 0.5rem;
+  color: #4b5563;
+}
+
+.payment-cancel-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 0.75rem 1rem;
+  border-radius: 0.375rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.btn-full {
+  width: 100%;
+}
+
+.btn-primary {
+  background-color: #2563eb;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #1d4ed8;
+}
+
+.btn-secondary {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+.btn-secondary:hover {
+  background-color: #e5e7eb;
+}
+
+.payment-cancel-footer {
+  margin-top: 1.5rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+@media (max-width: 640px) {
+  .payment-cancel-page {
+    padding: 2rem 1rem;
+  }
+
+  .payment-cancel-card {
+    padding: 1.5rem;
+  }
+
+  .payment-cancel-title {
+    font-size: 1.5rem;
+  }
+}

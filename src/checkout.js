@@ -1,4 +1,4 @@
-// Enhanced checkout.js with proper validation and loading states
+// Enhanced checkout.js with PayFast payment integration
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './checkout.css';
@@ -6,6 +6,9 @@ import { useAuth } from './AuthContext';
 
 // Import validation utilities
 import { validators, useFormValidation } from './utils/validation';
+
+// Import PayFast utilities
+import { formatOrderDate } from './utils/payfast';
 
 function Checkout() {
   const location = useLocation();
@@ -16,16 +19,12 @@ function Checkout() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  // Define validation rules
+  // Define validation rules (removed card fields - PayFast handles payment)
   const validationRules = {
     firstName: validators.name,
     lastName: validators.name,
     email: validators.email,
     phone: validators.phone,
-    cardNumber: validators.cardNumber,
-    expiryDate: validators.expiryDate,
-    cvv: validators.cvv,
-    cardName: validators.name,
   };
 
   // Use custom validation hook
@@ -48,10 +47,6 @@ function Checkout() {
       state: '',
       zipCode: '',
       country: 'Pakistan',
-      cardNumber: '',
-      expiryDate: '',
-      cvv: '',
-      cardName: '',
     },
     validationRules
   );
@@ -99,24 +94,7 @@ function Checkout() {
       
       setStep(2);
     } else if (step === 2) {
-      // Validate step 2 fields
-      const step2Fields = ['cardNumber', 'expiryDate', 'cvv', 'cardName'];
-      const step2Errors = {};
-      let hasError = false;
-
-      step2Fields.forEach(field => {
-        const error = validationRules[field](formData[field]);
-        if (error) {
-          step2Errors[field] = error;
-          hasError = true;
-        }
-      });
-
-      if (hasError) {
-        setSubmitError('Please correct the errors above');
-        return;
-      }
-      
+      // Step 2 is optional shipping info, just proceed to confirmation
       setStep(3);
     }
   };
@@ -127,7 +105,11 @@ function Checkout() {
   };
 
 
-  const handlePayment = async () => {
+  const handlePayment = async (e) => {
+    if (e) {
+      e.preventDefault();
+    }
+
     if (!validateAll()) {
       setSubmitError('Please fill in all required fields correctly');
       return;
@@ -137,150 +119,109 @@ function Checkout() {
     setSubmitError('');
 
     try {
-      // Simulate payment processing with realistic delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      const paymentResult = await processPayment();
-      
-      if (paymentResult.success) {
-        // Record order in Supabase
-        try {
-          const { supabase } = await import('./supabaseClient');
-          
-          const refId = sessionStorage.getItem('refId');
-          const refTimestamp = sessionStorage.getItem('refTimestamp');
-          
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Checkout - Referral ID from sessionStorage:', refId);
-            console.log('Checkout - Referral timestamp:', refTimestamp);
-          }
-          
-          // Clear expired referral (6 hours = 6 * 60 * 60 * 1000 ms)
-          if (refTimestamp && Date.now() - parseInt(refTimestamp) > 6 * 60 * 60 * 1000) {
-            if (process.env.NODE_ENV === 'development') {
-              console.log('Referral ID expired, clearing...');
-            }
-            sessionStorage.removeItem('refId');
-            sessionStorage.removeItem('refTimestamp');
-          }
-          
-          const orderPayload = {
-            customer_email: user ? user.email : formData.email,
-            customer_name: `${formData.firstName} ${formData.lastName}`,
-            product_name: guide.title,
-            amount: parseFloat(guide.price),
-            by_ref_id: refId || null,
-            order_status: 'completed',
-          };
-          
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Attempting to insert order:', orderPayload);
-          }
-          
-          const { data: orderData, error: orderError } = await supabase
-            .from('orders')
-            .insert(orderPayload);
-
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Order insert result:', { orderData, orderError });
-          }
-
-          if (orderError) {
-            console.error('Order recording failed:', orderError);
-            // Don't fail the payment, just log it
-          } else {
-            if (process.env.NODE_ENV === 'development') {
-              console.log('Order successfully created:', orderData);
-              console.log('Conversion will be created automatically by database trigger');
-            }
-          }
-        } catch (orderErr) {
-          console.error('Order recording exception:', orderErr);
-          // Don't fail the payment
-        }
-
-        // Update user's purchased guides
-        if (user) {
-          const updatedUser = {
-            ...user,
-            purchasedGuides: [...(user.purchasedGuides || []), guide.id],
-          };
-          updateUser(updatedUser);
-        }
-
-        // Redirect with success
-        navigate('/our-guides', {
-          state: {
-            purchaseSuccess: true,
-            guideTitle: guide.title,
-            conversionTracked: true,
-          },
-        });
-      } else {
-        throw new Error(paymentResult.error || 'Payment failed');
+      // Validate phone number format (Pakistani format: 11 digits starting with 0)
+      const phoneRegex = /^0[0-9]{10}$/;
+      const cleanedPhone = formData.phone.replace(/\s+/g, '');
+      if (!phoneRegex.test(cleanedPhone)) {
+        throw new Error('Please enter a valid Pakistani mobile number (e.g., 03123456789)');
       }
+
+      // Get referral ID from session
+      const refId = sessionStorage.getItem('refId');
+      const refTimestamp = sessionStorage.getItem('refTimestamp');
+      
+      // Clear expired referral (6 hours = 6 * 60 * 60 * 1000 ms)
+      if (refTimestamp && Date.now() - parseInt(refTimestamp) > 6 * 60 * 60 * 1000) {
+        sessionStorage.removeItem('refId');
+        sessionStorage.removeItem('refTimestamp');
+      }
+
+      // Step 1: Get access token from backend API
+      const backendUrl = process.env.REACT_APP_BACKEND_API_URL || 'http://localhost:3001';
+      const tokenResponse = await fetch(`${backendUrl}/api/payment/get-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: parseFloat(guide.price),
+          currencyCode: 'PKR',
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorData = await tokenResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to get payment token');
+      }
+
+      const tokenData = await tokenResponse.json();
+
+      if (!tokenData.success || !tokenData.token) {
+        throw new Error(tokenData.error || 'Failed to get payment token');
+      }
+
+      // Store order information temporarily for IPN handler
+      const orderData = {
+        basketId: tokenData.basketId,
+        customerEmail: user ? user.email : formData.email,
+        customerName: `${formData.firstName} ${formData.lastName}`,
+        customerMobile: cleanedPhone,
+        productName: guide.title,
+        guideId: guide.id,
+        amount: parseFloat(guide.price),
+        referralId: refId || null,
+        userId: user?.id || null
+      };
+
+      // Store order data in sessionStorage for IPN verification
+      sessionStorage.setItem('pendingOrder', JSON.stringify(orderData));
+
+      // Step 2: Create and submit form to PayFast
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = process.env.REACT_APP_PAYFAST_FORM_POST_URL || 
+        'https://ipguat.apps.net.pk/Ecommerce/api/Transaction/PostTransaction';
+
+      // Add all required fields
+      const fields = {
+        MERCHANT_ID: tokenData.merchantId,
+        MERCHANT_NAME: process.env.REACT_APP_PAYFAST_MERCHANT_NAME || 'Hatche',
+        TOKEN: tokenData.token,
+        PROCCODE: '00',
+        TXNAMT: guide.price,
+        CUSTOMER_MOBILE_NO: cleanedPhone,
+        CUSTOMER_EMAIL_ADDRESS: user ? user.email : formData.email,
+        SIGNATURE: 'HATCHE-PAYMENT-v1.0',
+        VERSION: 'HATCHE-CART-1.0',
+        TXNDESC: guide.title || 'Payment for order',
+        SUCCESS_URL: `${window.location.origin}/payment/success`,
+        FAILURE_URL: `${window.location.origin}/payment/failure`,
+        CHECKOUT_URL: `${backendUrl}/api/payment/webhook`,
+        BASKET_ID: tokenData.basketId,
+        ORDER_DATE: formatOrderDate(),
+        CURRENCY_CODE: 'PKR',
+        CUSTOMER_NAME: `${formData.firstName} ${formData.lastName}`,
+      };
+
+      // Add fields to form
+      Object.entries(fields).forEach(([key, value]) => {
+        if (value !== null && value !== undefined && value !== '') {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = key;
+          input.value = value;
+          form.appendChild(input);
+        }
+      });
+
+      // Submit form
+      document.body.appendChild(form);
+      form.submit();
+      
     } catch (err) {
       setSubmitError(err.message || 'Payment processing failed. Please try again.');
-    } finally {
       setIsProcessing(false);
     }
   };
 
-  const processPayment = async () => {
-    // Simulate payment gateway with more realistic behavior
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        // Simulate 90% success rate (more realistic)
-        const success = Math.random() > 0.1;
-        
-        if (success) {
-          resolve({
-            success: true,
-            paymentId: 'pay_' + Math.random().toString(36).substr(2, 9),
-            error: null,
-          });
-        } else {
-          // More realistic error messages
-          const errors = [
-            'Payment declined. Please check your card details.',
-            'Insufficient funds. Please try a different payment method.',
-            'Card verification failed. Please contact your bank.',
-            'Payment timeout. Please try again.'
-          ];
-          const randomError = errors[Math.floor(Math.random() * errors.length)];
-          
-          resolve({
-            success: false,
-            paymentId: null,
-            error: randomError,
-          });
-        }
-      }, 2000); // Increased delay for more realistic feel
-    });
-  };
-
-  const formatCardNumber = (value) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    const matches = v.match(/\d{4,16}/g);
-    const match = (matches && matches[0]) || '';
-    const parts = [];
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4));
-    }
-    if (parts.length) {
-      return parts.join(' ');
-    } else {
-      return v;
-    }
-  };
-
-  const formatExpiryDate = (value) => {
-    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
-    if (v.length >= 2) {
-      return v.substring(0, 2) + '/' + v.substring(2, 4);
-    }
-    return v;
-  };
 
   if (!guide) {
     return (
@@ -297,14 +238,14 @@ function Checkout() {
         <div className="checkout-header">
           <h1>Checkout</h1>
           <div className="demo-notice" style={{
-            backgroundColor: '#fff3cd',
-            border: '1px solid #ffeaa7',
+            backgroundColor: '#e3f2fd',
+            border: '1px solid #90caf9',
             borderRadius: '8px',
             padding: '12px',
             marginBottom: '20px',
-            color: '#856404'
+            color: '#1565c0'
           }}>
-            <strong>Demo Mode:</strong> This is a simulated checkout process. No real payments will be processed.
+            <strong>Secure Payment:</strong> You will be redirected to PayFast's secure payment gateway to complete your purchase.
           </div>
           <div className="checkout-steps">
             <div className={`step ${step >= 1 ? 'active' : ''}`}>
@@ -384,7 +325,7 @@ function Checkout() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="phone">Phone Number *</label>
+                  <label htmlFor="phone">Mobile Number * (Pakistani Format: 03123456789)</label>
                   <input
                     type="tel"
                     id="phone"
@@ -392,98 +333,60 @@ function Checkout() {
                     value={formData.phone}
                     onChange={handleInputChange}
                     onBlur={handleBlur}
+                    placeholder="03001234567"
+                    pattern="[0-9]{11}"
                     className={touched.phone && errors.phone ? 'error' : ''}
                     required
                   />
                   {touched.phone && errors.phone && (
                     <span className="field-error" role="alert">{errors.phone}</span>
                   )}
+                  <small style={{ color: '#666', fontSize: '0.85rem', display: 'block', marginTop: '4px' }}>
+                    Enter your Pakistani mobile number starting with 0 (11 digits without spaces)
+                  </small>
                 </div>
               </div>
             )}
 
             {step === 2 && (
               <div className="form-step">
-                <h2>Payment Information</h2>
+                <h2>Shipping Information (Optional)</h2>
                 <div className="form-group">
-                  <label htmlFor="cardName">Cardholder Name *</label>
+                  <label htmlFor="address">Address Line 1</label>
                   <input
                     type="text"
-                    id="cardName"
-                    name="cardName"
-                    value={formData.cardName}
+                    id="address"
+                    name="address"
+                    value={formData.address}
                     onChange={handleInputChange}
-                    onBlur={handleBlur}
-                    className={touched.cardName && errors.cardName ? 'error' : ''}
-                    required
+                    placeholder="Street address"
                   />
-                  {touched.cardName && errors.cardName && (
-                    <span className="field-error" role="alert">{errors.cardName}</span>
-                  )}
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="cardNumber">Card Number *</label>
+                  <label htmlFor="city">City</label>
                   <input
                     type="text"
-                    id="cardNumber"
-                    name="cardNumber"
-                    value={formData.cardNumber}
-                    onChange={(e) => {
-                      const formatted = formatCardNumber(e.target.value);
-                      handleInputChange({ target: { name: 'cardNumber', value: formatted } });
-                    }}
-                    onBlur={handleBlur}
-                    placeholder="1234 5678 9012 3456"
-                    maxLength="19"
-                    className={touched.cardNumber && errors.cardNumber ? 'error' : ''}
-                    required
+                    id="city"
+                    name="city"
+                    value={formData.city}
+                    onChange={handleInputChange}
+                    placeholder="City"
                   />
-                  {touched.cardNumber && errors.cardNumber && (
-                    <span className="field-error" role="alert">{errors.cardNumber}</span>
-                  )}
                 </div>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="expiryDate">Expiry Date *</label>
-                    <input
-                      type="text"
-                      id="expiryDate"
-                      name="expiryDate"
-                      value={formData.expiryDate}
-                      onChange={(e) => {
-                        const formatted = formatExpiryDate(e.target.value);
-                        handleInputChange({ target: { name: 'expiryDate', value: formatted } });
-                      }}
-                      onBlur={handleBlur}
-                      placeholder="MM/YY"
-                      maxLength="5"
-                      className={touched.expiryDate && errors.expiryDate ? 'error' : ''}
-                      required
-                    />
-                    {touched.expiryDate && errors.expiryDate && (
-                      <span className="field-error" role="alert">{errors.expiryDate}</span>
-                    )}
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="cvv">CVV *</label>
-                    <input
-                      type="text"
-                      id="cvv"
-                      name="cvv"
-                      value={formData.cvv}
-                      onChange={handleInputChange}
-                      onBlur={handleBlur}
-                      placeholder="123"
-                      maxLength="4"
-                      className={touched.cvv && errors.cvv ? 'error' : ''}
-                      required
-                    />
-                    {touched.cvv && errors.cvv && (
-                      <span className="field-error" role="alert">{errors.cvv}</span>
-                    )}
-                  </div>
+                <div className="payment-notice" style={{
+                  backgroundColor: '#e3f2fd',
+                  border: '1px solid #90caf9',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginTop: '20px',
+                  color: '#1565c0'
+                }}>
+                  <p>
+                    <strong>Secure Payment:</strong> You will be redirected to PayFast's secure payment gateway to complete your purchase. 
+                    We do not store your payment card details.
+                  </p>
                 </div>
               </div>
             )}
@@ -519,8 +422,8 @@ function Checkout() {
                   
                   <div className="payment-info">
                     <h3>Payment Method</h3>
-                    <p>**** **** **** {formData.cardNumber.slice(-4)}</p>
-                    <p>Expires: {formData.expiryDate}</p>
+                    <p>PayFast Secure Payment</p>
+                    <p>You will be redirected to PayFast to complete your payment securely.</p>
                   </div>
                 </div>
               </div>
