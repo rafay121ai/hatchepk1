@@ -54,13 +54,32 @@ async function getPayFastToken(data) {
   
   // PayFast API expects JSON format with AccessToken object
   // Based on error: GetAccessToken(AccessToken accessToken)
+  // .NET/C# APIs typically use PascalCase for properties
   const requestPayload = {
-    MERCHANT_ID: merchantId.trim(),
-    SECURED_KEY: securedKey.trim(),
-    BASKET_ID: basketId.trim(),
-    TXNAMT: amount.toFixed(2),
-    CURRENCY_CODE: currencyCode.trim()
+    MerchantId: merchantId.trim(),
+    SecuredKey: securedKey.trim(),
+    BasketId: basketId.trim(),
+    TxnAmt: parseFloat(amount.toFixed(2)), // Send as number, not string
+    CurrencyCode: currencyCode.trim()
   };
+  
+  // Alternative: Try camelCase if PascalCase doesn't work
+  // const requestPayload = {
+  //   merchantId: merchantId.trim(),
+  //   securedKey: securedKey.trim(),
+  //   basketId: basketId.trim(),
+  //   txnAmt: amount.toFixed(2),
+  //   currencyCode: currencyCode.trim()
+  // };
+  
+  // Alternative: Try UPPER_CASE if both don't work
+  // const requestPayload = {
+  //   MERCHANT_ID: merchantId.trim(),
+  //   SECURED_KEY: securedKey.trim(),
+  //   BASKET_ID: basketId.trim(),
+  //   TXNAMT: amount.toFixed(2),
+  //   CURRENCY_CODE: currencyCode.trim()
+  // };
   
   // Log request (without sensitive values)
   console.log('PayFast Token Request:', {
@@ -115,6 +134,14 @@ async function getPayFastToken(data) {
   }
 
   // Parse JSON response
+  // PayFast response format:
+  // {
+  //   "token": "<token>",
+  //   "refresh_token": "<refresh token>",
+  //   "code": "",
+  //   "message": null,
+  //   "expiry": <no.ofseconds>
+  // }
   let result;
   if (contentType && contentType.includes('application/json')) {
     result = await response.json();
@@ -126,6 +153,16 @@ async function getPayFastToken(data) {
       throw new Error(`Invalid response format from PayFast API: ${text.substring(0, 200)}`);
     }
   }
+  
+  // Log response (without sensitive token)
+  console.log('PayFast Token Response:', {
+    hasToken: !!result.token,
+    hasRefreshToken: !!result.refresh_token,
+    code: result.code,
+    message: result.message,
+    expiry: result.expiry,
+    fullResponse: result
+  });
 
   return result;
 }

@@ -94,13 +94,39 @@ module.exports = async (req, res) => {
       currencyCode: currencyCode || 'PKR',
     });
 
-    // Return response matching Next.js format
+    // PayFast response format:
+    // {
+    //   "token": "<token>",
+    //   "refresh_token": "<refresh token>",
+    //   "code": "",
+    //   "message": null,
+    //   "expiry": <no.ofseconds>
+    // }
+    
+    // Check for errors in PayFast response
+    if (tokenResponse.code && tokenResponse.code !== '') {
+      return res.status(500).json({
+        success: false,
+        error: tokenResponse.message || `PayFast error code: ${tokenResponse.code}`
+      });
+    }
+
+    if (!tokenResponse.token) {
+      return res.status(500).json({
+        success: false,
+        error: 'PayFast did not return an access token'
+      });
+    }
+
+    // Return response matching expected format
     return res.status(200).json({
       success: true,
-      token: tokenResponse.ACCESS_TOKEN,
+      token: tokenResponse.token,
+      refreshToken: tokenResponse.refresh_token,
       basketId: finalBasketId,
-      merchantId: tokenResponse.MERCHANT_ID || process.env.PAYFAST_MERCHANT_ID,
-      generatedDateTime: tokenResponse.GENERATED_DATE_TIME || new Date().toISOString()
+      merchantId: process.env.PAYFAST_MERCHANT_ID,
+      expiry: tokenResponse.expiry, // Token expiry in seconds
+      generatedDateTime: new Date().toISOString()
     });
 
   } catch (error) {
