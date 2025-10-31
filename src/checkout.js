@@ -140,7 +140,12 @@ function Checkout() {
       const backendUrl = process.env.REACT_APP_BACKEND_API_URL || 'https://hatchepk1.vercel.app';
       const tokenResponse = await fetch(`${backendUrl}/api/payment/get-token`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        mode: 'cors',
+        credentials: 'omit',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({
           amount: parseFloat(guide.price),
           currencyCode: 'PKR',
