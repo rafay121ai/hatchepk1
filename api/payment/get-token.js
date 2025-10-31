@@ -10,7 +10,7 @@
 const {
   getPayFastToken,
   generateBasketId
-} = require('../../backend/payfast-utils');
+} = require('./payfast-utils');
 
 module.exports = async (req, res) => {
   // Set CORS headers
@@ -32,6 +32,39 @@ module.exports = async (req, res) => {
   }
 
   try {
+    // Log environment variables check (for debugging - don't log actual values)
+    const hasMerchantId = !!process.env.PAYFAST_MERCHANT_ID;
+    const hasSecuredKey = !!process.env.PAYFAST_SECURED_KEY;
+    const hasTokenUrl = !!process.env.PAYFAST_TOKEN_API_URL;
+    
+    // Log ALL environment variable keys that contain "PAYFAST" (for debugging)
+    const allEnvKeys = Object.keys(process.env);
+    const payfastKeys = allEnvKeys.filter(k => k.includes('PAYFAST'));
+    
+    console.log('=== PayFast Environment Variables Check ===');
+    console.log('PAYFAST_MERCHANT_ID:', hasMerchantId ? '✓ Set' : '✗ Missing');
+    console.log('PAYFAST_SECURED_KEY:', hasSecuredKey ? '✓ Set' : '✗ Missing');
+    console.log('PAYFAST_TOKEN_API_URL:', hasTokenUrl ? '✓ Set' : '✗ Missing');
+    console.log('All PAYFAST-related env vars found:', payfastKeys);
+    console.log('Total env vars:', allEnvKeys.length);
+    console.log('VERCEL_ENV:', process.env.VERCEL_ENV || 'not set');
+    console.log('===========================================');
+    
+    // Early validation - if missing, return error immediately
+    if (!hasMerchantId || !hasSecuredKey || !hasTokenUrl) {
+      const missing = [];
+      if (!hasMerchantId) missing.push('PAYFAST_MERCHANT_ID');
+      if (!hasSecuredKey) missing.push('PAYFAST_SECURED_KEY');
+      if (!hasTokenUrl) missing.push('PAYFAST_TOKEN_API_URL');
+      
+      return res.status(500).json({
+        success: false,
+        error: `PayFast credentials not configured. Missing: ${missing.join(', ')}`,
+        instructions: 'Please set these in Vercel Dashboard: Settings > Environment Variables. Make sure to select all environments (Production, Preview, Development) and redeploy after adding them.',
+        foundEnvVars: payfastKeys
+      });
+    }
+
     const { amount, basketId, currencyCode } = req.body;
 
     // Validate required fields
@@ -72,9 +105,20 @@ module.exports = async (req, res) => {
 
   } catch (error) {
     console.error('PayFast token error:', error);
+    console.error('Error stack:', error.stack);
+    
+    // Return more detailed error information
     return res.status(500).json({
       success: false,
-      error: error.message || 'Failed to get payment token'
+      error: error.message || 'Failed to get payment token',
+      details: process.env.NODE_ENV === 'development' ? {
+        stack: error.stack,
+        envCheck: {
+          PAYFAST_MERCHANT_ID: !!process.env.PAYFAST_MERCHANT_ID,
+          PAYFAST_SECURED_KEY: !!process.env.PAYFAST_SECURED_KEY,
+          PAYFAST_TOKEN_API_URL: !!process.env.PAYFAST_TOKEN_API_URL,
+        }
+      } : undefined
     });
   }
 };

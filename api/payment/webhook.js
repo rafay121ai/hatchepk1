@@ -11,7 +11,7 @@ const {
   verifyIPNHash,
   isTransactionSuccessful,
   getErrorMessage
-} = require('../../backend/payfast-utils');
+} = require('./payfast-utils');
 
 const { createClient } = require('@supabase/supabase-js');
 
