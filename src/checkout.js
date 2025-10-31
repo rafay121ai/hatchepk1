@@ -137,8 +137,13 @@ function Checkout() {
       }
 
       // Step 1: Get access token from backend API
+      // IMPORTANT: We MUST use our backend API, NOT PayFast directly
+      // Reasons:
+      // 1. PayFast API doesn't allow CORS from browsers
+      // 2. SECURED_KEY must NEVER be exposed to frontend (security risk)
+      // 3. Our backend API handles the PayFast call securely server-side
       const backendUrl = process.env.REACT_APP_BACKEND_API_URL || 'https://hatchepk1.vercel.app';
-      const tokenResponse = await fetch(`https://ipguat.apps.net.pk/Ecommerce/api/Transaction/GetAccessToken`, {
+      const tokenResponse = await fetch(`${backendUrl}/api/payment/get-token`, {
         method: 'POST',
         mode: 'cors',
         credentials: 'omit',
