@@ -52,12 +52,15 @@ async function getPayFastToken(data) {
     throw new Error('SECURED_KEY is required and cannot be empty');
   }
   
-  const params = new URLSearchParams();
-  params.append('MERCHANT_ID', merchantId.trim());
-  params.append('SECURED_KEY', securedKey.trim());
-  params.append('BASKET_ID', basketId.trim());
-  params.append('TXNAMT', amount.toFixed(2)); // Ensure 2 decimal places
-  params.append('CURRENCY_CODE', currencyCode.trim());
+  // PayFast API expects JSON format with AccessToken object
+  // Based on error: GetAccessToken(AccessToken accessToken)
+  const requestPayload = {
+    MERCHANT_ID: merchantId.trim(),
+    SECURED_KEY: securedKey.trim(),
+    BASKET_ID: basketId.trim(),
+    TXNAMT: amount.toFixed(2),
+    CURRENCY_CODE: currencyCode.trim()
+  };
   
   // Log request (without sensitive values)
   console.log('PayFast Token Request:', {
@@ -67,7 +70,7 @@ async function getPayFastToken(data) {
     TXNAMT: amount.toFixed(2),
     CURRENCY_CODE: currencyCode,
     URL: tokenApiUrl,
-    allFields: ['MERCHANT_ID', 'SECURED_KEY', 'BASKET_ID', 'TXNAMT', 'CURRENCY_CODE']
+    format: 'JSON'
   });
 
   // Use fetch if available (Node.js 18+) or require node-fetch for older versions
@@ -80,19 +83,21 @@ async function getPayFastToken(data) {
     }
   }
 
-  // PayFast API expects form-encoded data
-  const formData = params.toString();
+  const requestBody = JSON.stringify(requestPayload);
   
   console.log('PayFast Request URL:', tokenApiUrl);
-  console.log('PayFast Request Body (sanitized):', formData.replace(/SECURED_KEY=[^&]*/, 'SECURED_KEY=***'));
+  console.log('PayFast Request Body (sanitized):', JSON.stringify({
+    ...requestPayload,
+    SECURED_KEY: '***'
+  }));
   
   const response = await fetchFunction(tokenApiUrl, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
+      'Content-Type': 'application/json',
       'Accept': 'application/json'
     },
-    body: formData,
+    body: requestBody,
   });
   
   console.log('PayFast Response Status:', response.status, response.statusText);
