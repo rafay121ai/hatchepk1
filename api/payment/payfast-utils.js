@@ -35,12 +35,40 @@ async function getPayFastToken(data) {
   }
 
   // Create form data for POST request
+  // PayFast requires all fields - ensure none are null/undefined
+  const basketId = data.basketId || generateBasketId();
+  const amount = parseFloat(data.amount);
+  const currencyCode = data.currencyCode || 'PKR';
+  
+  if (!basketId || !amount || isNaN(amount) || amount <= 0) {
+    throw new Error(`Invalid request data: basketId=${basketId}, amount=${amount}`);
+  }
+  
+  // Ensure merchant ID and secured key are strings (not null/undefined)
+  if (!merchantId || merchantId.trim() === '') {
+    throw new Error('MERCHANT_ID is required and cannot be empty');
+  }
+  if (!securedKey || securedKey.trim() === '') {
+    throw new Error('SECURED_KEY is required and cannot be empty');
+  }
+  
   const params = new URLSearchParams();
-  params.append('MERCHANT_ID', merchantId);
-  params.append('SECURED_KEY', securedKey);
-  params.append('BASKET_ID', data.basketId);
-  params.append('TXNAMT', data.amount.toString());
-  params.append('CURRENCY_CODE', data.currencyCode || 'PKR');
+  params.append('MERCHANT_ID', merchantId.trim());
+  params.append('SECURED_KEY', securedKey.trim());
+  params.append('BASKET_ID', basketId.trim());
+  params.append('TXNAMT', amount.toFixed(2)); // Ensure 2 decimal places
+  params.append('CURRENCY_CODE', currencyCode.trim());
+  
+  // Log request (without sensitive values)
+  console.log('PayFast Token Request:', {
+    MERCHANT_ID: merchantId ? `${merchantId.substring(0, 3)}...` : 'missing',
+    SECURED_KEY: securedKey ? 'set' : 'missing',
+    BASKET_ID: basketId,
+    TXNAMT: amount.toFixed(2),
+    CURRENCY_CODE: currencyCode,
+    URL: tokenApiUrl,
+    allFields: ['MERCHANT_ID', 'SECURED_KEY', 'BASKET_ID', 'TXNAMT', 'CURRENCY_CODE']
+  });
 
   // Use fetch if available (Node.js 18+) or require node-fetch for older versions
   let fetchFunction = fetch;
@@ -52,15 +80,22 @@ async function getPayFastToken(data) {
     }
   }
 
+  // PayFast API expects form-encoded data
+  const formData = params.toString();
+  
+  console.log('PayFast Request URL:', tokenApiUrl);
+  console.log('PayFast Request Body (sanitized):', formData.replace(/SECURED_KEY=[^&]*/, 'SECURED_KEY=***'));
+  
   const response = await fetchFunction(tokenApiUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'User-Agent': 'PayFast-Integration/1.0',
       'Accept': 'application/json'
     },
-    body: params.toString(),
+    body: formData,
   });
+  
+  console.log('PayFast Response Status:', response.status, response.statusText);
 
   // Check if response is JSON
   const contentType = response.headers.get('content-type');
