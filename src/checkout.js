@@ -1,14 +1,12 @@
-// Enhanced checkout.js with PayFast payment integration
+// Simple checkout component
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './checkout.css';
 import { useAuth } from './AuthContext';
+import { supabase } from './supabaseClient';
 
 // Import validation utilities
 import { validators, useFormValidation } from './utils/validation';
-
-// Import PayFast utilities
-import { formatOrderDate } from './utils/payfast';
 
 function Checkout() {
   const location = useLocation();
@@ -19,7 +17,7 @@ function Checkout() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [submitError, setSubmitError] = useState('');
 
-  // Define validation rules (removed card fields - PayFast handles payment)
+  // Define validation rules
   const validationRules = {
     firstName: validators.name,
     lastName: validators.name,
@@ -47,56 +45,76 @@ function Checkout() {
       state: '',
       zipCode: '',
       country: 'Pakistan',
+      cardNumber: '',
+      cardName: '',
+      expiryDate: '',
+      cvv: '',
     },
     validationRules
   );
 
   useEffect(() => {
-    if (location.state?.guide) {
-      setGuide(location.state.guide);
-    } else {
-      navigate('/our-guides');
-    }
-  }, [location.state, navigate]);
-
-  // Update form when user changes
-  useEffect(() => {
-    if (user) {
-      setValues(prev => ({
-        ...prev,
-        email: user.email,
-        phone: user.phone || '',
-      }));
-    }
-  }, [user, setValues]);
-
-  const handleNextStep = () => {
-    setSubmitError('');
-    
-    if (step === 1) {
-      // Validate step 1 fields
-      const step1Fields = ['firstName', 'lastName', 'email', 'phone'];
-      const step1Errors = {};
-      let hasError = false;
-
-      step1Fields.forEach(field => {
-        const error = validationRules[field](formData[field]);
-        if (error) {
-          step1Errors[field] = error;
-          hasError = true;
-        }
-      });
-
-      if (hasError) {
-        setSubmitError('Please correct the errors above');
+    const loadGuideFromDatabase = async () => {
+      const guideData = location.state?.guide;
+      if (!guideData) {
+        navigate('/our-guides');
         return;
       }
-      
-      setStep(2);
-    } else if (step === 2) {
-      // Step 2 is optional shipping info, just proceed to confirmation
-      setStep(3);
+
+      try {
+        // Fetch the guide from the database to ensure we have the latest data
+        const { data, error } = await supabase
+          .from('guides')
+          .select('*')
+          .eq('id', guideData.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching guide from database:', error);
+          // Fallback to state data if database fetch fails
+          setGuide(guideData);
+        } else {
+          if (process.env.NODE_ENV === 'development') {
+            console.log('Loaded guide from database:', data);
+          }
+          setGuide(data);
+        }
+      } catch (err) {
+        console.error('Error loading guide:', err);
+        // Fallback to state data
+        setGuide(guideData);
+      }
+
+      // Pre-fill form with user data if available
+      if (user) {
+        setValues(prev => ({
+          ...prev,
+          firstName: user.user_metadata?.firstName || prev.firstName,
+          lastName: user.user_metadata?.lastName || prev.lastName,
+          email: user.email || prev.email,
+          phone: user.user_metadata?.phone || prev.phone,
+        }));
+      }
+    };
+
+    loadGuideFromDatabase();
+  }, [location.state, navigate, user, setValues]);
+
+  const handleNextStep = () => {
+    if (step === 1) {
+      // Validate required fields before moving to next step
+      const requiredFields = ['firstName', 'lastName', 'email', 'phone'];
+      const hasErrors = requiredFields.some(field => errors[field]);
+      const allFilled = requiredFields.every(field => formData[field]);
+
+      if (hasErrors || !allFilled) {
+        setSubmitError('Please fill in all required fields correctly');
+        return;
+      }
     }
+
+    setStep(step + 1);
+    setSubmitError('');
   };
 
   const handlePreviousStep = () => {
@@ -119,115 +137,78 @@ function Checkout() {
     setSubmitError('');
 
     try {
-      // Validate phone number format (Pakistani format: 11 digits starting with 0)
-      const phoneRegex = /^0[0-9]{10}$/;
-      const cleanedPhone = formData.phone.replace(/\s+/g, '');
-      if (!phoneRegex.test(cleanedPhone)) {
-        throw new Error('Please enter a valid Pakistani mobile number (e.g., 03123456789)');
-      }
+      // Get referral ID from sessionStorage if available
+      const referralId = sessionStorage.getItem('refId');
 
-      // Get referral ID from session
-      const refId = sessionStorage.getItem('refId');
-      const refTimestamp = sessionStorage.getItem('refTimestamp');
-      
-      // Clear expired referral (6 hours = 6 * 60 * 60 * 1000 ms)
-      if (refTimestamp && Date.now() - parseInt(refTimestamp) > 6 * 60 * 60 * 1000) {
-        sessionStorage.removeItem('refId');
-        sessionStorage.removeItem('refTimestamp');
-      }
-
-      // Step 1: Get access token from backend API
-      // IMPORTANT: We MUST use our backend API, NOT PayFast directly
-      // Reasons:
-      // 1. PayFast API doesn't allow CORS from browsers
-      // 2. SECURED_KEY must NEVER be exposed to frontend (security risk)
-      // 3. Our backend API handles the PayFast call securely server-side
-      const backendUrl = process.env.REACT_APP_BACKEND_API_URL || 'https://hatchepk1.vercel.app';
-      const tokenResponse = await fetch(`${backendUrl}/api/payment/get-token`, {
-        method: 'POST',
-        mode: 'cors',
-        credentials: 'omit',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        },
-        body: JSON.stringify({
-          amount: parseFloat(guide.price),
-          currencyCode: 'PKR',
-        }),
-      });
-
-      if (!tokenResponse.ok) {
-        const errorData = await tokenResponse.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to get payment token');
-      }
-
-      const tokenData = await tokenResponse.json();
-
-      if (!tokenData.success || !tokenData.token) {
-        throw new Error(tokenData.error || 'Failed to get payment token');
-      }
-
-      // Store order information temporarily for IPN handler
-      const orderData = {
-        basketId: tokenData.basketId,
-        customerEmail: user ? user.email : formData.email,
-        customerName: `${formData.firstName} ${formData.lastName}`,
-        customerMobile: cleanedPhone,
-        productName: guide.title,
-        guideId: guide.id,
-        amount: parseFloat(guide.price),
-        referralId: refId || null,
-        userId: user?.id || null
+      // Create order payload matching your database schema
+      const orderPayload = {
+        customer_email: user?.email || formData.email,
+        customer_name: `${formData.firstName} ${formData.lastName}`,
+        product_name: guide.title,
+        amount: guide.price,
+        by_ref_id: referralId,
+        order_status: 'completed', // Mark as completed for demo
       };
 
-      // Store order data in sessionStorage for IPN verification
-      sessionStorage.setItem('pendingOrder', JSON.stringify(orderData));
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Creating demo order:', orderPayload);
+      }
 
-      // Step 2: Create and submit form to PayFast
-      const form = document.createElement('form');
-      form.method = 'POST';
-      form.action = process.env.REACT_APP_PAYFAST_FORM_POST_URL || 
-        'https://ipguat.apps.net.pk/Ecommerce/api/Transaction/PostTransaction';
+      // Insert order into database
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert([orderPayload])
+        .select();
 
-      // Add all required fields
-      const fields = {
-        MERCHANT_ID: tokenData.merchantId,
-        MERCHANT_NAME: process.env.REACT_APP_PAYFAST_MERCHANT_NAME || 'Hatche',
-        TOKEN: tokenData.token,
-        PROCCODE: '00',
-        TXNAMT: guide.price,
-        CUSTOMER_MOBILE_NO: cleanedPhone,
-        CUSTOMER_EMAIL_ADDRESS: user ? user.email : formData.email,
-        SIGNATURE: 'HATCHE-PAYMENT-v1.0',
-        VERSION: 'HATCHE-CART-1.0',
-        TXNDESC: guide.title || 'Payment for order',
-        SUCCESS_URL: `${window.location.origin}/payment/success`,
-        FAILURE_URL: `${window.location.origin}/payment/failure`,
-        CHECKOUT_URL: `${backendUrl}/api/payment/webhook`,
-        BASKET_ID: tokenData.basketId,
-        ORDER_DATE: formatOrderDate(),
-        CURRENCY_CODE: 'PKR',
-        CUSTOMER_NAME: `${formData.firstName} ${formData.lastName}`,
-      };
+      if (orderError) {
+        console.error('Error creating order:', orderError);
+        console.error('Order payload was:', orderPayload);
+        console.error('Error details:', {
+          message: orderError.message,
+          details: orderError.details,
+          hint: orderError.hint,
+          code: orderError.code
+        });
+        throw new Error(`Failed to create order: ${orderError.message || 'Please try again.'}`);
+      }
 
-      // Add fields to form
-      Object.entries(fields).forEach(([key, value]) => {
-        if (value !== null && value !== undefined && value !== '') {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = key;
-          input.value = value;
-          form.appendChild(input);
-        }
-      });
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Demo order created successfully:', orderData);
+      }
 
-      // Submit form
-      document.body.appendChild(form);
-      form.submit();
-      
-    } catch (err) {
-      setSubmitError(err.message || 'Payment processing failed. Please try again.');
+      // Get the created order ID
+      const createdOrder = orderData && orderData[0];
+      const orderId = createdOrder?.id || 'N/A';
+
+      // Track purchase with Google Analytics
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'purchase', {
+          transaction_id: orderId,
+          value: guide.price,
+          currency: 'PKR',
+          items: [{
+            item_id: guide.id,
+            item_name: guide.title,
+            price: guide.price,
+            quantity: 1
+          }]
+        });
+      }
+
+      // Simulate payment processing delay
+      setTimeout(() => {
+        // Show success message
+        alert(`🎉 Payment Successful!\n\n✅ Transaction Completed\n\nYou now have access to:\n${guide.title}\n\nOrder ID: ${orderId}\nPayment Method: Demo Card\n\nRedirecting to your guides...`);
+
+        // Redirect to Your Guides page
+        setTimeout(() => {
+          navigate('/your-guides');
+        }, 500);
+      }, 1500);
+
+    } catch (error) {
+      console.error('Payment error:', error);
+      setSubmitError(error.message || 'An error occurred during checkout. Please try again.');
       setIsProcessing(false);
     }
   };
@@ -249,13 +230,13 @@ function Checkout() {
           <h1>Checkout</h1>
           <div className="demo-notice" style={{
             backgroundColor: '#e3f2fd',
-            border: '1px solid #90caf9',
+            border: '1px solid #2196f3',
             borderRadius: '8px',
             padding: '12px',
             marginBottom: '20px',
             color: '#1565c0'
           }}>
-            <strong>Secure Payment:</strong> You will be redirected to PayFast's secure payment gateway to complete your purchase.
+            <strong>Demo Mode:</strong> This is a demonstration checkout. Clicking "Complete Purchase" will simulate a successful payment and grant you access to the guide.
           </div>
           <div className="checkout-steps">
             <div className={`step ${step >= 1 ? 'active' : ''}`}>
@@ -335,7 +316,7 @@ function Checkout() {
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="phone">Mobile Number * (Pakistani Format: 03123456789)</label>
+                  <label htmlFor="phone">Mobile Number *</label>
                   <input
                     type="tel"
                     id="phone"
@@ -351,17 +332,78 @@ function Checkout() {
                   {touched.phone && errors.phone && (
                     <span className="field-error" role="alert">{errors.phone}</span>
                   )}
-                  <small style={{ color: '#666', fontSize: '0.85rem', display: 'block', marginTop: '4px' }}>
-                    Enter your Pakistani mobile number starting with 0 (11 digits without spaces)
-                  </small>
                 </div>
               </div>
             )}
 
             {step === 2 && (
               <div className="form-step">
-                <h2>Shipping Information (Optional)</h2>
+                <h2>Payment Method</h2>
+                <div className="demo-notice" style={{
+                  backgroundColor: '#fff3cd',
+                  border: '1px solid #ffc107',
+                  borderRadius: '8px',
+                  padding: '12px',
+                  marginBottom: '20px',
+                  color: '#856404'
+                }}>
+                  <strong>Demo Mode:</strong> This is a simulated payment form. Enter any card details to complete the demo purchase.
+                </div>
+
                 <div className="form-group">
+                  <label htmlFor="cardNumber">Card Number *</label>
+                  <input
+                    type="text"
+                    id="cardNumber"
+                    name="cardNumber"
+                    value={formData.cardNumber}
+                    onChange={handleInputChange}
+                    placeholder="1234 5678 9012 3456"
+                    maxLength="19"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="cardName">Cardholder Name *</label>
+                  <input
+                    type="text"
+                    id="cardName"
+                    name="cardName"
+                    value={formData.cardName}
+                    onChange={handleInputChange}
+                    placeholder="John Doe"
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="expiryDate">Expiry Date *</label>
+                    <input
+                      type="text"
+                      id="expiryDate"
+                      name="expiryDate"
+                      value={formData.expiryDate}
+                      onChange={handleInputChange}
+                      placeholder="MM/YY"
+                      maxLength="5"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="cvv">CVV *</label>
+                    <input
+                      type="text"
+                      id="cvv"
+                      name="cvv"
+                      value={formData.cvv}
+                      onChange={handleInputChange}
+                      placeholder="123"
+                      maxLength="4"
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group" style={{ marginTop: '20px' }}>
+                  <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Billing Address (Optional)</h3>
                   <label htmlFor="address">Address Line 1</label>
                   <input
                     type="text"
@@ -386,127 +428,86 @@ function Checkout() {
                 </div>
 
                 <div className="payment-notice" style={{
-                  backgroundColor: '#e3f2fd',
-                  border: '1px solid #90caf9',
+                  backgroundColor: '#e8f5e9',
+                  border: '1px solid #4caf50',
                   borderRadius: '8px',
                   padding: '12px',
                   marginTop: '20px',
-                  color: '#1565c0'
+                  color: '#2e7d32'
                 }}>
                   <p>
-                    <strong>Secure Payment:</strong> You will be redirected to PayFast's secure payment gateway to complete your purchase. 
-                    We do not store your payment card details.
+                    <strong>Secure Demo Checkout:</strong> Click "Complete Purchase" to simulate a successful payment. 
+                    You'll immediately get access to the guide!
                   </p>
                 </div>
               </div>
             )}
 
-            {step === 3 && (
-              <div className="form-step">
-                <h2>Order Confirmation</h2>
-                <div className="confirmation-content">
-                  <div className="order-summary">
-                    <h3>Order Summary</h3>
-                    <div className="order-item">
-                      <div className="item-info">
-                        <h4>{guide.title}</h4>
-                        <p>Digital Guide</p>
-                      </div>
-                      <div className="item-price">PKR {guide.price}</div>
-                    </div>
-                    <div className="order-total">
-                      <div className="total-row">
-                        <span>Subtotal:</span>
-                        <span>PKR {guide.price}</span>
-                      </div>
-                      <div className="total-row">
-                        <span>Tax:</span>
-                        <span>PKR 0.00</span>
-                      </div>
-                      <div className="total-row total">
-                        <span>Total:</span>
-                        <span>PKR {guide.price}</span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="payment-info">
-                    <h3>Payment Method</h3>
-                    <p>PayFast Secure Payment</p>
-                    <p>You will be redirected to PayFast to complete your payment securely.</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {submitError && (
-              <div className="error-message" role="alert">{submitError}</div>
+              <div className="error-message" role="alert">
+                {submitError}
+              </div>
             )}
 
             <div className="form-actions">
               {step > 1 && (
                 <button
                   type="button"
-                  className="btn-secondary"
                   onClick={handlePreviousStep}
+                  className="btn btn-secondary"
                   disabled={isProcessing}
                 >
                   Previous
                 </button>
               )}
-
-              {step < 3 ? (
-                <button type="button" className="btn-primary" onClick={handleNextStep}>
+              {step < 2 ? (
+                <button
+                  type="button"
+                  onClick={handleNextStep}
+                  className="btn btn-primary"
+                >
                   Next
                 </button>
               ) : (
                 <button
                   type="button"
-                  className="btn-primary"
                   onClick={handlePayment}
+                  className="btn btn-primary"
                   disabled={isProcessing}
-                  aria-busy={isProcessing}
                 >
-                  {isProcessing ? (
-                    <>
-                      <span className="spinner-small" aria-hidden="true"></span>
-                      Processing...
-                    </>
-                  ) : (
-                    `Pay PKR ${guide.price}`
-                  )}
+                  {isProcessing ? 'Processing Payment...' : `Complete Purchase - PKR ${guide.price}`}
                 </button>
               )}
             </div>
           </div>
 
-          <div className="checkout-sidebar">
-            <div className="order-summary-card">
-              <h3>Order Summary</h3>
-              <div className="summary-item">
-                <div className="item-details">
-                  <h4>{guide.title}</h4>
-                  <p>Digital Guide</p>
-                </div>
-                <div className="item-price">PKR {guide.price}</div>
-              </div>
-              
-              <div className="summary-total">
-                <div className="total-row">
-                  <span>Subtotal:</span>
-                  <span>PKR {guide.price}</span>
-                </div>
-                <div className="total-row">
-                  <span>Tax:</span>
-                  <span>PKR 0.00</span>
-                </div>
-                <div className="total-row total">
-                  <span>Total:</span>
-                  <span>PKR {guide.price}</span>
-                </div>
+          <div className="order-summary">
+            <h2>Order Summary</h2>
+            <div className="summary-item">
+              <img 
+                src={guide.thumbnail || '/placeholder-guide.png'} 
+                alt={guide.title}
+                className="summary-image"
+              />
+              <div className="summary-details">
+                <h3>{guide.title}</h3>
+                <p className="summary-description">{guide.description}</p>
               </div>
             </div>
-            
+            <div className="summary-divider"></div>
+            <div className="summary-row">
+              <span>Subtotal:</span>
+              <span>PKR {guide.price}</span>
+            </div>
+            <div className="summary-row">
+              <span>Tax:</span>
+              <span>PKR 0</span>
+            </div>
+            <div className="summary-divider"></div>
+            <div className="summary-row total">
+              <span>Total:</span>
+              <span>PKR {guide.price}</span>
+            </div>
           </div>
         </div>
       </div>
