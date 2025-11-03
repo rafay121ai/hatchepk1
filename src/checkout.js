@@ -1,5 +1,5 @@
 // Simple checkout component
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './checkout.css';
 import { useAuth } from './AuthContext';
@@ -16,6 +16,7 @@ function Checkout() {
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const payfastFormRef = useRef(null);
 
   // Define validation rules
   const validationRules = {
@@ -176,7 +177,7 @@ function Checkout() {
         product_name: guide.title,
         amount: guide.price,
         by_ref_id: referralId,
-        order_status: 'pending', // Will be updated to 'completed' by API
+        order_status: 'pending', // Will be updated to 'completed' by webhook
       };
 
       const { data: orderData, error: orderError } = await supabase
@@ -189,79 +190,63 @@ function Checkout() {
         throw new Error('Failed to create order. Please try again.');
       }
 
-      // Step 3: Initiate transaction via API (not form redirect)
-      console.log('Initiating transaction with PayFast...');
+      // Step 3: Store order info for webhook/success page
+      sessionStorage.setItem('pendingOrder', JSON.stringify({
+        basketId: basketId,
+        guideTitle: guide.title,
+        amount: guide.price,
+        orderId: orderData[0]?.id
+      }));
+
+      // Step 4: Redirect to PayFast with form
+      console.log('Redirecting to PayFast payment page...');
       
-      const transactionResponse = await fetch('/api/payment/initiate-transaction', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          token: tokenData.token,
-          basketId: basketId,
-          amount: guide.price,
-          customerEmail: user?.email || formData.email,
-          customerMobile: formData.phone,
-          customerName: `${formData.firstName} ${formData.lastName}`,
-          orderDescription: guide.title
-        })
+      const payfastUrl = process.env.REACT_APP_PAYFAST_POST_URL || 
+        'https://ipguat.apps.net.pk/Ecommerce/api/Transaction/PostTransaction';
+
+      const form = payfastFormRef.current;
+      if (!form) {
+        throw new Error('Form initialization error');
+      }
+
+      form.action = payfastUrl;
+      form.method = 'POST';
+      form.innerHTML = '';
+
+      // Add form fields
+      const fields = {
+        MERCHANT_ID: tokenData.merchantId,
+        MERCHANT_NAME: 'Hatche',
+        TOKEN: tokenData.token,
+        PROCCODE: '00',
+        TXNAMT: guide.price.toString(),
+        CUSTOMER_MOBILE_NO: formData.phone,
+        CUSTOMER_EMAIL_ADDRESS: user?.email || formData.email,
+        CUSTOMER_NAME: `${formData.firstName} ${formData.lastName}`,
+        SIGNATURE: `SIGNATURE-${Date.now()}`,
+        VERSION: 'v1.0',
+        TXNDESC: `Purchase: ${guide.title}`,
+        SUCCESS_URL: `${window.location.origin}/payment-success`,
+        FAILURE_URL: `${window.location.origin}/payment-failure`,
+        CHECKOUT_URL: `${window.location.origin}/api/payment/webhook`,
+        BASKET_ID: basketId,
+        ORDER_DATE: new Date().toISOString().split('T')[0],
+        CURRENCY_CODE: 'PKR',
+        TRAN_TYPE: 'ECOMM_PURCHASE'
+      };
+
+      Object.entries(fields).forEach(([key, value]) => {
+        if (value) {
+          const input = document.createElement('input');
+          input.type = 'hidden';
+          input.name = key;
+          input.value = value.toString();
+          form.appendChild(input);
+        }
       });
 
-      if (!transactionResponse.ok) {
-        const errorData = await transactionResponse.json().catch(() => ({}));
-        console.error('Transaction API error:', errorData);
-        throw new Error(errorData.error || 'Failed to initiate transaction');
-      }
-
-      const transactionData = await transactionResponse.json();
-      
-      console.log('Transaction response:', transactionData);
-
-      if (!transactionData.success) {
-        throw new Error(transactionData.error || 'Transaction failed');
-      }
-
-      // Step 4: Handle transaction result
-      const result = transactionData.data;
-      
-      if (result.code === '000' || result.code === '00') {
-        // Transaction successful
-        await supabase
-          .from('orders')
-          .update({ order_status: 'completed' })
-          .eq('id', orderData[0]?.id);
-
-        // Track with Google Analytics
-        if (typeof window !== 'undefined' && window.gtag) {
-          window.gtag('event', 'purchase', {
-            transaction_id: result.transaction_id || basketId,
-            value: guide.price,
-            currency: 'PKR',
-            items: [{
-              item_id: guide.id,
-              item_name: guide.title,
-              price: guide.price,
-              quantity: 1
-            }]
-          });
-        }
-
-        // Show success and redirect
-        alert(`🎉 Payment Successful!\n\nTransaction ID: ${result.transaction_id}\nYou now have access to: ${guide.title}\n\nRedirecting to your guides...`);
-        
-        setTimeout(() => {
-          navigate('/your-guides');
-        }, 1500);
-      } else {
-        // Transaction failed
-        await supabase
-          .from('orders')
-          .update({ order_status: 'failed' })
-          .eq('id', orderData[0]?.id);
-        
-        throw new Error(result.status_msg || `Transaction failed with code: ${result.code}`);
-      }
+      // Submit form - redirects to PayFast
+      form.submit();
 
     } catch (error) {
       console.error('Payment error:', error);
@@ -297,8 +282,8 @@ function Checkout() {
             marginBottom: '20px',
             color: '#2e7d32'
           }}>
-            <strong>Secure Payment:</strong> Your payment will be processed securely through PayFast payment gateway.
-          </div>
+                  <strong>Secure Payment:</strong> You will be redirected to PayFast's secure payment page.
+                </div>
           <div className="checkout-steps">
             <div className={`step ${step >= 1 ? 'active' : ''}`}>
               <span className="step-number">1</span>
@@ -422,7 +407,7 @@ function Checkout() {
                   <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
                   <h3 style={{ color: '#424242', marginBottom: '1rem' }}>Secure Payment with PayFast</h3>
                   <p style={{ color: '#757575', lineHeight: '1.6' }}>
-                    Your payment will be processed securely through PayFast's payment gateway API.
+                    Click "Complete Purchase" and you'll be redirected to PayFast where you can enter your payment details.
                   </p>
                   <p style={{ color: '#757575', marginTop: '1rem', fontSize: '0.9rem' }}>
                     We never store your payment details on our servers.
@@ -513,6 +498,8 @@ function Checkout() {
         </div>
       </div>
 
+      {/* Hidden form for PayFast redirect */}
+      <form ref={payfastFormRef} style={{ display: 'none' }}></form>
     </div>
   );
 }
