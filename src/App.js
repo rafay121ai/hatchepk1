@@ -6,6 +6,8 @@ import OurGuides from './ourguides';
 import YourGuides from './YourGuides';
 import Checkout from './checkout';
 import AffiliateDashboard from './AffiliateDashboard';
+import PaymentSuccess from './PaymentSuccess';
+import PaymentFailure from './PaymentFailure';
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { testSupabaseConnection } from './supabaseTest';
@@ -133,6 +135,8 @@ function App() {
               } />
               <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
               <Route path="/database-test" element={<DatabaseTest />} />
+              <Route path="/payment-success" element={<PaymentSuccess />} />
+              <Route path="/payment-failure" element={<PaymentFailure />} />
               <Route path="/return-policy" element={<Policies />} />
               <Route path="/privacy-policy" element={<Policies />} />
               <Route path="/refund-policy" element={<Policies />} />
