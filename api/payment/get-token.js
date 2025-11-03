@@ -60,25 +60,28 @@ module.exports = async function handler(req, res) {
       currencyCode
     });
 
-    // Create form-encoded parameters (matching PayFast documentation)
+    // Create form-encoded parameters (matching PHP example - UPPERCASE!)
     const params = new URLSearchParams({
-      merchant_id: merchantId,        // lowercase as per docs
-      secured_key: securedKey,        // lowercase as per docs
-      grant_type: 'client_credentials', // Required by docs
-      customer_ip: '127.0.0.1'        // Required by docs
+      MERCHANT_ID: merchantId,
+      SECURED_KEY: securedKey,
+      BASKET_ID: basketId,
+      TXNAMT: amount.toString(),
+      CURRENCY_CODE: currencyCode
     });
 
-    console.log('Sending to PayFast (form-encoded):', {
-      merchant_id: merchantId,
-      grant_type: 'client_credentials',
-      customer_ip: '127.0.0.1'
+    console.log('Sending to PayFast (form-encoded, UPPERCASE):', {
+      MERCHANT_ID: merchantId,
+      BASKET_ID: basketId,
+      TXNAMT: amount,
+      CURRENCY_CODE: currencyCode,
+      SECURED_KEY: securedKey ? '***' : 'MISSING'
     });
 
-    // Call PayFast API with form-encoded data
+    // Call PayFast API with form-encoded data (matching PHP example)
     const response = await axios.post(tokenUrl, params.toString(), {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'cache-control': 'no-cache'
+        'User-Agent': 'CURL/NodeJS PayFast Integration'
       },
       timeout: 15000 // 15 second timeout
     });

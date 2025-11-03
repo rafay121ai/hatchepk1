@@ -5,14 +5,12 @@ PayFast requires you to perform a test transaction and submit the **Test Order I
 
 ## Test Credentials (Provided by PayFast)
 
-### For Bank Account Payments (REQUIRED FOR TEST):
+When you reach PayFast's payment page, use these credentials:
+
 - **Bank Name:** Demo Bank
 - **Account Number:** `12353940226802034243`
 - **NIC Number:** `4210131315089`
 - **OTP:** `123456`
-
-### For Card Payments (Optional):
-- Use test card details if PayFast provides them separately
 
 ## Steps to Get Your Test Order ID
 
@@ -43,24 +41,23 @@ MERCHANT_CATEGORY_CODE=default
 1. Go to your deployed website: `https://hatchepk1.vercel.app`
 2. Navigate to "Our Guides" and select a guide to purchase
 3. Fill in **Step 1: Personal Information**
-   - Use your real name and email
-   - **Mobile Number:** Use your real mobile number (OTP might be sent here)
+   - Enter your name, email, and mobile number
+   - Click "Next"
 
-4. Click "Next" to go to **Step 2: Payment Method**
+4. On **Step 2: Payment**, click **"Complete Purchase"**
+   - You'll be automatically redirected to PayFast's secure payment page
 
-5. **Select "Bank Account"** (default option)
-
-6. Fill in the **Bank Account fields** with the test credentials:
-   - **Bank Name:** Select "Demo Bank (Test)"
+5. On **PayFast's Payment Page**, enter the test credentials:
+   - Select **"Bank Account"** as payment method
+   - **Bank Name:** Demo Bank
    - **Account Number:** `12353940226802034243`
    - **CNIC Number:** `4210131315089`
-   - **Account Title:** (Optional) Your name
+   
+6. When prompted for **OTP**, enter: `123456`
 
-7. Click **"Complete Purchase"**
+7. Complete the payment on PayFast's page
 
-8. When the **OTP modal appears**, enter: `123456`
-
-9. Click **"Verify OTP"** to complete the transaction
+8. You'll be redirected back to your website with the **Transaction ID**
 
 ### 4. Get Your Test Order ID
 
