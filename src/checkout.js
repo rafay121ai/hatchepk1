@@ -16,7 +16,9 @@ function Checkout() {
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const payfastFormRef = useRef(null);
+  const [showOtpPrompt, setShowOtpPrompt] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [tempTransactionData, setTempTransactionData] = useState(null);
 
   // Define validation rules
   const validationRules = {
@@ -46,6 +48,10 @@ function Checkout() {
       state: '',
       zipCode: '',
       country: 'Pakistan',
+      cardNumber: '',
+      expiryMonth: '',
+      expiryYear: '',
+      cvv: '',
     },
     validationRules
   );
@@ -168,7 +174,7 @@ function Checkout() {
         throw new Error(tokenData.error || 'Failed to get payment token');
       }
 
-      console.log('✅ Token received:', tokenData.token);
+      console.log('✅ Access token received:', tokenData.token);
 
       // Step 2: Create order in database with pending status
       const orderPayload = {
@@ -177,7 +183,7 @@ function Checkout() {
         product_name: guide.title,
         amount: guide.price,
         by_ref_id: referralId,
-        order_status: 'pending', // Will be updated to 'completed' by webhook
+        order_status: 'pending',
       };
 
       const { data: orderData, error: orderError } = await supabase
@@ -190,63 +196,61 @@ function Checkout() {
         throw new Error('Failed to create order. Please try again.');
       }
 
-      // Step 3: Store order info for webhook/success page
-      sessionStorage.setItem('pendingOrder', JSON.stringify({
-        basketId: basketId,
-        guideTitle: guide.title,
-        amount: guide.price,
-        orderId: orderData[0]?.id
-      }));
-
-      // Step 4: Redirect to PayFast with form
-      console.log('Redirecting to PayFast payment page...');
+      // Step 3: Get temporary transaction token with card details
+      console.log('Getting temporary transaction token...');
       
-      const payfastUrl = process.env.REACT_APP_PAYFAST_POST_URL || 
-        'https://ipguat.apps.net.pk/Ecommerce/api/Transaction/PostTransaction';
-
-      const form = payfastFormRef.current;
-      if (!form) {
-        throw new Error('Form initialization error');
-      }
-
-      form.action = payfastUrl;
-      form.method = 'POST';
-      form.innerHTML = '';
-
-      // Add form fields
-      const fields = {
-        MERCHANT_ID: tokenData.merchantId,
-        MERCHANT_NAME: 'Hatche',
-        TOKEN: tokenData.token,
-        PROCCODE: '00',
-        TXNAMT: guide.price.toString(),
-        CUSTOMER_MOBILE_NO: formData.phone,
-        CUSTOMER_EMAIL_ADDRESS: user?.email || formData.email,
-        CUSTOMER_NAME: `${formData.firstName} ${formData.lastName}`,
-        SIGNATURE: `SIGNATURE-${Date.now()}`,
-        VERSION: 'v1.0',
-        TXNDESC: `Purchase: ${guide.title}`,
-        SUCCESS_URL: `${window.location.origin}/payment-success`,
-        FAILURE_URL: `${window.location.origin}/payment-failure`,
-        CHECKOUT_URL: `${window.location.origin}/api/payment/webhook`,
-        BASKET_ID: basketId,
-        ORDER_DATE: new Date().toISOString().split('T')[0],
-        CURRENCY_CODE: 'PKR',
-        TRAN_TYPE: 'ECOMM_PURCHASE'
-      };
-
-      Object.entries(fields).forEach(([key, value]) => {
-        if (value) {
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.name = key;
-          input.value = value.toString();
-          form.appendChild(input);
-        }
+      const tempTokenResponse = await fetch('/api/payment/get-temp-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accessToken: tokenData.token,
+          basketId: basketId,
+          amount: guide.price,
+          merchantUserId: user?.id || formData.email,
+          userMobileNumber: formData.phone,
+          cardNumber: formData.cardNumber,
+          expiryMonth: formData.expiryMonth,
+          expiryYear: formData.expiryYear,
+          cvv: formData.cvv
+        })
       });
 
-      // Submit form - redirects to PayFast
-      form.submit();
+      if (!tempTokenResponse.ok) {
+        const errorData = await tempTokenResponse.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to get transaction token');
+      }
+
+      const tempTokenData = await tempTokenResponse.json();
+      console.log('Temp token response:', tempTokenData);
+
+      if (!tempTokenData.success) {
+        throw new Error(tempTokenData.error || 'Failed to get transaction token');
+      }
+
+      const tempResult = tempTokenData.data;
+
+      // Check if OTP is required
+      if (tempResult.otp_required) {
+        // Store transaction data for OTP step
+        setTempTransactionData({
+          accessToken: tokenData.token,
+          instrumentToken: tempResult.instrument_token,
+          transactionId: tempResult.transaction_id,
+          basketId: basketId,
+          merchantUserId: user?.id || formData.email,
+          userMobileNumber: formData.phone,
+          amount: guide.price,
+          description: guide.title,
+          orderId: orderData[0]?.id
+        });
+        
+        setShowOtpPrompt(true);
+        setIsProcessing(false);
+        return; // Wait for OTP
+      }
+
+      // If no OTP required, complete transaction
+      await completePayment(tempResult, orderData[0]?.id);
 
     } catch (error) {
       console.error('Payment error:', error);
@@ -259,6 +263,73 @@ function Checkout() {
     }
   };
 
+  // Complete payment after OTP verification
+  const completePayment = async (tempResult, orderId) => {
+    try {
+      // Call tokenized transaction API
+      const finalResponse = await fetch('/api/payment/tokenized-transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accessToken: tempTransactionData.accessToken,
+          instrumentToken: tempResult.instrument_token,
+          transactionId: tempResult.transaction_id,
+          merchantUserId: tempTransactionData.merchantUserId,
+          userMobileNumber: tempTransactionData.userMobileNumber,
+          basketId: tempTransactionData.basketId,
+          amount: tempTransactionData.amount,
+          description: tempTransactionData.description,
+          otp: otp || undefined
+        })
+      });
+
+      const finalData = await finalResponse.json();
+      
+      if (!finalData.success) {
+        throw new Error(finalData.error || 'Payment failed');
+      }
+
+      const result = finalData.data;
+
+      if (result.code === '000' || result.code === '00') {
+        // Success - update order
+        await supabase
+          .from('orders')
+          .update({ order_status: 'completed' })
+          .eq('id', orderId);
+
+        alert(`🎉 Payment Successful!\n\nTransaction ID: ${result.transaction_id}\n\nYou now have access to: ${guide.title}`);
+        
+        setTimeout(() => navigate('/your-guides'), 1500);
+      } else {
+        // Failed
+        await supabase
+          .from('orders')
+          .update({ order_status: 'failed' })
+          .eq('id', orderId);
+        
+        throw new Error(result.status_msg || 'Payment failed');
+      }
+    } catch (error) {
+      console.error('Payment completion error:', error);
+      setSubmitError(error.message);
+      setIsProcessing(false);
+      setShowOtpPrompt(false);
+    }
+  };
+
+  // Handle OTP submission
+  const handleOtpSubmit = async () => {
+    if (!otp || otp.length !== 6) {
+      setSubmitError('Please enter a valid 6-digit OTP');
+      return;
+    }
+
+    setIsProcessing(true);
+    setSubmitError('');
+
+    await completePayment(tempTransactionData, tempTransactionData.orderId);
+  };
 
   if (!guide) {
     return (
@@ -282,7 +353,7 @@ function Checkout() {
             marginBottom: '20px',
             color: '#2e7d32'
           }}>
-                  <strong>Secure Payment:</strong> You will be redirected to PayFast's secure payment page.
+                  <strong>Secure Payment:</strong> Enter your card details securely. An OTP will be sent to your mobile.
                 </div>
           <div className="checkout-steps">
             <div className={`step ${step >= 1 ? 'active' : ''}`}>
@@ -396,34 +467,72 @@ function Checkout() {
                   <strong>Test Mode:</strong> Using sandbox credentials. This will process a test transaction.
                 </div>
 
-                <div className="payment-info-box" style={{
-                  backgroundColor: '#f5f5f5',
-                  border: '2px dashed #9e9e9e',
-                  borderRadius: '12px',
-                  padding: '2rem',
-                  textAlign: 'center',
-                  margin: '2rem 0'
-                }}>
-                  <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
-                  <h3 style={{ color: '#424242', marginBottom: '1rem' }}>Secure Payment with PayFast</h3>
-                  <p style={{ color: '#757575', lineHeight: '1.6' }}>
-                    Click "Complete Purchase" and you'll be redirected to PayFast where you can enter your payment details.
-                  </p>
-                  <p style={{ color: '#757575', marginTop: '1rem', fontSize: '0.9rem' }}>
-                    We never store your payment details on our servers.
-                  </p>
+                <div className="form-group">
+                  <label htmlFor="cardNumber">Card Number *</label>
+                  <input
+                    type="text"
+                    id="cardNumber"
+                    name="cardNumber"
+                    value={formData.cardNumber}
+                    onChange={handleInputChange}
+                    placeholder="1234 5678 9012 3456"
+                    maxLength="19"
+                    required
+                  />
+                </div>
+
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="expiryMonth">Expiry Month *</label>
+                    <input
+                      type="text"
+                      id="expiryMonth"
+                      name="expiryMonth"
+                      value={formData.expiryMonth}
+                      onChange={handleInputChange}
+                      placeholder="MM"
+                      maxLength="2"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="expiryYear">Expiry Year *</label>
+                    <input
+                      type="text"
+                      id="expiryYear"
+                      name="expiryYear"
+                      value={formData.expiryYear}
+                      onChange={handleInputChange}
+                      placeholder="YYYY"
+                      maxLength="4"
+                      required
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="cvv">CVV *</label>
+                    <input
+                      type="text"
+                      id="cvv"
+                      name="cvv"
+                      value={formData.cvv}
+                      onChange={handleInputChange}
+                      placeholder="123"
+                      maxLength="4"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div className="payment-notice" style={{
-                  backgroundColor: '#e8f5e9',
-                  border: '1px solid #4caf50',
+                  backgroundColor: '#e3f2fd',
+                  border: '1px solid #2196f3',
                   borderRadius: '8px',
                   padding: '12px',
                   marginTop: '20px',
-                  color: '#2e7d32'
+                  color: '#1565c0'
                 }}>
                   <p>
-                    <strong>✓ SSL Encrypted</strong> | <strong>✓ PCI Compliant</strong> | <strong>✓ Secure Checkout</strong>
+                    <strong>🔒 Secure Payment:</strong> An OTP will be sent to your mobile number for verification.
                   </p>
                 </div>
               </div>
@@ -498,8 +607,92 @@ function Checkout() {
         </div>
       </div>
 
-      {/* Hidden form for PayFast redirect */}
-      <form ref={payfastFormRef} style={{ display: 'none' }}></form>
+      {/* OTP Modal */}
+      {showOtpPrompt && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            padding: '2rem',
+            borderRadius: '12px',
+            maxWidth: '400px',
+            width: '90%'
+          }}>
+            <h3 style={{ marginBottom: '1rem' }}>Enter OTP</h3>
+            <p style={{ color: '#666', marginBottom: '1.5rem' }}>
+              An OTP has been sent to your mobile number ending in {formData.phone.slice(-4)}
+            </p>
+            <input
+              type="text"
+              value={otp}
+              onChange={(e) => setOtp(e.target.value)}
+              placeholder="Enter 6-digit OTP"
+              maxLength="6"
+              style={{
+                width: '100%',
+                padding: '12px',
+                fontSize: '18px',
+                border: '2px solid #ddd',
+                borderRadius: '8px',
+                marginBottom: '1rem',
+                textAlign: 'center',
+                letterSpacing: '0.5em'
+              }}
+            />
+            {submitError && (
+              <div style={{ color: '#f44336', marginBottom: '1rem', fontSize: '14px' }}>
+                {submitError}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => {
+                  setShowOtpPrompt(false);
+                  setOtp('');
+                  setIsProcessing(false);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  backgroundColor: 'white',
+                  cursor: 'pointer'
+                }}
+                disabled={isProcessing}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleOtpSubmit}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  border: 'none',
+                  borderRadius: '8px',
+                  backgroundColor: '#667eea',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontWeight: '600'
+                }}
+                disabled={isProcessing || otp.length !== 6}
+              >
+                {isProcessing ? 'Verifying...' : 'Verify OTP'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
