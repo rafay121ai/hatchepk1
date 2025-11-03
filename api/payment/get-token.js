@@ -1,19 +1,7 @@
-/**
- * Vercel Serverless Function: Get PayFast Access Token
- * 
- * POST /api/payment/get-token
- * This endpoint securely generates a PayFast access token.
- * The SECURED_KEY never leaves the server.
- */
+// api/payment/get-token.js
+import axios from 'axios';
 
-const axios = require('axios');
-
-module.exports = async (req, res) => {
-  // Only allow POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ success: false, error: 'Method Not Allowed' });
-  }
-
+export default async function handler(req, res) {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -24,11 +12,20 @@ module.exports = async (req, res) => {
     return res.status(200).end();
   }
 
+  // Only allow POST requests
+  if (req.method !== 'POST') {
+    return res.status(405).json({ success: false, error: 'Method Not Allowed' });
+  }
+
   try {
+    console.log('=== GET TOKEN REQUEST ===');
+    console.log('Request body:', req.body);
+
     const { basketId, amount, currencyCode = 'PKR' } = req.body;
 
     // Validate input
     if (!basketId || !amount) {
+      console.error('Missing required fields');
       return res.status(400).json({ 
         success: false, 
         error: 'Missing required fields: basketId and amount' 
@@ -40,20 +37,24 @@ module.exports = async (req, res) => {
     const securedKey = process.env.SECURED_KEY;
     const tokenUrl = process.env.PAYFAST_TOKEN_URL;
 
+    console.log('Environment check:', {
+      hasMerchantId: !!merchantId,
+      hasSecuredKey: !!securedKey,
+      hasTokenUrl: !!tokenUrl,
+      merchantId: merchantId // Only log in development
+    });
+
     // Validate environment variables
     if (!merchantId || !securedKey || !tokenUrl) {
-      console.error('Missing environment variables:', {
-        hasMerchantId: !!merchantId,
-        hasSecuredKey: !!securedKey,
-        hasTokenUrl: !!tokenUrl
-      });
+      console.error('Missing environment variables');
       return res.status(500).json({ 
         success: false, 
-        error: 'Server configuration error' 
+        error: 'Server configuration error - missing environment variables' 
       });
     }
 
-    console.log('Requesting token from PayFast...', {
+    console.log('Calling PayFast API...', {
+      url: tokenUrl,
       merchantId,
       basketId,
       amount,
@@ -75,17 +76,20 @@ module.exports = async (req, res) => {
         'Content-Type': 'application/x-www-form-urlencoded',
         'User-Agent': 'PayFast-Integration/1.0'
       },
-      timeout: 10000 // 10 second timeout
+      timeout: 15000 // 15 second timeout
     });
 
-    console.log('PayFast token response:', response.data);
+    console.log('PayFast response:', response.data);
 
     // Extract token from response
     const token = response.data?.ACCESS_TOKEN;
 
     if (!token) {
+      console.error('No ACCESS_TOKEN in PayFast response:', response.data);
       throw new Error('No ACCESS_TOKEN in response from PayFast');
     }
+
+    console.log('✅ Token received successfully');
 
     // Return token to frontend
     return res.status(200).json({
@@ -96,10 +100,11 @@ module.exports = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('Error getting PayFast token:', {
+    console.error('❌ Error getting PayFast token:', {
       message: error.message,
       response: error.response?.data,
-      status: error.response?.status
+      status: error.response?.status,
+      stack: error.stack
     });
 
     return res.status(500).json({
@@ -108,5 +113,4 @@ module.exports = async (req, res) => {
       details: error.response?.data
     });
   }
-};
-
+}

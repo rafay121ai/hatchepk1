@@ -141,7 +141,8 @@ function Checkout() {
       const basketId = `ORDER-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
       // Step 1: Get access token from our backend API
-      const tokenResponse = await fetch('https://hatchepk1.vercel.app/api/payment/get-token', {
+      // Use relative path so it works with any domain (localhost, vercel, custom domain)
+      const tokenResponse = await fetch('/api/payment/get-token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
