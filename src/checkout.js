@@ -1,5 +1,5 @@
 // Simple checkout component
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './checkout.css';
 import { useAuth } from './AuthContext';
@@ -16,7 +16,6 @@ function Checkout() {
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const payfastFormRef = useRef(null); // Hidden form for PayFast submission
 
   // Define validation rules
   const validationRules = {
@@ -168,6 +167,8 @@ function Checkout() {
         throw new Error(tokenData.error || 'Failed to get payment token');
       }
 
+      console.log('✅ Token received:', tokenData.token);
+
       // Step 2: Create order in database with pending status
       const orderPayload = {
         customer_email: user?.email || formData.email,
@@ -175,7 +176,7 @@ function Checkout() {
         product_name: guide.title,
         amount: guide.price,
         by_ref_id: referralId,
-        order_status: 'pending', // Will be updated to 'completed' by webhook
+        order_status: 'pending', // Will be updated to 'completed' by API
       };
 
       const { data: orderData, error: orderError } = await supabase
@@ -188,40 +189,79 @@ function Checkout() {
         throw new Error('Failed to create order. Please try again.');
       }
 
-      // Step 3: Store order info in sessionStorage for success page
-      sessionStorage.setItem('pendingOrder', JSON.stringify({
-        basketId: basketId,
-        guideTitle: guide.title,
-        amount: guide.price,
-        orderId: orderData[0]?.id
-      }));
-
-      // Step 4: Prepare PayFast form data
-      const payfastData = {
-        MERCHANT_ID: tokenData.merchantId,
-        MERCHANT_NAME: 'Hatche',
-        TOKEN: tokenData.token,
-        PROCCODE: '00',
-        TXNAMT: guide.price.toString(),
-        CUSTOMER_MOBILE_NO: formData.phone,
-        CUSTOMER_EMAIL_ADDRESS: user?.email || formData.email,
-        CUSTOMER_NAME: `${formData.firstName} ${formData.lastName}`,
-        SIGNATURE: `SIGNATURE-${Date.now()}`,
-        VERSION: 'v1.0',
-        TXNDESC: `Purchase: ${guide.title}`,
-        SUCCESS_URL: `${window.location.origin}/payment-success`,
-        FAILURE_URL: `${window.location.origin}/payment-failure`,
-        CHECKOUT_URL: `${window.location.origin}/api/payment/webhook`, // Dynamic - works in any environment
-        BASKET_ID: basketId,
-        ORDER_DATE: new Date().toISOString().split('T')[0],
-        CURRENCY_CODE: 'PKR',
-        TRAN_TYPE: 'ECOMM_PURCHASE'
-      };
-
-      console.log('Redirecting to PayFast...');
+      // Step 3: Initiate transaction via API (not form redirect)
+      console.log('Initiating transaction with PayFast...');
       
-      // Submit to PayFast
-      submitToPayFast(payfastData);
+      const transactionResponse = await fetch('/api/payment/initiate-transaction', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          token: tokenData.token,
+          basketId: basketId,
+          amount: guide.price,
+          customerEmail: user?.email || formData.email,
+          customerMobile: formData.phone,
+          customerName: `${formData.firstName} ${formData.lastName}`,
+          orderDescription: guide.title
+        })
+      });
+
+      if (!transactionResponse.ok) {
+        const errorData = await transactionResponse.json().catch(() => ({}));
+        console.error('Transaction API error:', errorData);
+        throw new Error(errorData.error || 'Failed to initiate transaction');
+      }
+
+      const transactionData = await transactionResponse.json();
+      
+      console.log('Transaction response:', transactionData);
+
+      if (!transactionData.success) {
+        throw new Error(transactionData.error || 'Transaction failed');
+      }
+
+      // Step 4: Handle transaction result
+      const result = transactionData.data;
+      
+      if (result.code === '000' || result.code === '00') {
+        // Transaction successful
+        await supabase
+          .from('orders')
+          .update({ order_status: 'completed' })
+          .eq('id', orderData[0]?.id);
+
+        // Track with Google Analytics
+        if (typeof window !== 'undefined' && window.gtag) {
+          window.gtag('event', 'purchase', {
+            transaction_id: result.transaction_id || basketId,
+            value: guide.price,
+            currency: 'PKR',
+            items: [{
+              item_id: guide.id,
+              item_name: guide.title,
+              price: guide.price,
+              quantity: 1
+            }]
+          });
+        }
+
+        // Show success and redirect
+        alert(`🎉 Payment Successful!\n\nTransaction ID: ${result.transaction_id}\nYou now have access to: ${guide.title}\n\nRedirecting to your guides...`);
+        
+        setTimeout(() => {
+          navigate('/your-guides');
+        }, 1500);
+      } else {
+        // Transaction failed
+        await supabase
+          .from('orders')
+          .update({ order_status: 'failed' })
+          .eq('id', orderData[0]?.id);
+        
+        throw new Error(result.status_msg || `Transaction failed with code: ${result.code}`);
+      }
 
     } catch (error) {
       console.error('Payment error:', error);
@@ -234,39 +274,6 @@ function Checkout() {
     }
   };
 
-  // Helper function to submit form to PayFast
-  const submitToPayFast = (formData) => {
-    // Get PayFast URL from environment or use default
-    const payfastUrl = process.env.REACT_APP_PAYFAST_POST_URL || 
-      'https://ipguat.apps.net.pk/Ecommerce/api/Transaction/PostTransaction';
-
-    // Use the ref to access the form
-    const form = payfastFormRef.current;
-    if (!form) {
-      console.error('PayFast form ref not found');
-      setSubmitError('Form initialization error. Please try again.');
-      setIsProcessing(false);
-      return;
-    }
-
-    form.action = payfastUrl;
-    form.method = 'POST';
-    form.innerHTML = '';
-
-    // Add all form fields
-    Object.entries(formData).forEach(([key, value]) => {
-      if (value !== null && value !== undefined && value !== '') {
-        const input = document.createElement('input');
-        input.type = 'hidden';
-        input.name = key;
-        input.value = value.toString();
-        form.appendChild(input);
-      }
-    });
-
-    // Submit form (redirects to PayFast)
-    form.submit();
-  };
 
   if (!guide) {
     return (
@@ -290,7 +297,7 @@ function Checkout() {
             marginBottom: '20px',
             color: '#2e7d32'
           }}>
-            <strong>Secure Payment:</strong> You will be redirected to PayFast's secure payment gateway to complete your purchase.
+            <strong>Secure Payment:</strong> Your payment will be processed securely through PayFast payment gateway.
           </div>
           <div className="checkout-steps">
             <div className={`step ${step >= 1 ? 'active' : ''}`}>
@@ -394,14 +401,14 @@ function Checkout() {
               <div className="form-step">
                 <h2>Payment Method</h2>
                 <div className="demo-notice" style={{
-                  backgroundColor: '#e3f2fd',
-                  border: '1px solid #2196f3',
+                  backgroundColor: '#fff3cd',
+                  border: '1px solid #ffc107',
                   borderRadius: '8px',
                   padding: '12px',
                   marginBottom: '20px',
-                  color: '#1565c0'
+                  color: '#856404'
                 }}>
-                  <strong>Payment Information:</strong> After clicking "Complete Purchase", you'll be redirected to PayFast's secure payment page to enter your card details.
+                  <strong>Test Mode:</strong> Using sandbox credentials. This will process a test transaction.
                 </div>
 
                 <div className="payment-info-box" style={{
@@ -415,11 +422,10 @@ function Checkout() {
                   <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
                   <h3 style={{ color: '#424242', marginBottom: '1rem' }}>Secure Payment with PayFast</h3>
                   <p style={{ color: '#757575', lineHeight: '1.6' }}>
-                    When you click "Complete Purchase" below, you'll be redirected to PayFast's secure payment gateway 
-                    where you can safely enter your card or wallet details.
+                    Your payment will be processed securely through PayFast's payment gateway API.
                   </p>
                   <p style={{ color: '#757575', marginTop: '1rem', fontSize: '0.9rem' }}>
-                    We never store your card details on our servers.
+                    We never store your payment details on our servers.
                   </p>
                 </div>
 
@@ -507,8 +513,6 @@ function Checkout() {
         </div>
       </div>
 
-      {/* Hidden form for PayFast submission */}
-      <form ref={payfastFormRef} style={{ display: 'none' }}></form>
     </div>
   );
 }

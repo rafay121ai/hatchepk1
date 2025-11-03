@@ -60,20 +60,25 @@ module.exports = async function handler(req, res) {
       currencyCode
     });
 
-    // Create URL-encoded parameters
+    // Create form-encoded parameters (matching PayFast documentation)
     const params = new URLSearchParams({
-      MERCHANT_ID: merchantId,
-      SECURED_KEY: securedKey,
-      BASKET_ID: basketId,
-      TXNAMT: amount.toString(),
-      CURRENCY_CODE: currencyCode
+      merchant_id: merchantId,        // lowercase as per docs
+      secured_key: securedKey,        // lowercase as per docs
+      grant_type: 'client_credentials', // Required by docs
+      customer_ip: '127.0.0.1'        // Required by docs
     });
 
-    // Call PayFast API
+    console.log('Sending to PayFast (form-encoded):', {
+      merchant_id: merchantId,
+      grant_type: 'client_credentials',
+      customer_ip: '127.0.0.1'
+    });
+
+    // Call PayFast API with form-encoded data
     const response = await axios.post(tokenUrl, params.toString(), {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'PayFast-Integration/1.0'
+        'cache-control': 'no-cache'
       },
       timeout: 15000 // 15 second timeout
     });
