@@ -155,7 +155,11 @@ function Checkout() {
 
       if (!tokenResponse.ok) {
         const errorData = await tokenResponse.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to initialize payment');
+        console.error('Token API error:', {
+          status: tokenResponse.status,
+          error: errorData
+        });
+        throw new Error(errorData.error || `Failed to initialize payment (${tokenResponse.status})`);
       }
 
       const tokenData = await tokenResponse.json();
@@ -221,6 +225,10 @@ function Checkout() {
 
     } catch (error) {
       console.error('Payment error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        stack: error.stack
+      });
       setSubmitError(error.message || 'An error occurred during checkout. Please try again.');
       setIsProcessing(false);
     }
