@@ -5,14 +5,14 @@ PayFast requires you to perform a test transaction and submit the **Test Order I
 
 ## Test Credentials (Provided by PayFast)
 
-### For Bank Account Payments:
+### For Bank Account Payments (REQUIRED FOR TEST):
 - **Bank Name:** Demo Bank
-- **Account Number:** 12353940226802034243
-- **NIC Number:** 4210131315089
-- **OTP:** 123456
+- **Account Number:** `12353940226802034243`
+- **NIC Number:** `4210131315089`
+- **OTP:** `123456`
 
-### For Card Payments (if provided):
-- Use the test card details provided by PayFast in your sandbox documentation
+### For Card Payments (Optional):
+- Use test card details if PayFast provides them separately
 
 ## Steps to Get Your Test Order ID
 
@@ -42,18 +42,25 @@ MERCHANT_CATEGORY_CODE=default
 
 1. Go to your deployed website: `https://hatchepk1.vercel.app`
 2. Navigate to "Our Guides" and select a guide to purchase
-3. Fill in the checkout form:
-   - **Personal Information:** Use your real name and email
-   - **Mobile Number:** Use your real mobile number (OTP will be sent here)
-   - **Card Details:** Use the test card provided by PayFast OR test bank account
+3. Fill in **Step 1: Personal Information**
+   - Use your real name and email
+   - **Mobile Number:** Use your real mobile number (OTP might be sent here)
 
-4. **If using Bank Account Payment:**
-   - When prompted, use the Demo Bank credentials:
-     - Account: `12353940226802034243`
-     - NIC: `4210131315089`
-   - When OTP prompt appears, enter: `123456`
+4. Click "Next" to go to **Step 2: Payment Method**
 
-5. **Complete the transaction**
+5. **Select "Bank Account"** (default option)
+
+6. Fill in the **Bank Account fields** with the test credentials:
+   - **Bank Name:** Select "Demo Bank (Test)"
+   - **Account Number:** `12353940226802034243`
+   - **CNIC Number:** `4210131315089`
+   - **Account Title:** (Optional) Your name
+
+7. Click **"Complete Purchase"**
+
+8. When the **OTP modal appears**, enter: `123456`
+
+9. Click **"Verify OTP"** to complete the transaction
 
 ### 4. Get Your Test Order ID
 

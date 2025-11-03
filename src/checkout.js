@@ -48,10 +48,17 @@ function Checkout() {
       state: '',
       zipCode: '',
       country: 'Pakistan',
+      paymentMethod: 'bank', // 'card' or 'bank'
+      // Card fields
       cardNumber: '',
       expiryMonth: '',
       expiryYear: '',
       cvv: '',
+      // Bank account fields
+      bankCode: 'DEMO',
+      accountNumber: '',
+      cnicNumber: '',
+      accountTitle: '',
     },
     validationRules
   );
@@ -196,23 +203,34 @@ function Checkout() {
         throw new Error('Failed to create order. Please try again.');
       }
 
-      // Step 3: Get temporary transaction token with card details
+      // Step 3: Get temporary transaction token with payment details
       console.log('Getting temporary transaction token...');
+      
+      const paymentDetails = {
+        accessToken: tokenData.token,
+        basketId: basketId,
+        amount: guide.price,
+        merchantUserId: user?.id || formData.email,
+        userMobileNumber: formData.phone,
+      };
+
+      // Add card or bank details based on payment method
+      if (formData.paymentMethod === 'card') {
+        paymentDetails.cardNumber = formData.cardNumber;
+        paymentDetails.expiryMonth = formData.expiryMonth;
+        paymentDetails.expiryYear = formData.expiryYear;
+        paymentDetails.cvv = formData.cvv;
+      } else {
+        paymentDetails.bankCode = formData.bankCode;
+        paymentDetails.accountNumber = formData.accountNumber;
+        paymentDetails.cnicNumber = formData.cnicNumber;
+        paymentDetails.accountTitle = formData.accountTitle || `${formData.firstName} ${formData.lastName}`;
+      }
       
       const tempTokenResponse = await fetch('/api/payment/get-temp-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          accessToken: tokenData.token,
-          basketId: basketId,
-          amount: guide.price,
-          merchantUserId: user?.id || formData.email,
-          userMobileNumber: formData.phone,
-          cardNumber: formData.cardNumber,
-          expiryMonth: formData.expiryMonth,
-          expiryYear: formData.expiryYear,
-          cvv: formData.cvv
-        })
+        body: JSON.stringify(paymentDetails)
       });
 
       if (!tempTokenResponse.ok) {
@@ -464,64 +482,160 @@ function Checkout() {
                   marginBottom: '20px',
                   color: '#856404'
                 }}>
-                  <strong>Test Mode:</strong> Using sandbox credentials. This will process a test transaction.
+                  <strong>Test Mode:</strong> Use the test credentials provided by PayFast.<br/>
+                  Bank Account: 12353940226802034243 | NIC: 4210131315089 | OTP: 123456
                 </div>
 
+                {/* Payment Method Selection */}
                 <div className="form-group">
-                  <label htmlFor="cardNumber">Card Number *</label>
-                  <input
-                    type="text"
-                    id="cardNumber"
-                    name="cardNumber"
-                    value={formData.cardNumber}
-                    onChange={handleInputChange}
-                    placeholder="1234 5678 9012 3456"
-                    maxLength="19"
-                    required
-                  />
+                  <label>Select Payment Method *</label>
+                  <div style={{ display: 'flex', gap: '15px', marginTop: '10px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="bank"
+                        checked={formData.paymentMethod === 'bank'}
+                        onChange={handleInputChange}
+                        style={{ marginRight: '8px' }}
+                      />
+                      <span>Bank Account</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                      <input
+                        type="radio"
+                        name="paymentMethod"
+                        value="card"
+                        checked={formData.paymentMethod === 'card'}
+                        onChange={handleInputChange}
+                        style={{ marginRight: '8px' }}
+                      />
+                      <span>Credit/Debit Card</span>
+                    </label>
+                  </div>
                 </div>
 
-                <div className="form-row">
-                  <div className="form-group">
-                    <label htmlFor="expiryMonth">Expiry Month *</label>
-                    <input
-                      type="text"
-                      id="expiryMonth"
-                      name="expiryMonth"
-                      value={formData.expiryMonth}
-                      onChange={handleInputChange}
-                      placeholder="MM"
-                      maxLength="2"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="expiryYear">Expiry Year *</label>
-                    <input
-                      type="text"
-                      id="expiryYear"
-                      name="expiryYear"
-                      value={formData.expiryYear}
-                      onChange={handleInputChange}
-                      placeholder="YYYY"
-                      maxLength="4"
-                      required
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="cvv">CVV *</label>
-                    <input
-                      type="text"
-                      id="cvv"
-                      name="cvv"
-                      value={formData.cvv}
-                      onChange={handleInputChange}
-                      placeholder="123"
-                      maxLength="4"
-                      required
-                    />
-                  </div>
-                </div>
+                {/* Bank Account Fields */}
+                {formData.paymentMethod === 'bank' && (
+                  <>
+                    <div className="form-group">
+                      <label htmlFor="bankCode">Bank Name *</label>
+                      <select
+                        id="bankCode"
+                        name="bankCode"
+                        value={formData.bankCode}
+                        onChange={handleInputChange}
+                        required
+                      >
+                        <option value="DEMO">Demo Bank (Test)</option>
+                        <option value="HBL">HBL</option>
+                        <option value="UBL">UBL</option>
+                        <option value="ABL">Allied Bank</option>
+                        <option value="MCB">MCB</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="accountNumber">Account Number *</label>
+                      <input
+                        type="text"
+                        id="accountNumber"
+                        name="accountNumber"
+                        value={formData.accountNumber}
+                        onChange={handleInputChange}
+                        placeholder="12353940226802034243 (use test account)"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="cnicNumber">CNIC Number *</label>
+                      <input
+                        type="text"
+                        id="cnicNumber"
+                        name="cnicNumber"
+                        value={formData.cnicNumber}
+                        onChange={handleInputChange}
+                        placeholder="4210131315089 (use test CNIC)"
+                        maxLength="13"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="accountTitle">Account Title (Optional)</label>
+                      <input
+                        type="text"
+                        id="accountTitle"
+                        name="accountTitle"
+                        value={formData.accountTitle}
+                        onChange={handleInputChange}
+                        placeholder="Your name as per bank account"
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Card Fields */}
+                {formData.paymentMethod === 'card' && (
+                  <>
+                    <div className="form-group">
+                      <label htmlFor="cardNumber">Card Number *</label>
+                      <input
+                        type="text"
+                        id="cardNumber"
+                        name="cardNumber"
+                        value={formData.cardNumber}
+                        onChange={handleInputChange}
+                        placeholder="1234 5678 9012 3456"
+                        maxLength="19"
+                        required
+                      />
+                    </div>
+
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label htmlFor="expiryMonth">Expiry Month *</label>
+                        <input
+                          type="text"
+                          id="expiryMonth"
+                          name="expiryMonth"
+                          value={formData.expiryMonth}
+                          onChange={handleInputChange}
+                          placeholder="MM"
+                          maxLength="2"
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="expiryYear">Expiry Year *</label>
+                        <input
+                          type="text"
+                          id="expiryYear"
+                          name="expiryYear"
+                          value={formData.expiryYear}
+                          onChange={handleInputChange}
+                          placeholder="YYYY"
+                          maxLength="4"
+                          required
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label htmlFor="cvv">CVV *</label>
+                        <input
+                          type="text"
+                          id="cvv"
+                          name="cvv"
+                          value={formData.cvv}
+                          onChange={handleInputChange}
+                          placeholder="123"
+                          maxLength="4"
+                          required
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <div className="payment-notice" style={{
                   backgroundColor: '#e3f2fd',

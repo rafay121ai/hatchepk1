@@ -25,12 +25,20 @@ module.exports = async function handler(req, res) {
       amount,
       merchantUserId,
       userMobileNumber,
+      // Card fields
       cardNumber,
       expiryMonth,
       expiryYear,
       cvv,
-      accountType = '4' // 4 = Card
+      // Bank account fields
+      bankCode,
+      accountNumber,
+      cnicNumber,
+      accountTitle
     } = req.body;
+
+    // Determine account type based on provided fields
+    const accountType = cardNumber ? '4' : '1'; // 4 = Card, 1 = Bank Account
 
     // Validate required fields
     if (!accessToken || !basketId || !amount || !merchantUserId || !userMobileNumber) {
@@ -63,6 +71,16 @@ module.exports = async function handler(req, res) {
       params.append('expiry_month', expiryMonth);
       params.append('expiry_year', expiryYear);
       params.append('cvv', cvv);
+    }
+    
+    // Add bank account details if provided
+    if (bankCode && accountNumber && cnicNumber) {
+      params.append('bank_code', bankCode);
+      params.append('account_number', accountNumber);
+      params.append('cnic_number', cnicNumber);
+      if (accountTitle) {
+        params.append('account_title', accountTitle);
+      }
     }
 
     console.log('Calling PayFast temporary token API...');
