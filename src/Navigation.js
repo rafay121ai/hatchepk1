@@ -91,43 +91,18 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
     <>
       <header className="navbar">
         <div className="logo-container">
-          <Link to="/" onClick={closeMenu}>
+          <Link to="/">
             <img src="/HATCHE800.png" alt="Hatche Logo" className="logo" />
           </Link>
         </div>
 
-        {/* Mobile Menu Button - OUTSIDE nav for better control */}
-        <button 
-          className={`mobile-menu-btn ${isMenuOpen ? 'active' : ''}`} 
-          onClick={toggleMenu}
-          aria-label="Toggle navigation menu"
-          aria-expanded={isMenuOpen}
-        >
-          <span className="hamburger-line"></span>
-          <span className="hamburger-line"></span>
-          <span className="hamburger-line"></span>
-        </button>
-
-        {/* Navigation Menu */}
         <nav className="menu">
           <ul className={`nav-links ${isMenuOpen ? 'nav-open' : ''}`}>
-            <li>
-              <Link to="/" onClick={closeMenu}>Home</Link>
-            </li>
-            <li>
-              <Link to="/our-guides" onClick={closeMenu}>Our Guides</Link>
-            </li>
-            <li>
-              <Link to="/your-guides" onClick={closeMenu}>Your Guides</Link>
-            </li>
-            <li>
-              <Link to="/affiliate-program" onClick={closeMenu}>Affiliate Program</Link>
-            </li>
-            <li>
-              <Link to="/about-us" onClick={closeMenu}>About Us</Link>
-            </li>
-            
-            {/* User Authentication Section */}
+            <li><Link to="/" onClick={closeMenu}>Home</Link></li>
+            <li><Link to="/our-guides" onClick={closeMenu}>Our Guides</Link></li>
+            <li><Link to="/your-guides" onClick={closeMenu}>Your Guides</Link></li>
+            <li><Link to="/affiliate-program" onClick={closeMenu}>Affiliate Program</Link></li>
+            <li><Link to="/about-us" onClick={closeMenu}>About Us</Link></li>
             {user ? (
               <li>
                 <div className="user-menu" ref={userMenuRef}>
@@ -136,7 +111,6 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
                     onClick={handleUserIconClick}
                     aria-expanded={showUserDropdown}
                     aria-haspopup="true"
-                    aria-label="User menu"
                   >
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                       <path d="M12 12C14.7614 12 17 9.76142 17 7C17 4.23858 14.7614 2 12 2C9.23858 2 7 4.23858 7 7C7 9.76142 9.23858 12 12 12Z" fill="currentColor"/>
@@ -172,17 +146,25 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
                 <button 
                   className="auth-btn" 
                   onClick={handleAuthClick}
-                  aria-label="Login or Sign Up"
+                  style={{ 
+                    position: 'relative',
+                    zIndex: 1000,
+                    pointerEvents: 'auto'
+                  }}
                 >
                   Login / Sign Up
                 </button>
               </li>
             )}
           </ul>
+          <button className={`mobile-menu-btn ${isMenuOpen ? 'active' : ''}`} onClick={toggleMenu}>
+            <span className="hamburger-line"></span>
+            <span className="hamburger-line"></span>
+            <span className="hamburger-line"></span>
+          </button>
         </nav>
       </header>
 
-      {/* Auth Modal */}
       {showAuth && (
         <Auth
           onLogin={handleCloseAuth}
