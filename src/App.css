@@ -523,19 +523,28 @@ html, body {
   box-sizing: border-box;
 }
 
-/* Mobile Menu - Simple and Working */
+/* ============================================
+   MOBILE MENU - CONSOLIDATED (≤768px)
+   ============================================ */
 @media (max-width: 768px) {
-  /* Show hamburger button */
+  /* ========== HAMBURGER BUTTON ========== */
   .mobile-menu-btn {
     display: flex;
   }
 
-  /* Hide desktop menu by default */
+  .mobile-menu-btn.active {
+    position: fixed !important;
+    top: 1.2rem !important;
+    right: 1.5rem !important;
+    z-index: 999999999 !important;
+  }
+
+  /* ========== HIDE DESKTOP MENU ========== */
   .menu ul.nav-links {
     display: none !important;
   }
 
-  /* Show mobile menu when open */
+  /* ========== MOBILE MENU OVERLAY (OPEN STATE) ========== */
   ul.nav-links.nav-open,
   .menu ul.nav-links.nav-open,
   .nav-links.nav-open {
@@ -547,8 +556,6 @@ html, body {
     bottom: 0 !important;
     width: 100vw !important;
     height: 100vh !important;
-    max-width: 100vw !important;
-    max-height: 100vh !important;
     background: rgb(253, 252, 241) !important;
     flex-direction: column !important;
     justify-content: flex-start !important;
@@ -564,10 +571,13 @@ html, body {
     transform: translateZ(0) !important;
   }
 
-  /* Individual menu items - Force visibility */
+  /* ========== MENU ITEMS (LI ELEMENTS) ========== */
   ul.nav-links.nav-open > li,
   .menu ul.nav-links.nav-open > li,
-  .nav-links.nav-open > li {
+  .nav-links.nav-open > li,
+  .nav-links.nav-open li,
+  body.menu-open .nav-links.nav-open > li,
+  body.menu-open ul.nav-links.nav-open > li {
     width: 100% !important;
     max-width: 280px !important;
     margin: 0 !important;
@@ -580,15 +590,20 @@ html, body {
     pointer-events: auto !important;
   }
 
-  /* Menu links - Force visibility */
+  /* ========== MENU LINKS & BUTTONS ========== */
   ul.nav-links.nav-open > li > a,
   .menu ul.nav-links.nav-open > li > a,
   .nav-links.nav-open > li > a,
+  .nav-links.nav-open li a,
   ul.nav-links.nav-open > li > .auth-btn,
   .menu ul.nav-links.nav-open > li > .auth-btn,
   .nav-links.nav-open > li > .auth-btn,
-  .nav-links.nav-open li a,
-  .nav-links.nav-open .auth-btn {
+  .nav-links.nav-open .auth-btn,
+  ul.nav-links.nav-open > li > button,
+  .nav-links.nav-open > li > button,
+  body.menu-open .nav-links.nav-open > li > a,
+  body.menu-open .nav-links.nav-open > li > button,
+  body.menu-open .nav-links.nav-open > li > * {
     display: block !important;
     width: 100% !important;
     padding: 1rem 1.5rem !important;
@@ -618,7 +633,7 @@ html, body {
     box-shadow: 0 4px 12px rgba(115, 22, 15, 0.3) !important;
   }
 
-  /* User menu */
+  /* ========== USER MENU & DROPDOWN ========== */
   .nav-links.nav-open .user-menu {
     width: 100% !important;
     max-width: 280px !important;
@@ -648,7 +663,6 @@ html, body {
     visibility: visible !important;
   }
 
-  /* Dropdown in mobile */
   .nav-links.nav-open .user-dropdown {
     position: static !important;
     background: transparent !important;
@@ -667,8 +681,8 @@ html, body {
   .nav-links.nav-open .user-dropdown .dropdown-item {
     width: 100% !important;
     padding: 1rem !important;
-    background: #ffffff !important; /* Solid white */
-    border: 2px solid #73160f !important; /* Stronger border */
+    background: #ffffff !important;
+    border: 2px solid #73160f !important;
     border-radius: 12px !important;
     text-align: center !important;
     color: #2c2c2c !important;
@@ -683,67 +697,13 @@ html, body {
     color: white !important;
   }
 
-  /* Position hamburger when open */
-  .mobile-menu-btn.active {
-    position: fixed !important;
-    top: 1.2rem !important;
-    right: 1.5rem !important;
-    z-index: 999999999 !important;
-  }
-
-  /* Ensure navbar doesn't create stacking context that limits menu */
+  /* ========== NAVBAR POSITIONING ========== */
   .navbar {
     position: relative;
     z-index: 100;
   }
-}
 
-/* CRITICAL: Override ALL conflicting styles from auth-nav.css */
-@media (max-width: 768px) {
-  /* FORCE menu items to be visible and properly styled */
-  .nav-links.nav-open > li,
-  ul.nav-links.nav-open > li {
-    display: block !important;
-    height: auto !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-  }
-  
-  .nav-links.nav-open > li > a,
-  ul.nav-links.nav-open > li > a,
-  .nav-links.nav-open > li > button,
-  ul.nav-links.nav-open > li > button {
-    display: block !important;
-    height: auto !important;
-    padding: 1rem 1.5rem !important;
-    opacity: 1 !important;
-    visibility: visible !important;
-  }
-
-  /* Ensure page content stays below menu */
-  .page-content,
-  .footer {
-    position: relative;
-    z-index: 1;
-  }
-
-  /* iOS Safari specific fixes */
-  * {
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  /* Prevent iOS Safari from creating new stacking contexts */
-  .App {
-    transform: none !important;
-    isolation: auto !important;
-  }
-
-  header.navbar {
-    transform: none !important;
-    isolation: auto !important;
-  }
-
-  /* When menu is open, hide page content (using body class) */
+  /* ========== HIDE PAGE CONTENT WHEN MENU OPEN ========== */
   body.menu-open .page-content {
     display: none !important;
   }
@@ -752,7 +712,7 @@ html, body {
     display: none !important;
   }
 
-  /* Ensure menu and navbar are visible */
+  /* ========== ENSURE MENU VISIBILITY ========== */
   body.menu-open .navbar,
   body.menu-open .nav-links.nav-open,
   body.menu-open ul.nav-links.nav-open {
@@ -760,7 +720,6 @@ html, body {
     visibility: visible !important;
   }
 
-  /* Force all menu items visible */
   body.menu-open .nav-links.nav-open > li,
   body.menu-open ul.nav-links.nav-open > li {
     display: block !important;
@@ -773,6 +732,27 @@ html, body {
     display: block !important;
     visibility: visible !important;
     opacity: 1 !important;
+  }
+
+  /* ========== iOS SAFARI FIXES ========== */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .App {
+    transform: none !important;
+    isolation: auto !important;
+  }
+
+  header.navbar {
+    transform: none !important;
+    isolation: auto !important;
+  }
+
+  .page-content,
+  .footer {
+    position: relative;
+    z-index: 1;
   }
 }
 
