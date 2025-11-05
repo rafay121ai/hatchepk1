@@ -216,7 +216,7 @@ function Checkout() {
         ORDER_DATE: new Date().toISOString().replace('T', ' ').substring(0, 19),
         SUCCESS_URL: `${window.location.origin}/payment-success`,
         FAILURE_URL: `${window.location.origin}/payment-failure`,
-        CHECKOUT_URL: `https://hatchepk1.vercel.app/api/payment/webhook`,
+        CHECKOUT_URL: `https://hatchepk.com/api/payment/webhook`,
         CUSTOMER_EMAIL_ADDRESS: user?.email || formData.email,
         CUSTOMER_MOBILE_NO: formData.phone,
         SIGNATURE: `SIGNATURE-${Date.now()}`,

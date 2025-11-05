@@ -64,7 +64,7 @@ Wait for Vercel to deploy (~2 minutes).
 
 **A. Visit your deployed site:**
 ```
-https://hatchepk1.vercel.app
+https://hatchepk.com
 ```
 
 **B. Navigate to a guide and click "Buy Now"**
@@ -223,7 +223,7 @@ After test transaction, verify:
 
 ### Order stuck on 'pending'
 - **Solution:** Check Vercel function logs for webhook
-- **Solution:** Ensure webhook URL is accessible: `https://hatchepk1.vercel.app/api/payment/webhook`
+- **Solution:** Ensure webhook URL is accessible: `https://hatchepk.com/api/payment/webhook`
 
 ### Can't complete payment on PayFast
 - **Solution:** Use TEST account details from email (not real card)

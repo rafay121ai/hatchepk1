@@ -38,7 +38,7 @@ MERCHANT_CATEGORY_CODE=default
 
 ### 3. Perform Test Transaction
 
-1. Go to your deployed website: `https://hatchepk1.vercel.app`
+1. Go to your deployed website: `https://hatchepk.com`
 2. Navigate to "Our Guides" and select a guide to purchase
 3. Fill in **Step 1: Personal Information**
    - Enter your name, email, and mobile number

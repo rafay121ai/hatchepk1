@@ -106,7 +106,7 @@ function Auth({ onLogin, onClose }) {
         email: email,
         password: password,
         options: {
-          emailRedirectTo: 'https://hatchepk1.vercel.app/auth/callback',
+          emailRedirectTo: 'https://hatchepk.com/auth/callback',
           data: {
             phone: phone
           }

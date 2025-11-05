@@ -109,7 +109,7 @@ CURRENCY_CODE=PKR
 **Purpose:** Securely generate PayFast access token  
 **Location:** `/Users/rafayessani/hatchepk/api/payment/get-token.js`  
 **Type:** Vercel Serverless Function  
-**Endpoint:** `POST https://hatchepk1.vercel.app/api/payment/get-token`
+**Endpoint:** `POST https://hatchepk.com/api/payment/get-token`
 
 **What it does:**
 1. Receives `basketId` and `amount` from frontend
@@ -156,7 +156,7 @@ CURRENCY_CODE=PKR
 **Purpose:** Receive payment confirmation from PayFast (IPN - Instant Payment Notification)  
 **Location:** `/Users/rafayessani/hatchepk/api/payment/webhook.js`  
 **Type:** Vercel Serverless Function  
-**Endpoint:** `POST https://hatchepk1.vercel.app/api/payment/webhook`
+**Endpoint:** `POST https://hatchepk.com/api/payment/webhook`
 
 **What it does:**
 1. Receives payment notification from PayFast
@@ -219,7 +219,7 @@ import { supabase } from './supabaseClient';
 
 2. **Get Access Token** (Lines 147-167):
    ```javascript
-   fetch('https://hatchepk1.vercel.app/api/payment/get-token', {
+   fetch('https://hatchepk.com/api/payment/get-token', {
      method: 'POST',
      body: JSON.stringify({ basketId, amount: guide.price })
    })
@@ -480,7 +480,7 @@ execute procedure record_conversion_from_order();
 2. Generates unique `basketId`: `ORDER-1730925596433-XRLSCP`
 3. Calls backend API:
    ```javascript
-   POST https://hatchepk1.vercel.app/api/payment/get-token
+   POST https://hatchepk.com/api/payment/get-token
    Body: { basketId: "ORDER-xxx", amount: 5000 }
    ```
 
@@ -526,7 +526,7 @@ execute procedure record_conversion_from_order();
 
 **If Successful:**
 1. PayFast redirects to: `/payment-success?BASKET_ID=xxx&STATUS=SUCCESS&ERR_CODE=000&VALIDATION_HASH=xxx`
-2. PayFast sends webhook to: `https://hatchepk1.vercel.app/api/payment/webhook`
+2. PayFast sends webhook to: `https://hatchepk.com/api/payment/webhook`
 3. Webhook verifies hash
 4. Webhook updates order: `order_status: 'completed'`
 5. Success page displays confirmation
@@ -617,7 +617,7 @@ git commit -m "Integrate PayFast payment gateway"
 git push
 
 # 3. Verify deployment
-# Check: https://hatchepk1.vercel.app/api/payment/get-token
+# Check: https://hatchepk.com/api/payment/get-token
 # Should return: {"success":false,"error":"Method Not Allowed"} ← This is correct!
 ```
 
@@ -644,7 +644,7 @@ npm start
 
 **1. Navigate to a guide:**
    ```
-   https://hatchepk1.vercel.app/our-guides
+   https://hatchepk.com/our-guides
    ```
 
 **2. Click "Buy Now" on any guide**
@@ -989,7 +989,7 @@ Vercel will auto-deploy (takes ~2 minutes)
 
 **Check API endpoint:**
 ```bash
-curl -X POST https://hatchepk1.vercel.app/api/payment/get-token
+curl -X POST https://hatchepk.com/api/payment/get-token
 ```
 
 Expected: `{"success":false,"error":"Missing required fields: basketId and amount"}`  
@@ -998,9 +998,9 @@ Expected: `{"success":false,"error":"Missing required fields: basketId and amoun
 ### Step 4: Configure PayFast Dashboard (If Required)
 
 In PayFast merchant portal, set:
-- **Webhook URL:** `https://hatchepk1.vercel.app/api/payment/webhook`
-- **Success URL:** `https://hatchepk1.vercel.app/payment-success`
-- **Failure URL:** `https://hatchepk1.vercel.app/payment-failure`
+- **Webhook URL:** `https://hatchepk.com/api/payment/webhook`
+- **Success URL:** `https://hatchepk.com/payment-success`
+- **Failure URL:** `https://hatchepk.com/payment-failure`
 
 ---
 
