@@ -190,7 +190,26 @@ function Checkout() {
         throw new Error('Failed to create order. Please try again.');
       }
 
-      // Step 3: Submit form to PayFast (matching PHP example)
+      // Step 3: Send order confirmation email
+      try {
+        await fetch('/api/emails/send-order-confirmation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            customerName: `${formData.firstName} ${formData.lastName}`,
+            customerEmail: user?.email || formData.email,
+            guideTitle: guide.title,
+            orderAmount: guide.price,
+            orderId: orderData[0]?.id
+          })
+        });
+        console.log('Order confirmation email sent');
+      } catch (emailError) {
+        console.error('Email failed (non-critical):', emailError);
+        // Continue even if email fails
+      }
+
+      // Step 4: Submit form to PayFast (matching PHP example)
       console.log('Redirecting to PayFast...');
       
       const form = payfastFormRef.current;

@@ -82,14 +82,14 @@ body {
   align-items: center;
   justify-content: flex-start;
   flex-shrink: 0;
-  height: 300px;
-  width: 400px;
+  height: 350px;
+  width: 500px;
   position: relative;
   overflow: hidden;
 }
 
 .logo {
-  height: 250px;
+  height: 300px;
   width: auto;
   object-fit: contain;
   display: block;

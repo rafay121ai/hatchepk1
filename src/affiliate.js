@@ -254,6 +254,25 @@ function Affiliate() {
         if (process.env.NODE_ENV === 'development') {
           console.log("Affiliate application submitted successfully:", data);
         }
+
+        // Send welcome email
+        try {
+          await fetch('/api/emails/send-affiliate-welcome', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: formData.name,
+              email: formData.email,
+              refId: 'Pending Approval', // Will get actual ID after approval
+              commissionRate: commissionDecimal
+            })
+          });
+          console.log('Affiliate welcome email sent');
+        } catch (emailError) {
+          console.error('Email failed (non-critical):', emailError);
+          // Continue even if email fails
+        }
+
         setSubmitStatus("success");
         setShowSuccessModal(true);
         
