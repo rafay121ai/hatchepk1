@@ -201,9 +201,15 @@ function App() {
               </ul>
             </div>
             <div className="footer-column">
+              <h3 className="footer-heading">Information</h3>
+              <ul className="footer-links">
+                <li><a href="https://maps.google.com/?q=Shaheed-e-millat+rd+Roshan+Tai+Office+Tower" target="_blank" rel="noopener noreferrer">Shaheed-e-millat rd, Roshan Tai Office Tower, 3rd floor, 309</a></li>
+                <li><a href="tel:+923311041066">03311041066</a></li>
+              </ul>
+            </div>
+            <div className="footer-column">
               <h3 className="footer-heading">More questions?</h3>
               <ul className="footer-links">
-                <li><a href="tel:+1234567890">+1 234 567 890</a></li>
                 <li><a href="mailto:info@hatche.com">info@hatche.com</a></li>
                 <li><a href="https://www.instagram.com/hatchepk/" target="_blank" rel="noopener noreferrer">Get in Touch</a></li>
               </ul>
