@@ -662,6 +662,22 @@ html, body {
   }
 }
 
+/* ===== FIX: Invisible mobile menu on iPhone Safari ===== */
+@supports (-webkit-backdrop-filter: none) or (backdrop-filter: none) {
+  .nav-links.nav-open {
+    background-color: rgba(253, 252, 241, 0.98);
+    -webkit-backdrop-filter: none; /* disable buggy blur */
+    backdrop-filter: none;          /* ensures text renders */
+    z-index: 9999 !important;
+  }
+
+  .nav-links.nav-open li a {
+    color: #2c2c2c !important; /* dark visible text */
+    font-weight: 600;
+    text-shadow: 0 0 1px rgba(255,255,255,0.3); /* improves visibility */
+  }
+}
+
 @media (max-width: 480px) {
   .mobile-menu-btn.active {
     top: 0.8rem;
