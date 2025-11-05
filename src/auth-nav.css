@@ -163,38 +163,52 @@
   box-shadow: 0 4px 15px rgba(115, 22, 15, 0.4);
 }
 
-/* Ensure consistent navbar element alignment */
-.nav-links li {
-  display: flex;
-  align-items: center;
-  height: 100%;
-}
+/* Ensure consistent navbar element alignment - DESKTOP ONLY */
+@media (min-width: 769px) {
+  .nav-links li {
+    display: flex;
+    align-items: center;
+    height: 100%;
+  }
 
-.nav-links li a {
-  display: flex;
-  align-items: center;
-  height: 100%;
-  padding: 0.5rem 1rem;
-  text-decoration: none;
-  color: inherit;
-  transition: all 0.3s ease;
-}
+  .nav-links li a {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.3s ease;
+  }
 
-.nav-links li a:hover {
-  color: #73160f;
-}
+  .nav-links li a:hover {
+    color: #73160f;
+  }
 
-/* Ensure auth buttons align with nav links */
-.nav-links li .auth-btn,
-.nav-links li .logout-btn {
-  display: flex;
-  align-items: center;
-  height: auto;
-  margin: 0;
+  /* Ensure auth buttons align with nav links */
+  .nav-links li .auth-btn,
+  .nav-links li .logout-btn {
+    display: flex;
+    align-items: center;
+    height: auto;
+    margin: 0;
+  }
 }
 
 /* Mobile responsive for auth elements */
 @media (max-width: 768px) {
+  /* Reset nav-links styles for mobile */
+  .nav-links li {
+    display: block !important;
+    height: auto !important;
+  }
+  
+  .nav-links li a {
+    display: block !important;
+    height: auto !important;
+    padding: 0 !important;
+  }
+
   .user-menu {
     flex-direction: column;
     gap: 5px;
