@@ -83,13 +83,19 @@ function App() {
     const newState = !isMenuOpen;
     setIsMenuOpen(newState);
     
-    // Lock/unlock body scroll
+    // Lock/unlock body scroll and add class for styling
     if (newState) {
       document.body.style.overflow = 'hidden';
       document.body.style.height = '100vh';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+      document.body.classList.add('menu-open');
     } else {
       document.body.style.overflow = 'unset';
       document.body.style.height = 'auto';
+      document.body.style.position = 'static';
+      document.body.style.width = 'auto';
+      document.body.classList.remove('menu-open');
     }
   };
 
@@ -98,6 +104,9 @@ function App() {
     setIsMenuOpen(false);
     document.body.style.overflow = 'unset';
     document.body.style.height = 'auto';
+    document.body.style.position = 'static';
+    document.body.style.width = 'auto';
+    document.body.classList.remove('menu-open');
   };
 
   // Initialize referral tracking, test Supabase connection, and initialize database
@@ -122,6 +131,9 @@ function App() {
     return () => {
       document.body.style.overflow = 'unset';
       document.body.style.height = 'auto';
+      document.body.style.position = 'static';
+      document.body.style.width = 'auto';
+      document.body.classList.remove('menu-open');
     };
   }, []);
 
