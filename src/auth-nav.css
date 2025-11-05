@@ -197,13 +197,13 @@
 
 /* Mobile responsive for auth elements */
 @media (max-width: 768px) {
-  /* Reset nav-links styles for mobile */
-  .nav-links li {
+  /* Reset nav-links styles for mobile - but NOT when menu is open */
+  .nav-links:not(.nav-open) li {
     display: block !important;
     height: auto !important;
   }
   
-  .nav-links li a {
+  .nav-links:not(.nav-open) li a {
     display: block !important;
     height: auto !important;
     padding: 0 !important;
