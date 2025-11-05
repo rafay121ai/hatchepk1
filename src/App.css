@@ -152,6 +152,7 @@ body {
   flex-shrink: 0;
   z-index: 1001;
   position: relative;
+  pointer-events: auto;
 }
 
 .hamburger-line {
@@ -544,18 +545,21 @@ html, body {
     bottom: 0 !important;
     width: 100vw !important;
     height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
     background: rgba(253, 252, 241, 0.98) !important;
     backdrop-filter: blur(10px) !important;
     flex-direction: column !important;
     justify-content: flex-start !important;
     align-items: center !important;
     gap: 1.2rem !important;
-    z-index: 999999 !important;
+    z-index: 99999999 !important;
     list-style: none !important;
     padding: 100px 2rem 2rem 2rem !important;
     margin: 0 !important;
     overflow-y: auto !important;
     -webkit-overflow-scrolling: touch !important;
+    pointer-events: auto !important;
   }
 
   /* Individual menu items */
@@ -649,7 +653,20 @@ html, body {
     position: fixed !important;
     top: 1.2rem !important;
     right: 1.5rem !important;
-    z-index: 9999999 !important;
+    z-index: 999999999 !important;
+  }
+
+  /* Ensure navbar doesn't create stacking context that limits menu */
+  .navbar {
+    position: relative;
+    z-index: 100;
+  }
+
+  /* When menu is open, push page content behind */
+  body:has(.nav-links.nav-open) .page-content,
+  body:has(.nav-links.nav-open) .footer {
+    position: relative;
+    z-index: 1 !important;
   }
 }
 
@@ -663,6 +680,38 @@ html, body {
   .nav-links li a {
     display: block !important;
     height: auto !important;
+  }
+
+  /* Force page content behind menu overlay */
+  .App {
+    position: relative;
+  }
+
+  .page-content {
+    position: relative;
+    z-index: 1 !important;
+  }
+
+  .footer {
+    position: relative;
+    z-index: 1 !important;
+  }
+
+  /* When menu is open, hide all other content */
+  .App:has(.nav-links.nav-open) .page-content {
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  .App:has(.nav-links.nav-open) .footer {
+    visibility: hidden !important;
+    pointer-events: none !important;
+  }
+
+  /* Keep only navbar and menu visible */
+  .App:has(.nav-links.nav-open) .navbar {
+    visibility: visible !important;
+    pointer-events: auto !important;
   }
 }
 
