@@ -133,6 +133,7 @@ function Home() {
               <p className="feature-description">
                 We offer topics and levels to help you grow with confidence.
               </p>
+              <div className="feature-arrow">→</div>
             </div>
           </div>
         </div>
