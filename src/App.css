@@ -571,9 +571,7 @@ html, body {
     bottom: 0 !important;
     width: 100vw !important;
     height: 100vh !important;
-    background: rgb(253, 252, 241) !important;
-    /* DEBUG: Temporarily add bright background to see if menu exists */
-    /* background: red !important; */
+    background: #1a1a1a !important; /* DARK background for max contrast */
     flex-direction: column !important;
     justify-content: flex-start !important;
     align-items: center !important;
@@ -631,13 +629,11 @@ html, body {
     padding: 1rem 1.5rem !important;
     font-size: 1.1rem !important;
     font-weight: 700 !important; /* Bolder for visibility */
-    color: #73160f !important;
+    color: #000000 !important; /* BLACK text */
     text-decoration: none !important;
     text-align: center !important;
-    background: #ffffff !important;
-    /* DEBUG: Temporarily use bright color to test */
-    /* background: yellow !important; */
-    border: 3px solid #73160f !important; /* Thicker border */
+    background: #00ff00 !important; /* BRIGHT GREEN - impossible to miss */
+    border: 5px solid #ff0000 !important; /* RED border */
     border-radius: 12px !important;
     cursor: pointer !important;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important; /* Darker shadow */
@@ -669,8 +665,8 @@ html, body {
   .nav-links.nav-open .user-icon-btn {
     width: 100% !important;
     padding: 1rem !important;
-    background: #73160f !important;
-    color: white !important;
+    background: #0000ff !important; /* BLUE - very visible */
+    color: #ffff00 !important; /* YELLOW text */
     border: none !important;
     border-radius: 12px !important;
     display: flex !important;
@@ -705,8 +701,8 @@ html, body {
   .nav-links.nav-open .user-dropdown .dropdown-item {
     width: 100% !important;
     padding: 1rem !important;
-    background: #ffffff !important;
-    border: 2px solid #73160f !important;
+    background: #ffff00 !important; /* YELLOW */
+    border: 3px solid #000000 !important; /* BLACK border */
     border-radius: 12px !important;
     text-align: center !important;
     color: #2c2c2c !important;
