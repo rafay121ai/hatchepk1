@@ -14,13 +14,11 @@ import { testSupabaseConnection } from './supabaseTest';
 import { initializeReferralTracking } from './referralUtils';
 import { AuthProvider } from './AuthContext';
 import { initializeDatabase } from './databaseUtils';
-// import { testDatabaseAccess } from './debugDatabase';
 import ProtectedRoute from './ProtectedRoute';
 import Navigation from './Navigation';
 import DatabaseTest from './DatabaseTest';
 import Policies from './Policies';
 import ErrorBoundary from './components/ErrorBoundary';
-// Using public folder - no import needed, just use the path
 
 // Google Analytics
 const GA_TRACKING_ID = 'G-M8M2WM9PVN';
@@ -78,13 +76,28 @@ function ScrollToTop() {
 
 function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const location = useLocation();
 
+  // Enhanced toggle with body scroll lock
   const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
+    const newState = !isMenuOpen;
+    setIsMenuOpen(newState);
+    
+    // Lock/unlock body scroll
+    if (newState) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.height = '100vh';
+    } else {
+      document.body.style.overflow = 'unset';
+      document.body.style.height = 'auto';
+    }
   };
 
+  // Close menu function
   const closeMenu = () => {
     setIsMenuOpen(false);
+    document.body.style.overflow = 'unset';
+    document.body.style.height = 'auto';
   };
 
   // Initialize referral tracking, test Supabase connection, and initialize database
@@ -98,91 +111,107 @@ function App() {
       console.log('Referral tracking initialized with ID:', referralId);
     }
     
-    
     // Test Supabase connection and initialize database
     const runTests = async () => {
       await testSupabaseConnection();
       await initializeDatabase();
     };
     runTests();
+
+    // Cleanup: ensure body scroll is reset on unmount
+    return () => {
+      document.body.style.overflow = 'unset';
+      document.body.style.height = 'auto';
+    };
   }, []);
 
+  // Close menu on route change
+  useEffect(() => {
+    closeMenu();
+  }, [location.pathname]);
+
+  return (
+    <div className="App">
+      {/* Navigation Bar */}
+      <Navigation 
+        isMenuOpen={isMenuOpen} 
+        toggleMenu={toggleMenu} 
+        closeMenu={closeMenu} 
+      />
+
+      {/* Routes with fade-in wrapper */}
+      <div className="page-content fade-in">
+        <ErrorBoundary>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/about-us" element={<AboutUs />} />
+            <Route path="/our-guides" element={<OurGuides />} />
+            <Route path="/your-guides" element={<YourGuides />} />
+            <Route path="/affiliate-program" element={<Affiliate />} />
+            <Route path="/checkout" element={
+              <ProtectedRoute>
+                <Checkout />
+              </ProtectedRoute>
+            } />
+            <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
+            <Route path="/database-test" element={<DatabaseTest />} />
+            <Route path="/payment-success" element={<PaymentSuccess />} />
+            <Route path="/payment-failure" element={<PaymentFailure />} />
+            <Route path="/return-policy" element={<Policies />} />
+            <Route path="/privacy-policy" element={<Policies />} />
+            <Route path="/refund-policy" element={<Policies />} />
+            <Route path="/terms-conditions" element={<Policies />} />
+          </Routes>
+        </ErrorBoundary>
+      </div>
+
+      {/* Footer */}
+      <footer className="footer">
+        <div className="footer-red-bar"></div>
+        <div className="footer-content">
+          <div className="footer-columns">
+            <div className="footer-column">
+              <h3 className="footer-heading">Our guides</h3>
+              <ul className="footer-links">
+                <li><Link to="/our-guides">All Guides</Link></li>
+                <li><Link to="/our-guides">Business Guides</Link></li>
+                <li><Link to="/our-guides">Creative Guides</Link></li>
+                <li><Link to="/our-guides">Tech Guides</Link></li>
+              </ul>
+            </div>
+            <div className="footer-column">
+              <h3 className="footer-heading">Policies</h3>
+              <ul className="footer-links">
+                <li><Link to="/return-policy">Return Policy</Link></li>
+                <li><Link to="/privacy-policy">Privacy Policy</Link></li>
+                <li><Link to="/refund-policy">Refund Policy</Link></li>
+                <li><Link to="/terms-conditions">Terms & Conditions</Link></li>
+              </ul>
+            </div>
+            <div className="footer-column">
+              <h3 className="footer-heading">More questions?</h3>
+              <ul className="footer-links">
+                <li><a href="tel:+1234567890">+1 234 567 890</a></li>
+                <li><a href="mailto:info@hatche.com">info@hatche.com</a></li>
+                <li><a href="https://www.instagram.com/hatchepk/" target="_blank" rel="noopener noreferrer">Get in Touch</a></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+// Wrap App with Router and AuthProvider
+function AppWrapper() {
   return (
     <AuthProvider>
       <Router>
-        <ScrollToTop />
-        <div className="App">
-        {/* Navigation Bar */}
-        <Navigation 
-          isMenuOpen={isMenuOpen} 
-          toggleMenu={toggleMenu} 
-          closeMenu={closeMenu} 
-        />
-
-        {/* Routes with fade-in wrapper */}
-        <div className="page-content fade-in">
-          <ErrorBoundary>
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/about-us" element={<AboutUs />} />
-              <Route path="/our-guides" element={<OurGuides />} />
-              <Route path="/your-guides" element={<YourGuides />} />
-              <Route path="/affiliate-program" element={<Affiliate />} />
-              <Route path="/checkout" element={
-                <ProtectedRoute>
-                  <Checkout />
-                </ProtectedRoute>
-              } />
-              <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
-              <Route path="/database-test" element={<DatabaseTest />} />
-              <Route path="/payment-success" element={<PaymentSuccess />} />
-              <Route path="/payment-failure" element={<PaymentFailure />} />
-              <Route path="/return-policy" element={<Policies />} />
-              <Route path="/privacy-policy" element={<Policies />} />
-              <Route path="/refund-policy" element={<Policies />} />
-              <Route path="/terms-conditions" element={<Policies />} />
-            </Routes>
-          </ErrorBoundary>
-        </div>
-
-        {/* Footer */}
-        <footer className="footer">
-          <div className="footer-red-bar"></div>
-          <div className="footer-content">
-            <div className="footer-columns">
-              <div className="footer-column">
-                <h3 className="footer-heading">Our guides</h3>
-                <ul className="footer-links">
-                  <li><Link to="/our-guides">All Guides</Link></li>
-                  <li><Link to="/our-guides">Business Guides</Link></li>
-                  <li><Link to="/our-guides">Creative Guides</Link></li>
-                  <li><Link to="/our-guides">Tech Guides</Link></li>
-                </ul>
-              </div>
-              <div className="footer-column">
-                <h3 className="footer-heading">Policies</h3>
-                <ul className="footer-links">
-                  <li><Link to="/return-policy">Return Policy</Link></li>
-                  <li><Link to="/privacy-policy">Privacy Policy</Link></li>
-                  <li><Link to="/refund-policy">Refund Policy</Link></li>
-                  <li><Link to="/terms-conditions">Terms & Conditions</Link></li>
-                </ul>
-              </div>
-              <div className="footer-column">
-                <h3 className="footer-heading">More questions?</h3>
-                <ul className="footer-links">
-                  <li><a href="tel:+1234567890">+1 234 567 890</a></li>
-                  <li><a href="mailto:info@hatche.com">info@hatche.com</a></li>
-                  <li><a href="https://www.instagram.com/hatchepk/" target="_blank" rel="noopener noreferrer">Get in Touch</a></li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </footer>
-        </div>
+        <App />
       </Router>
     </AuthProvider>
   );
 }
 
-export default App;
+export default AppWrapper;
