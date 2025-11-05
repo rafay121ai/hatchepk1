@@ -3,9 +3,9 @@
   "name": "Hatche - Premium Guides for Creators",
   "icons": [
     {
-      "src": "HATCHE-LOGO.png",
+      "src": "hatche-favicon.png",
       "type": "image/png",
-      "sizes": "1000x1000"
+      "sizes": "512x512"
     },
     {
       "src": "logo192.png",
