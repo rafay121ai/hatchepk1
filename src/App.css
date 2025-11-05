@@ -425,127 +425,31 @@ body {
 }
 
 /* ============================================
-   MOBILE PORTRAIT (≤640px) - iPhone 14 Pro Max, etc.
+   MOBILE MENU (≤768px) - ALL PHONES & TABLETS
    ============================================ */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   /* Navbar adjustments */
   .navbar {
     padding: 0.6rem 1rem;
     height: 60px;
     max-height: 60px;
-    overflow-x: hidden;
   }
   
   .logo-container {
     height: 40px;
     width: 200px;
-    justify-content: flex-start;
-    margin-left: 0;
-    position: relative;
     left: 0;
   }
 
   .logo {
     height: 180px;
     left: 0;
-    transform: translateY(-50%);
   }
 
-  /* Mobile menu - ensure it inherits from 768px breakpoint */
-  ul.nav-links.nav-open,
-  .menu ul.nav-links.nav-open,
-  .nav-links.nav-open {
-    padding: 90px 1.5rem 2rem 1.5rem !important;
-  }
-
-  /* Menu items for iPhone sizes */
-  ul.nav-links.nav-open > li,
-  .menu ul.nav-links.nav-open > li,
-  .nav-links.nav-open > li,
-  body.menu-open .nav-links.nav-open > li {
-    max-width: 260px !important;
-  }
-
-  /* Button adjustments for iPhone */
-  ul.nav-links.nav-open > li > a,
-  .menu ul.nav-links.nav-open > li > a,
-  .nav-links.nav-open li a,
-  .nav-links.nav-open .auth-btn,
-  body.menu-open .nav-links.nav-open > li > a,
-  body.menu-open .nav-links.nav-open .auth-btn {
-    font-size: 1rem !important;
-    padding: 0.9rem 1.2rem !important;
-    min-height: 52px !important;
-  }
-
-  /* User icon button adjustments */
-  .nav-links.nav-open .user-icon-btn {
-    font-size: 0.95rem !important;
-    padding: 0.9rem !important;
-  }
-
-  /* Footer adjustments */
-  .footer-content {
-    flex-direction: column;
-    gap: 2.5rem;
-    text-align: center;
-    padding: 2.5rem 4%;
-  }
-
-  .footer-columns {
-    flex-direction: column;
-    gap: 2rem;
-    align-items: center;
-  }
-
-  .footer-column {
-    align-items: center;
-  }
-}
-
-/* Extra Small Mobile (320px - 480px) */
-@media (max-width: 480px) {
-  .navbar {
-    padding: 1rem 0.8rem 0.5rem 0.8rem;
-    height: 55px;
-    max-height: 55px;
-  }
-  
-  .logo-container {
-    height: 35px;
-    width: 160px;
-    left: 0;
-  }
-
-  .logo {
-    height: 160px;
-    left: 0;
-  }
-}
-
-/* ============================================
-   NEW ADDITIONS - Add these AFTER your existing media queries
-   ============================================ */
-
-/* NEW: Prevent horizontal scroll globally */
-html, body {
-  overflow-x: hidden;
-  max-width: 100vw;
-}
-
-/* NEW: Ensure all boxes use border-box sizing */
-*, *::before, *::after {
-  box-sizing: border-box;
-}
-
-/* ============================================
-   MOBILE MENU - ORIGINAL WORKING VERSION
-   ============================================ */
-@media (max-width: 768px) {
+  /* Show hamburger, hide desktop menu */
   .mobile-menu-btn {
     display: flex;
     z-index: 1001;
-    position: relative;
   }
 
   .mobile-menu-btn.active {
@@ -559,6 +463,7 @@ html, body {
     display: none;
   }
 
+  /* Mobile menu overlay */
   .nav-links.nav-open {
     position: fixed;
     top: 0;
@@ -571,7 +476,6 @@ html, body {
     justify-content: center;
     align-items: center;
     gap: -3.5rem;
-    transform: translateX(0);
     z-index: 999;
     display: flex;
     list-style: none;
@@ -579,12 +483,7 @@ html, body {
     margin: 0;
   }
 
-  .nav-links a {
-    font-size: 1.3rem;
-    font-weight: 600;
-    color: #2c2c2c;
-  }
-
+  /* Menu links */
   .nav-links.nav-open li a,
   .nav-links.nav-open .auth-btn {
     font-size: 0.9rem;
@@ -613,6 +512,7 @@ html, body {
     box-shadow: 0 4px 12px rgba(115, 22, 15, 0.3);
   }
 
+  /* User menu in mobile */
   .nav-links.nav-open .user-menu {
     position: relative;
   }
@@ -660,28 +560,23 @@ html, body {
     color: #ffffff;
     background: #d32f2f;
   }
-}
 
-/* ===== FIX: Invisible mobile menu on iPhone Safari ===== */
-@supports (-webkit-backdrop-filter: none) or (backdrop-filter: none) {
-  .nav-links.nav-open {
-    background-color: rgba(253, 252, 241, 0.98);
-    -webkit-backdrop-filter: none; /* disable buggy blur */
-    backdrop-filter: none;          /* ensures text renders */
-    z-index: 9999 !important;
+  /* Footer responsive */
+  .footer-content {
+    flex-direction: column;
+    gap: 2.5rem;
+    text-align: center;
+    padding: 2.5rem 4%;
   }
 
-  .nav-links.nav-open li a {
-    color: #2c2c2c !important; /* dark visible text */
-    font-weight: 600;
-    text-shadow: 0 0 1px rgba(255,255,255,0.3); /* improves visibility */
+  .footer-columns {
+    flex-direction: column;
+    gap: 2rem;
+    align-items: center;
   }
-}
 
-@media (max-width: 480px) {
-  .mobile-menu-btn.active {
-    top: 0.8rem;
-    right: 1rem;
+  .footer-column {
+    align-items: center;
   }
 }
 
