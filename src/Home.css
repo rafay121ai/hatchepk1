@@ -1018,16 +1018,17 @@
   }
 
   .feature-block {
-    padding: 1.5rem 3rem 1.5rem 1rem;
+    padding: 1.5rem 1rem 2.5rem 1rem;
     position: relative;
   }
 
   .feature-arrow {
     display: block;
     position: absolute;
-    right: 1rem;
-    top: 50%;
-    transform: translateY(-50%);
+    left: 50%;
+    bottom: 0.5rem;
+    transform: translateX(-50%) rotate(90deg);
+    font-size: 1.5rem;
   }
 
   /* Testimonials Responsive */
@@ -1221,17 +1222,21 @@
   }
 
   .feature-block {
-    padding: 1.25rem 2.5rem 1.25rem 1rem;
+    padding: 1.25rem 1rem 2rem 1rem;
     position: relative;
   }
 
   .feature-arrow {
     display: block;
     position: absolute;
-    right: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
+    left: 50%;
+    bottom: 0.4rem;
+    transform: translateX(-50%) rotate(90deg);
     font-size: 1.2rem;
+  }
+
+  .feature-block:last-child .feature-arrow {
+    display: none;
   }
 
   /* Testimonials */
