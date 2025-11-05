@@ -574,6 +574,8 @@ html, body {
     height: auto !important;
     position: relative !important;
     z-index: 1 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 
   /* Menu links */
@@ -587,69 +589,90 @@ html, body {
     color: #73160f !important;
     text-decoration: none !important;
     text-align: center !important;
-    background: rgba(255, 255, 255, 0.9) !important;
-    border: 2px solid rgba(115, 22, 15, 0.1) !important;
+    background: #ffffff !important; /* Solid white for visibility */
+    border: 2px solid #73160f !important; /* More visible border */
     border-radius: 12px !important;
     cursor: pointer !important;
     transition: all 0.3s ease !important;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important; /* Stronger shadow */
     height: auto !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    line-height: 1.5 !important;
+    min-height: 50px !important;
   }
 
   .nav-links.nav-open li a:hover,
   .nav-links.nav-open .auth-btn:hover {
-    background: #73160f;
-    color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(115, 22, 15, 0.3);
+    background: #73160f !important;
+    color: white !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(115, 22, 15, 0.3) !important;
   }
 
   /* User menu */
   .nav-links.nav-open .user-menu {
-    width: 100%;
-    max-width: 280px;
+    width: 100% !important;
+    max-width: 280px !important;
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 
   .nav-links.nav-open .user-icon-btn {
-    width: 100%;
-    padding: 1rem;
-    background: #73160f;
-    color: white;
-    border: none;
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
+    width: 100% !important;
+    padding: 1rem !important;
+    background: #73160f !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 12px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.5rem !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    min-height: 50px !important;
+  }
+
+  .nav-links.nav-open .user-icon-btn svg {
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 
   /* Dropdown in mobile */
   .nav-links.nav-open .user-dropdown {
-    position: static;
-    background: transparent;
-    box-shadow: none;
-    border: none;
-    padding: 0.5rem 0 0 0;
-    margin-top: 0.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    width: 100%;
+    position: static !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0.5rem 0 0 0 !important;
+    margin-top: 0.5rem !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
+    opacity: 1 !important;
+    visibility: visible !important;
   }
 
   .nav-links.nav-open .user-dropdown .dropdown-item {
-    width: 100%;
-    padding: 1rem;
-    background: rgba(255, 255, 255, 0.9);
-    border: 2px solid rgba(115, 22, 15, 0.1);
-    border-radius: 12px;
-    text-align: center;
-    color: #2c2c2c;
+    width: 100% !important;
+    padding: 1rem !important;
+    background: #ffffff !important; /* Solid white */
+    border: 2px solid #73160f !important; /* Stronger border */
+    border-radius: 12px !important;
+    text-align: center !important;
+    color: #2c2c2c !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: block !important;
+    min-height: 50px !important;
   }
 
   .nav-links.nav-open .user-dropdown .logout-btn {
-    background: #d32f2f;
-    color: white;
+    background: #d32f2f !important;
+    color: white !important;
   }
 
   /* Position hamburger when open */
