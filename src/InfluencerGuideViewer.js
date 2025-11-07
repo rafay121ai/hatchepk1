@@ -79,19 +79,34 @@ function InfluencerGuideViewer() {
       });
 
       // Fetch guide data from Supabase by title (stored in session)
+      console.log('🔍 Fetching guide with title:', storedGuideTitle);
+      
       const { data: guides, error: guideError } = await supabase
         .from('guides')
         .select('*')
         .eq('title', storedGuideTitle);
 
+      console.log('📊 Guide fetch result:', { guides, error: guideError });
+
       const guide = guides && guides.length > 0 ? guides[0] : null;
 
       if (guideError || !guide) {
-        console.error('Error fetching guide:', guideError);
-        setError('Guide not found');
+        console.error('❌ Error fetching guide:', guideError);
+        console.error('📋 Title searched:', storedGuideTitle);
+        console.error('📋 Guides found:', guides);
+        
+        // Try fetching all guides to see what titles exist
+        const { data: allGuides } = await supabase
+          .from('guides')
+          .select('id, title');
+        console.error('📚 Available guides in database:', allGuides);
+        
+        setError('Guide not found. The guide title may not match the database.');
         setLoading(false);
         return;
       }
+
+      console.log('✅ Guide found:', guide.title);
 
       setGuideData(guide);
       setSessionVerified(true);
