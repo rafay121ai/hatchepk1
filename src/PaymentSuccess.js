@@ -60,6 +60,8 @@ function PaymentSuccess() {
 
           if (updateError) {
             console.error('❌ Error updating order:', updateError);
+            console.error('❌ Error details:', JSON.stringify(updateError, null, 2));
+            console.error('❌ Order ID tried:', pendingOrder.orderId);
           } else {
             console.log('✅ Order updated to completed:', updatedOrder);
             
