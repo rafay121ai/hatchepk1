@@ -12,9 +12,9 @@ export async function generateDeviceFingerprint() {
       navigator.languages ? navigator.languages.join(',') : '',
       
       // Screen info
-      screen.colorDepth,
-      screen.width + 'x' + screen.height,
-      screen.availWidth + 'x' + screen.availHeight,
+      window.screen.colorDepth,
+      window.screen.width + 'x' + window.screen.height,
+      window.screen.availWidth + 'x' + window.screen.availHeight,
       window.screen.pixelDepth,
       
       // Timezone
@@ -92,7 +92,7 @@ export async function generateDeviceFingerprint() {
   } catch (error) {
     console.error('Error generating device fingerprint:', error);
     // Fallback to a simpler fingerprint
-    const fallback = `${navigator.userAgent}|${screen.width}x${screen.height}|${new Date().getTimezoneOffset()}`;
+    const fallback = `${navigator.userAgent}|${window.screen.width}x${window.screen.height}|${new Date().getTimezoneOffset()}`;
     const msgBuffer = new TextEncoder().encode(fallback);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
