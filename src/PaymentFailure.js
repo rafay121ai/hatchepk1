@@ -26,6 +26,26 @@ function PaymentFailure() {
     console.log('🔴 Payment failed - All URL parameters:', allParams);
     console.log('📦 Pending order:', pendingOrder);
 
+    // Update pending order to 'failed' status
+    if (pendingOrder && pendingOrder.orderId) {
+      console.log('🔄 Updating order status to failed...');
+      
+      supabase
+        .from('orders')
+        .update({ 
+          order_status: 'failed',
+          transaction_id: basketId 
+        })
+        .eq('id', pendingOrder.orderId)
+        .then(({ error }) => {
+          if (error) {
+            console.error('❌ Error updating order to failed:', error);
+          } else {
+            console.log('✅ Order marked as failed');
+          }
+        });
+    }
+
     setErrorInfo({
       basketId: basketId || pendingOrder?.basket_id,
       errCode: errCode || 'Unknown',

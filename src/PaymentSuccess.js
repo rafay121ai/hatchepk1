@@ -28,73 +28,61 @@ function PaymentSuccess() {
           pendingOrder
         });
 
-        // Note: Order creation and email sending should be handled by webhook
-        // But as a fallback, we can create it here if webhook fails
-
+        // Update pending order to completed status
         console.log('📦 Pending order from session:', pendingOrder);
         console.log('🔍 URL params:', { basketId, status, errCode });
 
-        if (!pendingOrder) {
-          console.warn('⚠️ No pending order found in sessionStorage - webhook may have already processed');
+        if (!pendingOrder || !pendingOrder.orderId) {
+          console.error('❌ No pending order found in sessionStorage');
+          setOrderInfo({
+            basketId: basketId || 'N/A',
+            guideTitle: 'Your Guide',
+            amount: 0,
+            status: status,
+            errCode: errCode
+          });
+          setLoading(false);
+          return;
         }
 
-        // If pendingOrder exists and webhook hasn't processed yet, create order as fallback
-        if (pendingOrder && (errCode === '000' || errCode === '00' || !errCode)) {
-          console.log('🔄 Creating order as fallback (webhook may not have been called)');
-          
-          try {
-            // Check if order already exists
-            const { data: existingOrder } = await supabase
-              .from('orders')
-              .select('*')
-              .eq('basket_id', pendingOrder.basket_id)
-              .maybeSingle();
+        // Update order status from 'pending' to 'completed'
+        console.log('🔄 Updating order status to completed...');
+        
+        try {
+          const { data: updatedOrder, error: updateError } = await supabase
+            .from('orders')
+            .update({
+              order_status: 'completed',
+              transaction_id: basketId
+            })
+            .eq('id', pendingOrder.orderId)
+            .select();
 
-            if (!existingOrder) {
-              // Create order in database
-              const { data: newOrder, error: orderError } = await supabase
-                .from('orders')
-                .insert([{
-                  customer_email: pendingOrder.customer_email,
-                  customer_name: pendingOrder.customer_name,
-                  product_name: pendingOrder.product_name,
-                  amount: pendingOrder.amount,
-                  by_ref_id: pendingOrder.by_ref_id,
-                  order_status: 'completed',
-                  transaction_id: basketId,
-                  basket_id: pendingOrder.basket_id
-                }])
-                .select();
-
-              if (orderError) {
-                console.error('❌ Error creating order:', orderError);
-              } else {
-                console.log('✅ Order created successfully:', newOrder);
-                
-                // Send email
-                try {
-                  await fetch('/api/emails/send-order-confirmation', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      customerName: pendingOrder.customer_name,
-                      customerEmail: pendingOrder.customer_email,
-                      guideTitle: pendingOrder.product_name,
-                      orderAmount: pendingOrder.amount,
-                      orderId: newOrder[0]?.id
-                    })
-                  });
-                  console.log('✅ Order confirmation email sent');
-                } catch (emailError) {
-                  console.error('⚠️ Email error:', emailError);
-                }
-              }
-            } else {
-              console.log('ℹ️ Order already exists:', existingOrder);
+          if (updateError) {
+            console.error('❌ Error updating order:', updateError);
+          } else {
+            console.log('✅ Order updated to completed:', updatedOrder);
+            
+            // Send order confirmation email
+            try {
+              await fetch('/api/emails/send-order-confirmation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  customerName: pendingOrder.customer_name,
+                  customerEmail: pendingOrder.customer_email,
+                  guideTitle: pendingOrder.product_name,
+                  orderAmount: pendingOrder.amount,
+                  orderId: pendingOrder.orderId
+                })
+              });
+              console.log('✅ Order confirmation email sent');
+            } catch (emailError) {
+              console.error('⚠️ Email error (non-critical):', emailError);
             }
-          } catch (fallbackError) {
-            console.error('❌ Fallback order creation error:', fallbackError);
           }
+        } catch (updateOrderError) {
+          console.error('❌ Update order error:', updateOrderError);
         }
 
         setOrderInfo({

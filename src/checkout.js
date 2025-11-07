@@ -190,20 +190,43 @@ function Checkout() {
 
       console.log('✅ Token received:', tokenData.token);
 
-      // Step 2: Store order info in sessionStorage (will be created in DB only on successful payment)
-      const pendingOrderInfo = {
+      // Step 2: Create order in database with 'pending' status BEFORE payment
+      console.log('📝 Creating pending order in database...');
+      
+      const orderPayload = {
         customer_email: user?.email || formData.email,
         customer_name: `${formData.firstName} ${formData.lastName}`,
         product_name: guide.title,
         amount: guide.price,
         by_ref_id: referralId,
-        basket_id: basketId,
-        timestamp: Date.now()
+        order_status: 'pending',
+        basket_id: basketId
       };
 
-      // Store in sessionStorage for webhook to use after payment
-      sessionStorage.setItem('pendingOrder', JSON.stringify(pendingOrderInfo));
-      console.log('Order info stored in session, will be created only on successful payment');
+      const { data: orderData, error: orderError } = await supabase
+        .from('orders')
+        .insert([orderPayload])
+        .select();
+
+      if (orderError) {
+        console.error('❌ Error creating pending order:', orderError);
+        throw new Error('Failed to create order. Please try again.');
+      }
+
+      const orderId = orderData[0]?.id;
+      console.log('✅ Pending order created with ID:', orderId);
+
+      // Store order ID and details in sessionStorage (for success/failure pages)
+      const orderInfo = {
+        orderId: orderId,
+        basket_id: basketId,
+        customer_email: user?.email || formData.email,
+        customer_name: `${formData.firstName} ${formData.lastName}`,
+        product_name: guide.title,
+        amount: guide.price
+      };
+      sessionStorage.setItem('pendingOrder', JSON.stringify(orderInfo));
+      console.log('💾 Order info stored in session');
 
       // Step 3: Submit form to PayFast (matching PHP example)
       console.log('Redirecting to PayFast...');
