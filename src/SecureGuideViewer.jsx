@@ -223,19 +223,26 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       setPdfLoading(true);
       setLoadingProgress(0);
       
-      // Load the PDF document with progress tracking
+      // Load the PDF document with STREAMING enabled (pages load progressively)
       const loadingTask = window.pdfjsLib.getDocument({
         url: url,
-        disableAutoFetch: false,
-        disableStream: false
+        disableAutoFetch: false,  // Let pages load as needed
+        disableStream: false,     // Enable streaming for progressive loading
+        disableRange: false,      // Allow range requests for individual pages
+        enableXfa: false          // Disable XFA forms for speed
       });
       
-      // Show progress
+      // Show progress (throttled to every 5%)
+      let lastPercent = 0;
       loadingTask.onProgress = (progress) => {
         if (progress.total) {
           const percent = Math.round((progress.loaded / progress.total) * 100);
-          setLoadingProgress(percent);
-          console.log(`📊 Loading: ${percent}%`);
+          // Only update if changed by at least 5% (reduces re-renders)
+          if (percent - lastPercent >= 5 || percent === 100) {
+            setLoadingProgress(percent);
+            lastPercent = percent;
+            console.log(`📊 Loading: ${percent}%`);
+          }
         }
       };
       
@@ -258,32 +265,34 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     }
   };
 
-  // Render a specific page - ULTRA OPTIMIZED for mobile
-  const renderPage = async (pdf, pageNum) => {
-    if (rendering || !pdf) return;
+  // TWO-PASS RENDERING: Fast preview first, then crisp quality
+  const renderPage = async (pdf, pageNum, highQuality = false) => {
+    if (rendering && !highQuality) return; // Allow high-quality pass to run
     
-    setRendering(true);
-    console.log(`🎨 Rendering page ${pageNum}...`);
+    if (!highQuality) setRendering(true);
+    console.log(`🎨 Rendering page ${pageNum} (${highQuality ? 'crisp' : 'fast preview'})...`);
     
     try {
       const page = await pdf.getPage(pageNum);
       const container = canvasContainerRef.current;
       if (!container) return;
 
-      // Calculate scale - mobile optimized with reasonable max width
-      const containerWidth = Math.min(window.innerWidth - 32, 800); // Max 800px looks better
+      // Calculate scale
+      const containerWidth = Math.min(window.innerWidth - 32, 800);
       const viewport = page.getViewport({ scale: 1 });
       const scale = containerWidth / viewport.width;
       const scaledViewport = page.getViewport({ scale });
 
-      // Use 2.5x DPI for even crisper display
-      const outputScale = Math.min(window.devicePixelRatio || 1, 2.5);
+      // PASS 1: Fast preview (1.5x DPI) | PASS 2: Crisp (2.5x DPI)
+      const outputScale = highQuality 
+        ? Math.min(window.devicePixelRatio || 1, 2.5)  // Crisp
+        : 1.5;  // Fast preview
 
-      // Create canvas with optimized settings
+      // Create canvas
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d', { 
-        alpha: false, // No transparency = faster
-        desynchronized: true, // Better performance
+        alpha: false,
+        desynchronized: true,
         willReadFrequently: false
       });
       
@@ -296,28 +305,36 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       canvas.style.display = 'block';
       canvas.style.maxWidth = '100%';
 
-      // Append canvas immediately (shows blank canvas while rendering)
-      container.innerHTML = '';
+      // Clear and append canvas
+      if (!highQuality) {
+        container.innerHTML = '';
+      }
       container.appendChild(canvas);
 
-      // Render with fastest settings
-      const renderTask = page.render({
+      // Render
+      await page.render({
         canvasContext: context,
         viewport: scaledViewport,
         intent: 'display',
         renderInteractiveForms: false,
-        enableWebGL: false // Disable WebGL for compatibility
-      });
-
-      await renderTask.promise;
+        enableWebGL: false
+      }).promise;
       
       setCurrentPage(pageNum);
-      console.log(`✅ Page ${pageNum} rendered`);
+      console.log(`✅ Page ${pageNum} ${highQuality ? 'crisp render' : 'preview'} complete`);
+      
+      // After fast preview, trigger high-quality render in background
+      if (!highQuality) {
+        setTimeout(() => {
+          console.log('🎨 Upgrading to crisp quality...');
+          renderPage(pdf, pageNum, true);
+        }, 100); // Small delay to let fast version show first
+      }
       
     } catch (err) {
       console.error('❌ Error rendering page:', err);
     } finally {
-      setRendering(false);
+      if (!highQuality) setRendering(false);
     }
   };
 
