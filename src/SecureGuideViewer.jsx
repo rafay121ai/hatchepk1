@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabaseClient';
 
-export default function SecureGuideViewer({ guideId, user, onClose, guideData }) {
+export default function SecureGuideViewer({ guideId, user, onClose, guideData, isInfluencer = false }) {
   const viewer = useRef(null);
   const canvasContainerRef = useRef(null);
   const [loading, setLoading] = useState(true);
@@ -32,12 +32,19 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
 
   useEffect(() => {
     console.log("SecureGuideViewer mounted");
-    console.log("Props:", { guideId, user: user?.email, guideData });
+    console.log("Props:", { guideId, user: user?.email, guideData, isInfluencer });
 
     const initializeViewer = async () => {
       try {
         setLoading(true);
         setError(null);
+
+        // Skip authentication for influencer access
+        if (isInfluencer) {
+          console.log("🎓 Influencer mode - skipping authentication");
+          await loadInfluencerGuide();
+          return;
+        }
 
         console.log("Step 1: Validating user");
         if (!user || !user.id || !user.email) {
@@ -150,7 +157,68 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData })
         closeSession(sessionIdRef.current);
       }
     };
-  }, [guideId, user, isMobile]);
+  }, [guideId, user, isMobile, isInfluencer]);
+
+  // Load guide for influencer access (skip authentication)
+  const loadInfluencerGuide = async () => {
+    try {
+      console.log("🎓 Loading guide for influencer access");
+      
+      if (!guideData || !guideData.file_url) {
+        throw new Error("Guide data not provided");
+      }
+
+      console.log("Guide data:", guideData);
+
+      // Get signed URL for the PDF
+      let finalPdfUrl;
+      
+      if (guideData.file_url && guideData.file_url.includes("token=")) {
+        console.log("Using existing signed URL");
+        finalPdfUrl = guideData.file_url;
+      } else {
+        console.log("Creating new signed URL for influencer");
+        let filePath = guideData.file_url;
+        
+        // Extract clean file path
+        if (filePath.includes('/storage/v1/object/public/guides/')) {
+          filePath = filePath.split('/storage/v1/object/public/guides/')[1];
+        } else if (filePath.includes('guides/')) {
+          const parts = filePath.split('guides/');
+          filePath = parts[parts.length - 1].split('?')[0];
+        }
+
+        console.log("File path:", filePath);
+
+        const { data: signed, error: signErr } = await supabase.storage
+          .from("guides")
+          .createSignedUrl(filePath, 3600); // 1 hour
+
+        if (signErr) {
+          console.error("Error creating signed URL:", signErr);
+          throw new Error("Failed to access guide file");
+        }
+
+        finalPdfUrl = signed.signedUrl;
+      }
+
+      console.log("✓ PDF URL ready");
+      setPdfUrl(finalPdfUrl);
+
+      // Load PDF.js for mobile rendering
+      if (isMobile) {
+        await loadPdfWithPdfJs(finalPdfUrl);
+      }
+
+      setLoading(false);
+      console.log("✓ Influencer guide loaded successfully");
+
+    } catch (err) {
+      console.error("❌ Influencer guide load error:", err);
+      setError(err.message);
+      setLoading(false);
+    }
+  };
 
   // Load PDF.js library and render PDF
   const loadPdfWithPdfJs = async (url) => {
