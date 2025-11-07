@@ -243,12 +243,12 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     }
   };
 
-  // TWO-PASS RENDERING: Fast preview first, then crisp quality
-  const renderPage = async (pdf, pageNum, highQuality = false) => {
-    if (rendering && !highQuality) return; // Allow high-quality pass to run
+  // Simple, fast single-pass rendering
+  const renderPage = async (pdf, pageNum) => {
+    if (rendering || !pdf) return;
     
-    if (!highQuality) setRendering(true);
-    console.log(`🎨 Rendering page ${pageNum} (${highQuality ? 'crisp' : 'fast preview'})...`);
+    setRendering(true);
+    console.log(`🎨 Rendering page ${pageNum}...`);
     
     try {
       const page = await pdf.getPage(pageNum);
@@ -261,16 +261,13 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       const scale = containerWidth / viewport.width;
       const scaledViewport = page.getViewport({ scale });
 
-      // PASS 1: Fast preview (1.5x DPI) | PASS 2: Crisp (2.5x DPI)
-      const outputScale = highQuality 
-        ? Math.min(window.devicePixelRatio || 1, 2.5)  // Crisp
-        : 1.5;  // Fast preview
+      // Use 2x DPI for good balance of speed and quality
+      const outputScale = 2;
 
       // Create canvas
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d', { 
         alpha: false,
-        desynchronized: true,
         willReadFrequently: false
       });
       
@@ -284,35 +281,24 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       canvas.style.maxWidth = '100%';
 
       // Clear and append canvas
-      if (!highQuality) {
-        container.innerHTML = '';
-      }
+      container.innerHTML = '';
       container.appendChild(canvas);
 
-      // Render
+      // Render with optimized settings
       await page.render({
         canvasContext: context,
         viewport: scaledViewport,
         intent: 'display',
-        renderInteractiveForms: false,
-        enableWebGL: false
+        renderInteractiveForms: false
       }).promise;
       
       setCurrentPage(pageNum);
-      console.log(`✅ Page ${pageNum} ${highQuality ? 'crisp render' : 'preview'} complete`);
-      
-      // After fast preview, trigger high-quality render in background
-      if (!highQuality) {
-        setTimeout(() => {
-          console.log('🎨 Upgrading to crisp quality...');
-          renderPage(pdf, pageNum, true);
-        }, 100); // Small delay to let fast version show first
-      }
+      console.log(`✅ Page ${pageNum} rendered`);
       
     } catch (err) {
       console.error('❌ Error rendering page:', err);
     } finally {
-      if (!highQuality) setRendering(false);
+      setRendering(false);
     }
   };
 
