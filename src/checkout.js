@@ -195,7 +195,6 @@ function Checkout() {
         customer_email: user?.email || formData.email,
         customer_name: `${formData.firstName} ${formData.lastName}`,
         product_name: guide.title,
-        guide_id: guide.id,
         amount: guide.price,
         by_ref_id: referralId,
         basket_id: basketId,
@@ -244,7 +243,6 @@ function Checkout() {
         // Custom fields for order creation (passed back in IPN)
         CUSTOMER_NAME: `${formData.firstName} ${formData.lastName}`,
         PRODUCT_NAME: guide.title,
-        GUIDE_ID: guide.id,
         REF_ID: referralId || ''
       };
 

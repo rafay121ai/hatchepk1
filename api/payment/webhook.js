@@ -83,7 +83,6 @@ module.exports = async (req, res) => {
       const customerEmail = ipnData.customer_email_address || ipnData.CUSTOMER_EMAIL_ADDRESS;
       const customerName = ipnData.customer_name || ipnData.CUSTOMER_NAME;
       const productName = ipnData.product_name || ipnData.PRODUCT_NAME;
-      const guideId = ipnData.guide_id || ipnData.GUIDE_ID;
       const refId = ipnData.ref_id || ipnData.REF_ID || null;
 
       // Create order in database (ONLY on successful payment)
@@ -91,7 +90,6 @@ module.exports = async (req, res) => {
         customer_email: customerEmail,
         customer_name: customerName,
         product_name: productName,
-        guide_id: guideId,
         amount: parseFloat(transactionAmount),
         by_ref_id: refId,
         order_status: 'completed',
