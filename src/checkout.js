@@ -213,8 +213,8 @@ function Checkout() {
         throw new Error('Form initialization error');
       }
 
-      // PayFast POST URL - UAT/SANDBOX (for testing)
-      const payfastPostUrl = 'https://ipguat.apps.net.pk/Ecommerce/api/Transaction/PostTransaction';
+      // PayFast POST URL - PRODUCTION
+      const payfastPostUrl = 'https://ipg1.apps.net.pk/Ecommerce/api/Transaction/PostTransaction';
       
       form.action = payfastPostUrl;
       form.method = 'POST';
