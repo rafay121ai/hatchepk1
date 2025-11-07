@@ -78,17 +78,9 @@ function PaymentFailure() {
         <div className="failure-actions">
           <button
             className="btn btn-primary"
-            onClick={() => navigate('/checkout', { 
-              state: { guide: { title: errorInfo?.guideTitle } }
-            })}
-          >
-            Try Again
-          </button>
-          <button
-            className="btn btn-secondary"
             onClick={() => navigate('/our-guides')}
           >
-            Browse Guides
+            Our Guides
           </button>
         </div>
 
