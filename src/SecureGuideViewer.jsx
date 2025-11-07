@@ -171,42 +171,64 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
       console.log("File URL:", guideData.file_url);
 
-      // Extract clean file path quickly
-      let filePath = guideData.file_url;
+      let finalPdfUrl;
       
-      if (filePath.includes('/storage/v1/object/public/guides/')) {
-        filePath = filePath.split('/storage/v1/object/public/guides/')[1];
-      } else if (filePath.includes('/storage/v1/object/sign/guides/')) {
-        filePath = filePath.split('/storage/v1/object/sign/guides/')[1].split('?')[0];
-      } else if (filePath.includes('guides/')) {
-        const parts = filePath.split('guides/');
-        filePath = parts[parts.length - 1].split('?')[0];
+      // Check if it's already a signed URL (has token parameter)
+      if (guideData.file_url.includes("token=")) {
+        console.log("✅ Using existing signed URL");
+        finalPdfUrl = guideData.file_url;
+        
+        // Pre-load PDF.js for mobile
+        if (isMobile) {
+          await preloadPdfJs().catch(err => {
+            console.error("PDF.js load error:", err);
+          });
+        }
+      } else {
+        // Extract clean file path
+        let filePath = guideData.file_url;
+        
+        if (filePath.includes('/storage/v1/object/public/guides/')) {
+          filePath = filePath.split('/storage/v1/object/public/guides/')[1];
+        } else if (filePath.includes('/storage/v1/object/sign/guides/')) {
+          filePath = filePath.split('/storage/v1/object/sign/guides/')[1].split('?')[0];
+        } else if (filePath.includes('guides/')) {
+          const parts = filePath.split('guides/');
+          filePath = parts[parts.length - 1].split('?')[0];
+        }
+
+        // Decode URL encoding if present (handles spaces and special chars)
+        try {
+          filePath = decodeURIComponent(filePath);
+        } catch (e) {
+          // If already decoded, use as-is
+        }
+
+        console.log("Extracted file path:", filePath);
+
+        // Create signed URL in parallel with PDF.js loading
+        const urlPromise = supabase.storage
+          .from("guides")
+          .createSignedUrl(filePath, 3600);
+
+        const pdfJsPromise = isMobile ? preloadPdfJs().catch(err => {
+          console.error("PDF.js load error:", err);
+          return null;
+        }) : Promise.resolve();
+
+        // Wait for both in parallel
+        const [urlResult] = await Promise.all([urlPromise, pdfJsPromise]);
+
+        console.log("URL Result:", urlResult);
+
+        if (urlResult.error) {
+          console.error("❌ Signed URL error:", urlResult.error);
+          throw new Error("Failed to access guide file");
+        }
+
+        finalPdfUrl = urlResult.data.signedUrl;
       }
 
-      console.log("Extracted file path:", filePath);
-
-      // Create signed URL in parallel with PDF.js loading
-      const urlPromise = supabase.storage
-        .from("guides")
-        .createSignedUrl(filePath, 3600);
-
-      // Pre-load PDF.js for mobile while getting URL
-      const pdfJsPromise = isMobile ? preloadPdfJs().catch(err => {
-        console.error("PDF.js load error:", err);
-        return null;
-      }) : Promise.resolve();
-
-      // Wait for both in parallel
-      const [urlResult] = await Promise.all([urlPromise, pdfJsPromise]);
-
-      console.log("URL Result:", urlResult);
-
-      if (urlResult.error) {
-        console.error("❌ Signed URL error:", urlResult.error);
-        throw new Error("Failed to access guide file");
-      }
-
-      const finalPdfUrl = urlResult.data.signedUrl;
       console.log("✅ PDF URL ready");
       setPdfUrl(finalPdfUrl);
 
