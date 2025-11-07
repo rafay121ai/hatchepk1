@@ -128,8 +128,20 @@ function PaymentSuccess() {
   if (loading) {
     return (
       <div className="payment-success-page">
-        <div className="loading-spinner"></div>
-        <p>Processing your payment...</p>
+        <div className="success-loading-container">
+          <div className="success-loading-icon">
+            <div className="checkmark-circle">
+              <div className="checkmark"></div>
+            </div>
+          </div>
+          <h2 className="success-loading-title">Confirming Your Purchase</h2>
+          <p className="success-loading-message">Please wait while we process your order...</p>
+          <div className="success-loading-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+        </div>
       </div>
     );
   }
