@@ -29,22 +29,16 @@ function InfluencerGuideViewer() {
     try {
       const sessionToken = sessionStorage.getItem('influencer_session_token');
       const deviceFingerprint = sessionStorage.getItem('influencer_device_fp');
-      const storedGuideTitle = sessionStorage.getItem('influencer_guide_title');
+      const storedGuideId = sessionStorage.getItem('influencer_guide_id');
       const influencerName = sessionStorage.getItem('influencer_name');
       const expiresAt = sessionStorage.getItem('influencer_expires_at');
 
       // Check if session data exists
-      if (!sessionToken || !deviceFingerprint || !storedGuideTitle) {
+      if (!sessionToken || !deviceFingerprint || !storedGuideId) {
         console.log('❌ No session data found');
         navigate('/influencer-access');
         return;
       }
-
-      // Decode the slug from URL
-      const decodedSlug = decodeURIComponent(guideSlug);
-
-      // We store guide_title but URL has guide_slug, so we need to verify using stored title
-      // The session verification will confirm access is valid
 
       // Call verification API
       const response = await fetch('/api/influencer/verify-session', {
@@ -78,13 +72,13 @@ function InfluencerGuideViewer() {
         expiresAt: expiresAt
       });
 
-      // Fetch guide data from Supabase by title (same as YourGuides.js)
-      console.log('🔍 Fetching guide with title:', storedGuideTitle);
+      // Fetch guide data from Supabase by ID (most reliable)
+      console.log('🔍 Fetching guide with ID:', storedGuideId);
       
       const { data: guideData, error: guideError } = await supabase
         .from('guides')
         .select('*')
-        .eq('title', storedGuideTitle)
+        .eq('id', storedGuideId)
         .maybeSingle();
 
       console.log('📊 Guide found:', guideData);
@@ -92,20 +86,14 @@ function InfluencerGuideViewer() {
 
       if (guideError || !guideData) {
         console.error('❌ Error fetching guide:', guideError);
-        console.error('📋 Title searched:', storedGuideTitle);
+        console.error('📋 Guide ID searched:', storedGuideId);
         
-        // Try fetching all guides to see what titles exist
-        const { data: allGuides } = await supabase
-          .from('guides')
-          .select('id, title');
-        console.error('📚 Available guides in database:', allGuides);
-        
-        setError('Guide not found. Please check that the guide title in your access code exactly matches the database.');
+        setError('Guide not found in database.');
         setLoading(false);
         return;
       }
 
-      console.log('✅ Guide found:', guideData.title);
+      console.log('✅ Guide loaded:', guideData.title);
 
       setGuideData(guideData);
       setSessionVerified(true);

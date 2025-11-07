@@ -58,7 +58,7 @@ async function sendAccessNotification(accessCode, ipAddress) {
                 <strong>Influencer:</strong> ${accessCode.influencer_name}
               </div>
               <div class="detail">
-                <strong>Guide:</strong> ${accessCode.guide_title}
+                <strong>Guide:</strong> ${accessCode.guides.title}
               </div>
               <div class="detail">
                 <strong>Time (Pakistan):</strong> ${pakistanTime}
@@ -134,10 +134,18 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Code and device fingerprint required' });
     }
 
-    // 1. Fetch access code (codes are stored lowercase)
+    // 1. Fetch access code with guide details (JOIN with guides table)
     const { data: accessCode, error: codeError } = await supabase
       .from('access_codes')
-      .select('*')
+      .select(`
+        *,
+        guides (
+          id,
+          title,
+          slug,
+          file_url
+        )
+      `)
       .eq('code', code.toLowerCase().trim())
       .eq('is_active', true)
       .single();
@@ -231,11 +239,15 @@ module.exports = async (req, res) => {
     // 7. Return success with session token
     console.log('✅ Code validated successfully');
     
+    // Extract guide details from the joined guides table
+    const guideDetails = accessCode.guides;
+    
     return res.status(200).json({
       success: true,
       sessionToken: session.session_token,
-      guideSlug: accessCode.guide_slug,
-      guideTitle: accessCode.guide_title,
+      guideId: guideDetails.id,
+      guideSlug: guideDetails.slug,
+      guideTitle: guideDetails.title,
       influencerName: accessCode.influencer_name,
       expiresAt: accessCode.expires_at
     });

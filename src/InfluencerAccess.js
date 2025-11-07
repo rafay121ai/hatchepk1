@@ -50,6 +50,7 @@ function InfluencerAccess() {
       // Store session data in sessionStorage
       sessionStorage.setItem('influencer_session_token', data.sessionToken);
       sessionStorage.setItem('influencer_device_fp', deviceFingerprint);
+      sessionStorage.setItem('influencer_guide_id', data.guideId);
       sessionStorage.setItem('influencer_guide_slug', data.guideSlug);
       sessionStorage.setItem('influencer_guide_title', data.guideTitle);
       sessionStorage.setItem('influencer_name', data.influencerName);

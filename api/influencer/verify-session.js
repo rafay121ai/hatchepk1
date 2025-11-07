@@ -35,12 +35,20 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Session token and device fingerprint required' });
     }
 
-    // 1. Fetch session with access code
+    // 1. Fetch session with access code and guide details
     const { data: session, error: sessionError } = await supabase
       .from('access_code_sessions')
       .select(`
         *,
-        access_codes (*)
+        access_codes (
+          *,
+          guides (
+            id,
+            title,
+            slug,
+            file_url
+          )
+        )
       `)
       .eq('session_token', sessionToken)
       .eq('device_fingerprint', deviceFingerprint)
@@ -90,10 +98,14 @@ module.exports = async (req, res) => {
 
     console.log('✅ Session valid');
 
-    // 6. Return success
+    // 6. Return success with guide details from joined table
+    const guideDetails = accessCode.guides;
+    
     return res.status(200).json({
       valid: true,
-      guideTitle: accessCode.guide_title,
+      guideId: guideDetails.id,
+      guideSlug: guideDetails.slug,
+      guideTitle: guideDetails.title,
       expiresAt: accessCode.expires_at,
       influencerName: accessCode.influencer_name
     });
