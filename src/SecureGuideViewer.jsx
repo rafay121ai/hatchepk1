@@ -162,19 +162,28 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   // Load guide for influencer access (skip authentication) - OPTIMIZED
   const loadInfluencerGuide = async () => {
     try {
+      console.log("🎓 Loading influencer guide...");
+      
       if (!guideData || !guideData.file_url) {
+        console.error("❌ No guide data or file_url");
         throw new Error("Guide data not provided");
       }
+
+      console.log("File URL:", guideData.file_url);
 
       // Extract clean file path quickly
       let filePath = guideData.file_url;
       
       if (filePath.includes('/storage/v1/object/public/guides/')) {
         filePath = filePath.split('/storage/v1/object/public/guides/')[1];
+      } else if (filePath.includes('/storage/v1/object/sign/guides/')) {
+        filePath = filePath.split('/storage/v1/object/sign/guides/')[1].split('?')[0];
       } else if (filePath.includes('guides/')) {
         const parts = filePath.split('guides/');
         filePath = parts[parts.length - 1].split('?')[0];
       }
+
+      console.log("Extracted file path:", filePath);
 
       // Create signed URL in parallel with PDF.js loading
       const urlPromise = supabase.storage
@@ -182,28 +191,37 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         .createSignedUrl(filePath, 3600);
 
       // Pre-load PDF.js for mobile while getting URL
-      const pdfJsPromise = isMobile ? preloadPdfJs() : Promise.resolve();
+      const pdfJsPromise = isMobile ? preloadPdfJs().catch(err => {
+        console.error("PDF.js load error:", err);
+        return null;
+      }) : Promise.resolve();
 
       // Wait for both in parallel
       const [urlResult] = await Promise.all([urlPromise, pdfJsPromise]);
 
+      console.log("URL Result:", urlResult);
+
       if (urlResult.error) {
+        console.error("❌ Signed URL error:", urlResult.error);
         throw new Error("Failed to access guide file");
       }
 
       const finalPdfUrl = urlResult.data.signedUrl;
+      console.log("✅ PDF URL ready");
       setPdfUrl(finalPdfUrl);
 
       // Render first page only if mobile (PDF.js already loaded)
       if (isMobile) {
+        console.log("📱 Rendering mobile view...");
         await loadPdfWithPdfJs(finalPdfUrl);
       }
 
       setLoading(false);
+      console.log("✅ Influencer guide loaded successfully");
 
     } catch (err) {
       console.error("❌ Load error:", err);
-      setError(err.message);
+      setError(err.message || "Failed to load guide");
       setLoading(false);
     }
   };
