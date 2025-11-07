@@ -15,8 +15,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [rendering, setRendering] = useState(false);
-  const [pdfLoading, setPdfLoading] = useState(false);
-  const [loadingProgress, setLoadingProgress] = useState(0);
 
   // Detect mobile device
   useEffect(() => {
@@ -216,12 +214,10 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   };
 
-  // Load and render PDF (PDF.js already loaded) - OPTIMIZED with progress
+  // Load and render PDF (PDF.js already loaded) - OPTIMIZED
   const loadPdfWithPdfJs = async (url) => {
     try {
       console.log("📄 Loading PDF document...");
-      setPdfLoading(true);
-      setLoadingProgress(0);
       
       // Load the PDF document with STREAMING enabled (pages load progressively)
       const loadingTask = window.pdfjsLib.getDocument({
@@ -232,36 +228,18 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         enableXfa: false          // Disable XFA forms for speed
       });
       
-      // Show progress (throttled to every 5%)
-      let lastPercent = 0;
-      loadingTask.onProgress = (progress) => {
-        if (progress.total) {
-          const percent = Math.round((progress.loaded / progress.total) * 100);
-          // Only update if changed by at least 5% (reduces re-renders)
-          if (percent - lastPercent >= 5 || percent === 100) {
-            setLoadingProgress(percent);
-            lastPercent = percent;
-            console.log(`📊 Loading: ${percent}%`);
-          }
-        }
-      };
-      
       const pdf = await loadingTask.promise;
       setPdfDoc(pdf);
       setTotalPages(pdf.numPages);
       console.log(`✅ PDF loaded: ${pdf.numPages} pages`);
       
-      // Render first page
+      // Render first page with two-pass rendering
       await renderPage(pdf, 1);
       console.log("✅ First page rendered");
-      
-      // Hide loading animation
-      setPdfLoading(false);
       
     } catch (err) {
       console.error('❌ Error loading PDF:', err);
       setError('Failed to load PDF document');
-      setPdfLoading(false);
     }
   };
 
@@ -781,126 +759,9 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
             padding: '0',
             WebkitOverflowScrolling: 'touch',
             width: '100%',
-            minHeight: 'calc(100vh - 140px)',
-            position: 'relative'
+            minHeight: 'calc(100vh - 140px)'
           }}
-        >
-          {/* Cute Loading Animation */}
-          {pdfLoading && (
-            <div style={{
-              position: 'absolute',
-              top: '50%',
-              left: '50%',
-              transform: 'translate(-50%, -50%)',
-              textAlign: 'center',
-              zIndex: 10
-            }}>
-              {/* Animated Book Icon */}
-              <div style={{
-                fontSize: '64px',
-                marginBottom: '20px',
-                animation: 'bookFlip 1.5s ease-in-out infinite'
-              }}>
-                📖
-              </div>
-              
-              {/* Loading Text */}
-              <div style={{
-                fontSize: '18px',
-                fontWeight: '600',
-                color: '#73160f',
-                marginBottom: '10px'
-              }}>
-                Loading your guide...
-              </div>
-              
-              {/* Progress Bar */}
-              <div style={{
-                width: '200px',
-                height: '8px',
-                backgroundColor: '#f0f0f0',
-                borderRadius: '10px',
-                overflow: 'hidden',
-                margin: '0 auto',
-                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
-              }}>
-                <div style={{
-                  width: `${loadingProgress}%`,
-                  height: '100%',
-                  backgroundColor: '#73160f',
-                  borderRadius: '10px',
-                  transition: 'width 0.3s ease',
-                  background: 'linear-gradient(90deg, #73160f 0%, #a52219 100%)'
-                }}></div>
-              </div>
-              
-              {/* Progress Percentage */}
-              <div style={{
-                fontSize: '14px',
-                color: '#666',
-                marginTop: '10px'
-              }}>
-                {loadingProgress}%
-              </div>
-              
-              {/* Floating Dots */}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'center',
-                gap: '8px',
-                marginTop: '20px'
-              }}>
-                <span style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: '#73160f',
-                  display: 'inline-block',
-                  animation: 'bounce 1.4s ease-in-out 0s infinite'
-                }}></span>
-                <span style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: '#73160f',
-                  display: 'inline-block',
-                  animation: 'bounce 1.4s ease-in-out 0.2s infinite'
-                }}></span>
-                <span style={{
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: '#73160f',
-                  display: 'inline-block',
-                  animation: 'bounce 1.4s ease-in-out 0.4s infinite'
-                }}></span>
-              </div>
-              
-              {/* CSS Animations */}
-              <style>{`
-                @keyframes bookFlip {
-                  0%, 100% {
-                    transform: rotateY(0deg) scale(1);
-                  }
-                  50% {
-                    transform: rotateY(180deg) scale(1.1);
-                  }
-                }
-                
-                @keyframes bounce {
-                  0%, 80%, 100% {
-                    transform: translateY(0) scale(1);
-                    opacity: 0.7;
-                  }
-                  40% {
-                    transform: translateY(-10px) scale(1.2);
-                    opacity: 1;
-                  }
-                }
-              `}</style>
-            </div>
-          )}
-        </div>
+        />
 
         {/* Navigation Controls */}
         <div style={{
