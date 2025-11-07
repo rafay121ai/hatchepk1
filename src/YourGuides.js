@@ -21,97 +21,91 @@ function YourGuides() {
       }
 
       try {
-        // Fetch user's purchased guides from the orders table
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Fetching orders for user:', user.email);
-          console.log('Supabase client:', supabase);
-        }
+        console.log('⚡ Loading your guides...');
         
+        // Fetch user's purchased guides from the orders table (completed only)
         const { data: orders, error: ordersError } = await supabase
           .from('orders')
           .select('*')
           .eq('customer_email', user.email)
-          .eq('order_status', 'completed');
-
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Orders found:', orders);
-          console.log('Orders error:', ordersError);
-          console.log('User email:', user.email);
-        }
-        
-        // Also try to fetch all orders to see if the table exists
-        const { data: allOrders, error: allOrdersError } = await supabase
-          .from('orders')
-          .select('*')
-          .limit(5);
-        
-        if (process.env.NODE_ENV === 'development') {
-          console.log('All orders sample:', allOrders);
-          console.log('All orders error:', allOrdersError);
-        }
+          .eq('order_status', 'completed')
+          .order('created_at', { ascending: false });
 
         if (ordersError) {
-          console.error('Error fetching orders:', ordersError);
+          console.error('❌ Error fetching orders:', ordersError);
           setUserGuides([]);
-        } else if (!orders || orders.length === 0) {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('No completed orders found for user:', user.email);
-          }
-          setUserGuides([]);
-        } else {
-          // For each order, fetch the corresponding guide data
-          const guidesWithData = await Promise.all(
-            orders.map(async (order) => {
-              // Match guide by product name (title) since guide_id column doesn't exist
-              if (process.env.NODE_ENV === 'development') {
-                console.log('Looking up guide by title:', order.product_name);
-              }
-              const { data: guideData, error: guideError } = await supabase
-                .from('guides')
-                .select('*')
-                .eq('title', order.product_name)
-                .maybeSingle();
-              
-              console.log('Guide found by title:', guideData, 'Error:', guideError);
-              
-              if (guideError || !guideData) {
-                console.warn('Guide not found for order:', order.product_name, 'Error:', guideError);
-                // Return order data with fallback
-                return {
-                  id: order.id,
-                  title: order.product_name,
-                  description: `Purchased guide - ${order.product_name}`,
-                  price: order.amount,
-                  file_url: null,
-                  purchased_at: order.created_at,
-                  cover: "/creatortitle.png",
-                  author: "Hatche Team",
-                  rating: 4.9,
-                  students: 500
-                };
-              }
-              
-              // Return guide data with order info
-              return {
-                id: guideData.id, // Use guide ID instead of order ID
-                title: guideData.title,
-                description: guideData.description,
-                price: guideData.price,
-                file_url: guideData.file_url, // Use the actual file_url from guides table
-                purchased_at: order.created_at,
-                cover: "/creatortitle.png",
-                author: "Hatche Team",
-                rating: 4.9,
-                students: 500
-              };
-            })
-          );
-          
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Final guides data:', guidesWithData);
-          }
-          setUserGuides(guidesWithData);
+          setLoading(false);
+          return;
         }
+
+        if (!orders || orders.length === 0) {
+          console.log('ℹ️ No completed orders found');
+          setUserGuides([]);
+          setLoading(false);
+          return;
+        }
+
+        console.log(`✅ Found ${orders.length} order(s)`);
+
+        // Get unique guide titles to fetch
+        const uniqueTitles = [...new Set(orders.map(o => o.product_name))];
+        
+        // Fetch all guides in one query (faster than multiple queries)
+        const { data: allGuides, error: guidesError } = await supabase
+          .from('guides')
+          .select('*')
+          .in('title', uniqueTitles);
+
+        if (guidesError) {
+          console.error('❌ Error fetching guides:', guidesError);
+        }
+
+        // Create a map for quick lookup
+        const guideMap = new Map();
+        if (allGuides) {
+          allGuides.forEach(guide => {
+            guideMap.set(guide.title, guide);
+          });
+        }
+
+        // Match orders with guides
+        const guidesWithData = orders.map(order => {
+          const guideData = guideMap.get(order.product_name);
+          
+          if (!guideData) {
+            console.warn('⚠️ Guide not found for:', order.product_name);
+            // Return fallback
+            return {
+              id: order.id,
+              title: order.product_name,
+              description: `Purchased guide - ${order.product_name}`,
+              price: order.amount,
+              file_url: null,
+              purchased_at: order.created_at,
+              cover: "/creatortitle.png",
+              author: "Hatche Team",
+              rating: 4.9,
+              students: 500
+            };
+          }
+          
+          // Return guide data with order info
+          return {
+            id: guideData.id,
+            title: guideData.title,
+            description: guideData.description,
+            price: guideData.price,
+            file_url: guideData.file_url,
+            purchased_at: order.created_at,
+            cover: "/creatortitle.png",
+            author: "Hatche Team",
+            rating: 4.9,
+            students: 500
+          };
+        });
+        
+        console.log(`✅ Loaded ${guidesWithData.length} guide(s) quickly`);
+        setUserGuides(guidesWithData);
       } catch (error) {
         console.error('Error loading user guides:', error);
         setUserGuides([]);
