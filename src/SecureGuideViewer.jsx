@@ -42,26 +42,44 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         // INSTANT DISPLAY for influencer access (data already pre-loaded)
         if (isInfluencer) {
           console.log("🎓 Influencer mode - instant display");
+          console.log("📱 Is mobile:", isMobile);
+          console.log("📚 PDF.js loaded:", !!window.pdfjsLib);
+          
           if (!guideData || !guideData.file_url) {
             throw new Error("Guide data not provided");
           }
           
           // Data is already prepared, just set it
           setPdfUrl(guideData.file_url);
+          console.log("✅ PDF URL set:", guideData.file_url.substring(0, 50) + '...');
           
-          // Only load PDF.js if mobile AND not already loaded
-          if (isMobile && !window.pdfjsLib) {
-            console.log("📱 Loading PDF.js for mobile...");
-            await preloadPdfJs();
+          // For mobile: Show loading screen briefly while PDF renders in background
+          if (isMobile) {
+            console.log("📱 Mobile detected - setting up viewer");
+            
+            // Check if PDF.js is loaded
+            if (!window.pdfjsLib) {
+              console.log("⚠️ PDF.js not loaded, loading now...");
+              await preloadPdfJs();
+            }
+            
+            // Hide loading BEFORE rendering (so user sees progress)
+            setLoading(false);
+            console.log("✅ Loading screen hidden, starting PDF render");
+            
+            // Render PDF in background (user will see it progressively)
+            if (window.pdfjsLib) {
+              loadPdfWithPdfJs(guideData.file_url).catch(err => {
+                console.error("❌ PDF render error:", err);
+                setError("Failed to load PDF");
+              });
+            }
+          } else {
+            // Desktop: iframe loads instantly
+            setLoading(false);
+            console.log("✅ Desktop - guide displayed instantly");
           }
           
-          // Render if mobile
-          if (isMobile && window.pdfjsLib) {
-            await loadPdfWithPdfJs(guideData.file_url);
-          }
-          
-          setLoading(false);
-          console.log("✅ Influencer guide displayed instantly");
           return;
         }
 
@@ -196,69 +214,96 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   };
 
-  // Load and render PDF (PDF.js already loaded)
+  // Load and render PDF (PDF.js already loaded) - OPTIMIZED
   const loadPdfWithPdfJs = async (url) => {
     try {
-      // Load the PDF document
-      const loadingTask = window.pdfjsLib.getDocument(url);
+      console.log("📄 Loading PDF document...");
+      
+      // Load the PDF document with progress tracking
+      const loadingTask = window.pdfjsLib.getDocument({
+        url: url,
+        disableAutoFetch: false,
+        disableStream: false
+      });
+      
+      // Show progress (optional)
+      loadingTask.onProgress = (progress) => {
+        const percent = (progress.loaded / progress.total * 100).toFixed(0);
+        console.log(`📊 Loading: ${percent}%`);
+      };
+      
       const pdf = await loadingTask.promise;
       setPdfDoc(pdf);
       setTotalPages(pdf.numPages);
+      console.log(`✅ PDF loaded: ${pdf.numPages} pages`);
       
-      // Render first page
+      // Render first page with low quality for speed
       await renderPage(pdf, 1);
+      console.log("✅ First page rendered");
+      
     } catch (err) {
-      console.error('Error loading PDF:', err);
+      console.error('❌ Error loading PDF:', err);
       setError('Failed to load PDF document');
     }
   };
 
-  // Render a specific page - OPTIMIZED
+  // Render a specific page - ULTRA OPTIMIZED for mobile
   const renderPage = async (pdf, pageNum) => {
     if (rendering || !pdf) return;
     
     setRendering(true);
+    console.log(`🎨 Rendering page ${pageNum}...`);
+    
     try {
       const page = await pdf.getPage(pageNum);
       const container = canvasContainerRef.current;
       if (!container) return;
 
-      // Calculate scale - use window width for faster calculation
-      const containerWidth = window.innerWidth - 32; // Account for padding
+      // Calculate scale - mobile optimized
+      const containerWidth = Math.min(window.innerWidth - 32, 800); // Max 800px for performance
       const viewport = page.getViewport({ scale: 1 });
-      const scale = Math.min(containerWidth / viewport.width, 2); // Cap at 2x for performance
+      const scale = containerWidth / viewport.width;
       const scaledViewport = page.getViewport({ scale });
 
-      // Use lower DPI for faster initial render (can be improved later)
-      const outputScale = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x
+      // Use 1x DPI for mobile (much faster, still readable)
+      const outputScale = 1;
 
-      // Create canvas
+      // Create canvas with optimized settings
       const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d', { alpha: false }); // Disable alpha for performance
+      const context = canvas.getContext('2d', { 
+        alpha: false, // No transparency = faster
+        desynchronized: true, // Better performance
+        willReadFrequently: false
+      });
       
-      canvas.width = scaledViewport.width * outputScale;
-      canvas.height = scaledViewport.height * outputScale;
-      context.scale(outputScale, outputScale);
+      canvas.width = Math.floor(scaledViewport.width * outputScale);
+      canvas.height = Math.floor(scaledViewport.height * outputScale);
       
       canvas.style.width = `${scaledViewport.width}px`;
       canvas.style.height = `${scaledViewport.height}px`;
       canvas.style.display = 'block';
       canvas.style.maxWidth = '100%';
 
-      // Clear and append canvas
+      // Append canvas immediately (shows blank canvas while rendering)
       container.innerHTML = '';
       container.appendChild(canvas);
 
-      // Render with lower quality for faster initial display
-      await page.render({
+      // Render with fastest settings
+      const renderTask = page.render({
         canvasContext: context,
         viewport: scaledViewport,
-        intent: 'display' // Optimize for display
-      }).promise;
+        intent: 'display',
+        renderInteractiveForms: false,
+        enableWebGL: false // Disable WebGL for compatibility
+      });
+
+      await renderTask.promise;
       
       setCurrentPage(pageNum);
+      console.log(`✅ Page ${pageNum} rendered`);
+      
     } catch (err) {
-      console.error('Error rendering page:', err);
+      console.error('❌ Error rendering page:', err);
     } finally {
       setRendering(false);
     }
