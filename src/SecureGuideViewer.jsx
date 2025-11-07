@@ -738,7 +738,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           style={{
             flex: 1,
             overflow: 'auto',
-            backgroundColor: '#e5e5e5',
+            backgroundColor: '#36454F',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
