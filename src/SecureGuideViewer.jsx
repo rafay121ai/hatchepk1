@@ -860,10 +860,10 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
             src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
             style={{
               width: '95%',
-              height: '95%',
+              height: '90%',
               border: 'none',
               display: 'block',
-              minHeight: 'calc(95vh - 50px)',
+              minHeight: 'calc(90vh - 50px)',
               boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
             }}
             title="Secure PDF Viewer"
