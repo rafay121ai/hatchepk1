@@ -6,7 +6,7 @@ import SecureGuideViewer from './SecureGuideViewer';
 import './InfluencerGuideViewer.css';
 
 function InfluencerGuideViewer() {
-  const { guideTitle } = useParams();
+  const { guideSlug } = useParams();
   const navigate = useNavigate();
   const [sessionVerified, setSessionVerified] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -23,7 +23,7 @@ function InfluencerGuideViewer() {
     }, 60000); // Every 1 minute
 
     return () => clearInterval(heartbeatInterval);
-  }, [guideTitle]);
+  }, [guideSlug]);
 
   const verifyInfluencerSession = async () => {
     try {
@@ -40,16 +40,11 @@ function InfluencerGuideViewer() {
         return;
       }
 
-      // Decode the title from URL
-      const decodedTitle = decodeURIComponent(guideTitle);
+      // Decode the slug from URL
+      const decodedSlug = decodeURIComponent(guideSlug);
 
-      // Verify the guide title matches
-      if (storedGuideTitle !== decodedTitle) {
-        console.log('❌ Guide title mismatch');
-        sessionStorage.clear();
-        navigate('/influencer-access');
-        return;
-      }
+      // We store guide_title but URL has guide_slug, so we need to verify using stored title
+      // The session verification will confirm access is valid
 
       // Call verification API
       const response = await fetch('/api/influencer/verify-session', {
@@ -83,11 +78,11 @@ function InfluencerGuideViewer() {
         expiresAt: expiresAt
       });
 
-      // Fetch guide data from Supabase by title
+      // Fetch guide data from Supabase by title (stored in session)
       const { data: guides, error: guideError } = await supabase
         .from('guides')
         .select('*')
-        .eq('title', decodedTitle);
+        .eq('title', storedGuideTitle);
 
       const guide = guides && guides.length > 0 ? guides[0] : null;
 

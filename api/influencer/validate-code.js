@@ -234,6 +234,7 @@ module.exports = async (req, res) => {
     return res.status(200).json({
       success: true,
       sessionToken: session.session_token,
+      guideSlug: accessCode.guide_slug,
       guideTitle: accessCode.guide_title,
       influencerName: accessCode.influencer_name,
       expiresAt: accessCode.expires_at
