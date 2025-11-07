@@ -8,6 +8,8 @@ import Checkout from './checkout';
 import AffiliateDashboard from './AffiliateDashboard';
 import PaymentSuccess from './PaymentSuccess';
 import PaymentFailure from './PaymentFailure';
+import InfluencerAccess from './InfluencerAccess';
+import InfluencerGuideViewer from './InfluencerGuideViewer';
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { testSupabaseConnection } from './supabaseTest';
@@ -169,6 +171,12 @@ function App() {
             <Route path="/database-test" element={<DatabaseTest />} />
             <Route path="/payment-success" element={<PaymentSuccess />} />
             <Route path="/payment-failure" element={<PaymentFailure />} />
+            
+            {/* Hidden Influencer Access Routes */}
+            <Route path="/influencer-access" element={<InfluencerAccess />} />
+            <Route path="/influencer-guide/:guideId" element={<InfluencerGuideViewer />} />
+            
+            {/* Policy Routes */}
             <Route path="/return-policy" element={<Policies />} />
             <Route path="/privacy-policy" element={<Policies />} />
             <Route path="/refund-policy" element={<Policies />} />

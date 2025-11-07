@@ -1,0 +1,223 @@
+/* Influencer Guide Viewer Styles */
+
+.influencer-guide-viewer {
+  min-height: 100vh;
+  background: #fdfcf1;
+  position: relative;
+}
+
+/* Loading State */
+.influencer-viewer-loading {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #fdfcf1;
+}
+
+.influencer-spinner {
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid #73160f;
+  border-radius: 50%;
+  width: 48px;
+  height: 48px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.influencer-viewer-loading p {
+  color: #666;
+  font-size: 16px;
+}
+
+/* Error State */
+.influencer-viewer-error {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #fdfcf1;
+  padding: 20px;
+  text-align: center;
+}
+
+.error-icon {
+  font-size: 64px;
+  margin-bottom: 20px;
+}
+
+.influencer-viewer-error h2 {
+  color: #c33;
+  margin-bottom: 16px;
+  font-size: 28px;
+}
+
+.influencer-viewer-error p {
+  color: #666;
+  font-size: 16px;
+  max-width: 500px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.error-redirect {
+  color: #999 !important;
+  font-size: 14px !important;
+  font-style: italic;
+}
+
+/* Influencer Badge */
+.influencer-badge {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  background: linear-gradient(135deg, #73160f 0%, #a52219 100%);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(115, 22, 15, 0.3);
+  z-index: 9998;
+  font-size: 13px;
+  max-width: 250px;
+  animation: slideInRight 0.5s ease;
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(100px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.influencer-badge-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.influencer-badge-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.influencer-badge-text {
+  flex: 1;
+}
+
+.influencer-badge-title {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 2px;
+}
+
+.influencer-badge-name {
+  font-size: 12px;
+  opacity: 0.9;
+  font-weight: 500;
+}
+
+.influencer-badge-expires {
+  font-size: 11px;
+  opacity: 0.8;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Watermark */
+.influencer-watermark {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(115, 22, 15, 0.1);
+  color: rgba(115, 22, 15, 0.4);
+  padding: 8px 20px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  z-index: 9997;
+  pointer-events: none;
+  user-select: none;
+  border: 2px dashed rgba(115, 22, 15, 0.2);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .influencer-badge {
+    top: auto;
+    bottom: 20px;
+    right: 20px;
+    left: 20px;
+    max-width: none;
+    padding: 10px 16px;
+  }
+
+  .influencer-badge-content {
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+
+  .influencer-badge-icon {
+    font-size: 20px;
+  }
+
+  .influencer-badge-title {
+    font-size: 13px;
+  }
+
+  .influencer-badge-name {
+    font-size: 11px;
+  }
+
+  .influencer-badge-expires {
+    font-size: 10px;
+  }
+
+  .influencer-watermark {
+    bottom: 90px;
+    font-size: 9px;
+    padding: 6px 16px;
+    letter-spacing: 1px;
+  }
+}
+
+@media (max-width: 480px) {
+  .influencer-badge {
+    padding: 8px 12px;
+  }
+
+  .influencer-watermark {
+    font-size: 8px;
+    padding: 5px 12px;
+  }
+}
+
+/* Print Prevention */
+@media print {
+  .influencer-guide-viewer {
+    display: none !important;
+  }
+  
+  body::before {
+    content: 'Printing is disabled for influencer preview access.';
+    display: block;
+    text-align: center;
+    padding: 40px;
+    font-size: 18px;
+    color: #c33;
+  }
+}
+
