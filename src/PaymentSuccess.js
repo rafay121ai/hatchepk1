@@ -51,19 +51,12 @@ function PaymentSuccess() {
         console.log('📋 Basket ID:', basketId);
         
         try {
-          // Try to update with transaction_id first
-          let updatePayload = {
-            order_status: 'completed'
-          };
-          
-          // Only add transaction_id if column exists (avoid 400 error)
-          if (basketId) {
-            updatePayload.transaction_id = basketId;
-          }
-          
+          // Update order status to 'completed' (no transaction_id - column doesn't exist)
           const { data: updatedOrder, error: updateError } = await supabase
             .from('orders')
-            .update(updatePayload)
+            .update({
+              order_status: 'completed'
+            })
             .eq('id', pendingOrder.orderId)
             .select();
 

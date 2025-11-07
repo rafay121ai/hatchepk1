@@ -34,8 +34,7 @@ function PaymentFailure() {
       supabase
         .from('orders')
         .update({ 
-          order_status: 'failed',
-          transaction_id: basketId 
+          order_status: 'failed'
         })
         .eq('id', pendingOrder.orderId)
         .then(({ error }) => {

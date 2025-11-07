@@ -95,8 +95,7 @@ module.exports = async (req, res) => {
         product_name: productName,
         amount: parseFloat(transactionAmount),
         by_ref_id: refId,
-        order_status: 'completed',
-        transaction_id: transactionId
+        order_status: 'completed'
       };
 
       const { data: orderData, error: orderError } = await supabase
