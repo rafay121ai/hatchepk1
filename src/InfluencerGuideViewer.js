@@ -6,7 +6,7 @@ import SecureGuideViewer from './SecureGuideViewer';
 import './InfluencerGuideViewer.css';
 
 function InfluencerGuideViewer() {
-  const { guideSlug } = useParams();
+  const { guideTitle } = useParams();
   const navigate = useNavigate();
   const [sessionVerified, setSessionVerified] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -23,26 +23,29 @@ function InfluencerGuideViewer() {
     }, 60000); // Every 1 minute
 
     return () => clearInterval(heartbeatInterval);
-  }, [guideSlug]);
+  }, [guideTitle]);
 
   const verifyInfluencerSession = async () => {
     try {
       const sessionToken = sessionStorage.getItem('influencer_session_token');
       const deviceFingerprint = sessionStorage.getItem('influencer_device_fp');
-      const storedGuideSlug = sessionStorage.getItem('influencer_guide_slug');
+      const storedGuideTitle = sessionStorage.getItem('influencer_guide_title');
       const influencerName = sessionStorage.getItem('influencer_name');
       const expiresAt = sessionStorage.getItem('influencer_expires_at');
 
       // Check if session data exists
-      if (!sessionToken || !deviceFingerprint || !storedGuideSlug) {
+      if (!sessionToken || !deviceFingerprint || !storedGuideTitle) {
         console.log('❌ No session data found');
         navigate('/influencer-access');
         return;
       }
 
-      // Verify the guide slug matches
-      if (storedGuideSlug !== guideSlug) {
-        console.log('❌ Guide slug mismatch');
+      // Decode the title from URL
+      const decodedTitle = decodeURIComponent(guideTitle);
+
+      // Verify the guide title matches
+      if (storedGuideTitle !== decodedTitle) {
+        console.log('❌ Guide title mismatch');
         sessionStorage.clear();
         navigate('/influencer-access');
         return;
@@ -80,11 +83,11 @@ function InfluencerGuideViewer() {
         expiresAt: expiresAt
       });
 
-      // Fetch guide data from Supabase by slug
+      // Fetch guide data from Supabase by title
       const { data: guides, error: guideError } = await supabase
         .from('guides')
         .select('*')
-        .eq('slug', guideSlug);
+        .eq('title', decodedTitle);
 
       const guide = guides && guides.length > 0 ? guides[0] : null;
 
