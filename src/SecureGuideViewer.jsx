@@ -265,8 +265,8 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       const scale = containerWidth / viewport.width;
       const scaledViewport = page.getViewport({ scale });
 
-      // Use 1x DPI for mobile (much faster, still readable)
-      const outputScale = 1;
+      // Use 2x DPI for crisp display (good balance of speed/quality)
+      const outputScale = Math.min(window.devicePixelRatio || 1, 2);
 
       // Create canvas with optimized settings
       const canvas = document.createElement('canvas');
@@ -278,6 +278,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       
       canvas.width = Math.floor(scaledViewport.width * outputScale);
       canvas.height = Math.floor(scaledViewport.height * outputScale);
+      context.scale(outputScale, outputScale);
       
       canvas.style.width = `${scaledViewport.width}px`;
       canvas.style.height = `${scaledViewport.height}px`;
