@@ -261,8 +261,8 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       const scale = containerWidth / viewport.width;
       const scaledViewport = page.getViewport({ scale });
 
-      // Use 2x DPI for good balance of speed and quality
-      const outputScale = 2;
+      // Use 2.2x DPI for good balance of speed and quality
+      const outputScale = 2.2;
 
       // Create canvas
       const canvas = document.createElement('canvas');
@@ -738,7 +738,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           style={{
             flex: 1,
             overflow: 'auto',
-            backgroundColor: '#fff',
+            backgroundColor: '#e5e5e5',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
