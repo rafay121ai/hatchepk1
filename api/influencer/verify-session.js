@@ -93,7 +93,6 @@ module.exports = async (req, res) => {
     // 6. Return success
     return res.status(200).json({
       valid: true,
-      guideSlug: accessCode.guide_slug,
       guideTitle: accessCode.guide_title,
       expiresAt: accessCode.expires_at,
       influencerName: accessCode.influencer_name
