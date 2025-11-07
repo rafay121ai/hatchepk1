@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirm Your Email - Hatche</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #fdfcf1;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #fdfcf1;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <!-- Main Container -->
+        <table role="presentation" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); overflow: hidden;">
+          
+          <!-- Header with Brand Color -->
+          <tr>
+            <td style="background-color: #73160f; padding: 30px 40px; text-align: center;">
+              <h1 style="margin: 0; color: #fdfcf1; font-size: 28px; font-weight: 600; letter-spacing: 0.5px;">
+                Hatche
+              </h1>
+              <p style="margin: 8px 0 0; color: #fceef0; font-size: 14px; font-weight: 400;">
+                Premium Guides for Creators
+              </p>
+            </td>
+          </tr>
+
+          <!-- Welcome Icon -->
+          <tr>
+            <td style="padding: 40px 40px 20px; text-align: center;">
+              <div style="font-size: 60px; line-height: 1;">✉️</div>
+            </td>
+          </tr>
+
+          <!-- Main Content -->
+          <tr>
+            <td style="padding: 0 40px 30px;">
+              <h2 style="margin: 0 0 20px; color: #2c2c2c; font-size: 24px; font-weight: 600; text-align: center;">
+                Confirm Your Email Address
+              </h2>
+              
+              <p style="margin: 0 0 20px; color: #666; font-size: 16px; line-height: 1.6; text-align: center;">
+                Welcome to Hatche! We're excited to have you on board. To get started with premium guides for creators, please confirm your email address by clicking the button below.
+              </p>
+
+              <!-- Confirmation Button -->
+              <table role="presentation" style="width: 100%; margin: 30px 0;">
+                <tr>
+                  <td align="center">
+                    <a href="{{ .ConfirmationURL }}" 
+                       style="display: inline-block; background-color: #73160f; color: #fdfcf1; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-size: 16px; font-weight: 600; box-shadow: 0 2px 8px rgba(115, 22, 15, 0.3); transition: all 0.3s ease;">
+                      Confirm Email Address
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin: 20px 0 0; color: #999; font-size: 14px; line-height: 1.6; text-align: center;">
+                If the button doesn't work, copy and paste this link into your browser:
+              </p>
+              <p style="margin: 8px 0 0; color: #73160f; font-size: 13px; word-break: break-all; text-align: center;">
+                {{ .ConfirmationURL }}
+              </p>
+            </td>
+          </tr>
+
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 0 40px;">
+              <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
+            </td>
+          </tr>
+
+          <!-- Additional Info -->
+          <tr>
+            <td style="padding: 0 40px 30px;">
+              <h3 style="margin: 0 0 15px; color: #2c2c2c; font-size: 18px; font-weight: 600;">
+                What's Next?
+              </h3>
+              <ul style="margin: 0; padding: 0 0 0 20px; color: #666; font-size: 15px; line-height: 1.8;">
+                <li>Browse our premium guides</li>
+                <li>Join our creator community</li>
+                <li>Start your learning journey</li>
+                <li>Access exclusive content</li>
+              </ul>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f5f5f5; padding: 30px 40px; text-align: center;">
+              <p style="margin: 0 0 10px; color: #999; font-size: 14px;">
+                This link will expire in 24 hours for security reasons.
+              </p>
+              <p style="margin: 0 0 15px; color: #999; font-size: 14px;">
+                If you didn't create an account with Hatche, you can safely ignore this email.
+              </p>
+              <p style="margin: 0; color: #999; font-size: 13px;">
+                Need help? Contact us at <a href="mailto:hello@hatchepk.com" style="color: #73160f; text-decoration: none;">hello@hatchepk.com</a>
+              </p>
+              <p style="margin: 15px 0 0; color: #999; font-size: 13px;">
+                © 2024 Hatche. All rights reserved.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+
