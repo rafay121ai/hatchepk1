@@ -6,43 +6,42 @@
 
 -- 1. Access Codes Table
 CREATE TABLE IF NOT EXISTS access_codes (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  code VARCHAR(50) UNIQUE NOT NULL,
-  influencer_name VARCHAR(100) NOT NULL,
-  guide_id UUID NOT NULL REFERENCES guides(id) ON DELETE CASCADE,
-  guide_slug VARCHAR(100) NOT NULL,
-  guide_title VARCHAR(255) NOT NULL,
-  max_devices INTEGER DEFAULT 2 NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL,
-  is_active BOOLEAN DEFAULT TRUE,
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  code TEXT UNIQUE NOT NULL,
+  influencer_name TEXT NOT NULL,
+  guide_slug TEXT NOT NULL,
+  guide_title TEXT NOT NULL,
+  expires_at TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '5 days'),
+  is_active BOOLEAN DEFAULT true,
+  max_devices INTEGER DEFAULT 2,
   created_at TIMESTAMPTZ DEFAULT NOW(),
-  created_by VARCHAR(255),
-  notes TEXT,
   
-  CONSTRAINT valid_max_devices CHECK (max_devices >= 1 AND max_devices <= 5)
+  -- Ensure code is always lowercase
+  CONSTRAINT code_lowercase CHECK (code = LOWER(code))
 );
 
 -- 2. Access Code Sessions Table
 CREATE TABLE IF NOT EXISTS access_code_sessions (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  access_code_id UUID NOT NULL REFERENCES access_codes(id) ON DELETE CASCADE,
-  device_fingerprint VARCHAR(255) NOT NULL,
-  session_token VARCHAR(255) UNIQUE NOT NULL,
-  ip_address VARCHAR(45),
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  access_code_id UUID REFERENCES access_codes(id) ON DELETE CASCADE,
+  device_fingerprint TEXT NOT NULL,
+  session_token TEXT UNIQUE NOT NULL,
+  ip_address TEXT,
   user_agent TEXT,
-  created_at TIMESTAMPTZ DEFAULT NOW(),
   last_accessed_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
   
+  -- Prevent duplicate devices
   UNIQUE(access_code_id, device_fingerprint)
 );
 
--- 3. Access Code Logs Table (Usage Tracking)
+-- 3. Access Code Event Logs Table
 CREATE TABLE IF NOT EXISTS access_code_logs (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  access_code_id UUID REFERENCES access_codes(id) ON DELETE SET NULL,
-  action_type VARCHAR(50) NOT NULL, -- 'code_validated', 'access_denied', 'device_limit_reached', 'code_expired', 'guide_viewed'
-  device_fingerprint VARCHAR(255),
-  ip_address VARCHAR(45),
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  access_code_id UUID REFERENCES access_codes(id) ON DELETE CASCADE,
+  action_type TEXT NOT NULL, -- 'code_validated', 'guide_viewed', 'access_denied', 'device_limit_reached'
+  device_fingerprint TEXT,
+  ip_address TEXT,
   user_agent TEXT,
   error_message TEXT,
   metadata JSONB,
@@ -54,10 +53,10 @@ CREATE TABLE IF NOT EXISTS access_code_logs (
 -- =====================================================
 
 CREATE INDEX idx_access_codes_code ON access_codes(code);
-CREATE INDEX idx_access_codes_active ON access_codes(is_active, expires_at);
+CREATE INDEX idx_access_codes_expires ON access_codes(expires_at);
 CREATE INDEX idx_sessions_token ON access_code_sessions(session_token);
-CREATE INDEX idx_sessions_access_code ON access_code_sessions(access_code_id);
-CREATE INDEX idx_logs_access_code ON access_code_logs(access_code_id);
+CREATE INDEX idx_sessions_code_id ON access_code_sessions(access_code_id);
+CREATE INDEX idx_logs_code_id ON access_code_logs(access_code_id);
 CREATE INDEX idx_logs_created_at ON access_code_logs(created_at DESC);
 
 -- =====================================================
@@ -110,30 +109,25 @@ $$ LANGUAGE plpgsql;
 /*
 -- Replace these values with actual data:
 
+-- First, get guide details
+SELECT slug, title FROM guides;
+
+-- Then create access code
 INSERT INTO access_codes (
   code,
   influencer_name,
-  guide_id,
   guide_slug,
   guide_title,
   max_devices,
-  expires_at,
-  created_by,
-  notes
+  expires_at
 ) VALUES (
-  'FATIMA-CREATOR',                                    -- Code (similar to influencer name)
-  'Fatima Ahmed',                                       -- Influencer name
-  'your-guide-id-here',                                 -- Get from guides table
-  'creator-gold-rush',                                  -- Guide slug
-  'The Creator Gold Rush for Pakistani Women',          -- Guide title
-  2,                                                    -- Max 2 devices
-  NOW() + INTERVAL '5 days',                           -- Expires in 5 days
-  'admin',                                              -- Who created it
-  'Promotional code for Fatima Ahmed - Instagram influencer'
+  'fatima-creator',                                     -- Code (lowercase, similar to influencer name)
+  'Fatima Ahmed',                                        -- Influencer name
+  'creator-gold-rush',                                   -- Guide slug from guides table
+  'The Creator Gold Rush for Pakistani Women',           -- Guide title
+  2,                                                     -- Max 2 devices
+  NOW() + INTERVAL '5 days'                             -- Expires in 5 days
 );
-
--- To get guide_id and guide_slug:
-SELECT id, slug, title FROM guides;
 
 -- To view all active codes:
 SELECT 

@@ -134,11 +134,11 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Code and device fingerprint required' });
     }
 
-    // 1. Fetch access code
+    // 1. Fetch access code (codes are stored lowercase)
     const { data: accessCode, error: codeError } = await supabase
       .from('access_codes')
       .select('*')
-      .eq('code', code.toUpperCase().trim())
+      .eq('code', code.toLowerCase().trim())
       .eq('is_active', true)
       .single();
 
@@ -236,7 +236,6 @@ module.exports = async (req, res) => {
       sessionToken: session.session_token,
       guideSlug: accessCode.guide_slug,
       guideTitle: accessCode.guide_title,
-      guideId: accessCode.guide_id,
       influencerName: accessCode.influencer_name,
       expiresAt: accessCode.expires_at
     });

@@ -6,7 +6,7 @@ import SecureGuideViewer from './SecureGuideViewer';
 import './InfluencerGuideViewer.css';
 
 function InfluencerGuideViewer() {
-  const { guideId } = useParams();
+  const { guideSlug } = useParams();
   const navigate = useNavigate();
   const [sessionVerified, setSessionVerified] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -23,26 +23,26 @@ function InfluencerGuideViewer() {
     }, 60000); // Every 1 minute
 
     return () => clearInterval(heartbeatInterval);
-  }, [guideId]);
+  }, [guideSlug]);
 
   const verifyInfluencerSession = async () => {
     try {
       const sessionToken = sessionStorage.getItem('influencer_session_token');
       const deviceFingerprint = sessionStorage.getItem('influencer_device_fp');
-      const storedGuideId = sessionStorage.getItem('influencer_guide_id');
+      const storedGuideSlug = sessionStorage.getItem('influencer_guide_slug');
       const influencerName = sessionStorage.getItem('influencer_name');
       const expiresAt = sessionStorage.getItem('influencer_expires_at');
 
       // Check if session data exists
-      if (!sessionToken || !deviceFingerprint || !storedGuideId) {
+      if (!sessionToken || !deviceFingerprint || !storedGuideSlug) {
         console.log('❌ No session data found');
         navigate('/influencer-access');
         return;
       }
 
-      // Verify the guide ID matches
-      if (storedGuideId !== guideId) {
-        console.log('❌ Guide ID mismatch');
+      // Verify the guide slug matches
+      if (storedGuideSlug !== guideSlug) {
+        console.log('❌ Guide slug mismatch');
         sessionStorage.clear();
         navigate('/influencer-access');
         return;
@@ -80,11 +80,11 @@ function InfluencerGuideViewer() {
         expiresAt: expiresAt
       });
 
-      // Fetch guide data from Supabase
+      // Fetch guide data from Supabase by slug
       const { data: guide, error: guideError } = await supabase
         .from('guides')
         .select('*')
-        .eq('id', guideId)
+        .eq('slug', guideSlug)
         .single();
 
       if (guideError || !guide) {

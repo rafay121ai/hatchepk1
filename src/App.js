@@ -174,7 +174,7 @@ function App() {
             
             {/* Hidden Influencer Access Routes */}
             <Route path="/influencer-access" element={<InfluencerAccess />} />
-            <Route path="/influencer-guide/:guideId" element={<InfluencerGuideViewer />} />
+            <Route path="/influencer-guide/:guideSlug" element={<InfluencerGuideViewer />} />
             
             {/* Policy Routes */}
             <Route path="/return-policy" element={<Policies />} />
