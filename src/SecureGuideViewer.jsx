@@ -214,28 +214,60 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   };
 
-  // Load and render PDF (PDF.js already loaded) - OPTIMIZED
+  // Load and render PDF (PDF.js already loaded) - OPTIMIZED with background loading
   const loadPdfWithPdfJs = async (url) => {
     try {
       console.log("📄 Loading PDF document...");
       
+      // Prevent page visibility from affecting loading
+      let loadingTaskRef = null;
+      
       // Load the PDF document with STREAMING enabled (pages load progressively)
-      const loadingTask = window.pdfjsLib.getDocument({
+      loadingTaskRef = window.pdfjsLib.getDocument({
         url: url,
         disableAutoFetch: false,  // Let pages load as needed
         disableStream: false,     // Enable streaming for progressive loading
         disableRange: false,      // Allow range requests for individual pages
-        enableXfa: false          // Disable XFA forms for speed
+        enableXfa: false,         // Disable XFA forms for speed
+        stopAtErrors: false       // Continue loading even if errors occur
       });
       
-      const pdf = await loadingTask.promise;
+      // Keep loading even if page becomes hidden
+      const handleVisibilityChange = () => {
+        if (document.hidden) {
+          console.log('📱 Page hidden - continuing PDF load in background');
+        } else {
+          console.log('📱 Page visible - PDF loading active');
+        }
+        // Don't cancel loading task regardless of visibility
+      };
+      
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      
+      const pdf = await loadingTaskRef.promise;
+      
+      // Clean up event listener
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      
       setPdfDoc(pdf);
       setTotalPages(pdf.numPages);
       console.log(`✅ PDF loaded: ${pdf.numPages} pages`);
       
-      // Render first page with two-pass rendering
-      await renderPage(pdf, 1);
-      console.log("✅ First page rendered");
+      // Render first page only if page is visible
+      if (!document.hidden) {
+        await renderPage(pdf, 1);
+        console.log("✅ First page rendered");
+      } else {
+        // Queue rendering for when page becomes visible
+        console.log("⏳ Page hidden - will render when visible");
+        const renderWhenVisible = () => {
+          if (!document.hidden) {
+            renderPage(pdf, 1);
+            document.removeEventListener('visibilitychange', renderWhenVisible);
+          }
+        };
+        document.addEventListener('visibilitychange', renderWhenVisible);
+      }
       
     } catch (err) {
       console.error('❌ Error loading PDF:', err);
