@@ -19,7 +19,7 @@ export const extractReferralId = (url = window.location.href) => {
 };
 
 /**
- * Store referral ID in localStorage
+ * Store referral ID in sessionStorage
  * @param {string} referralId - The referral ID to store
  */
 export const storeReferralId = (referralId) => {
@@ -28,11 +28,9 @@ export const storeReferralId = (referralId) => {
       // Store in sessionStorage for session-only persistence
       sessionStorage.setItem('refId', referralId.trim());
       sessionStorage.setItem('refTimestamp', Date.now().toString());
-      if (process.env.NODE_ENV === 'development') {
-        console.log('Referral ID stored for session:', referralId);
-      }
+      console.log('💾 Referral ID stored for session:', referralId);
     } catch (error) {
-      console.error('Error storing referral ID:', error);
+      console.error('❌ Error storing referral ID:', error);
     }
   }
 };
@@ -69,15 +67,11 @@ export const clearReferralId = () => {
  * Should be called when the app loads
  */
 export const initializeReferralTracking = () => {
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Initializing referral tracking...');
-    console.log('Current URL:', window.location.href);
-  }
+  console.log('🔗 Initializing referral tracking...');
+  console.log('📍 Current URL:', window.location.href);
   
   const referralId = extractReferralId();
-  if (process.env.NODE_ENV === 'development') {
-    console.log('Extracted referral ID:', referralId);
-  }
+  console.log('🎯 Extracted referral ID:', referralId);
   
   if (referralId) {
     storeReferralId(referralId);
@@ -85,15 +79,11 @@ export const initializeReferralTracking = () => {
     // Clean up the URL by removing the ref parameter
     cleanUrlFromReferral();
     
-    if (process.env.NODE_ENV === 'development') {
-      console.log('Referral tracking initialized with ID:', referralId);
-    }
+    console.log('✅ Referral tracking initialized with ID:', referralId);
     return referralId;
   }
   
-  if (process.env.NODE_ENV === 'development') {
-    console.log('No referral ID found in URL');
-  }
+  console.log('ℹ️ No referral ID found in URL');
   return null;
 };
 
@@ -135,7 +125,8 @@ export const isValidReferralId = (referralId) => {
     return false;
   }
   
-  // Check if it starts with REF- and has proper format
-  const refPattern = /^REF-[A-Z0-9]+-[A-Z0-9]+$/;
+  // Check if it starts with REF- or HATCHE- and has proper format
+  // Matches: REF-xxxxx, HATCHE-xxxxx, etc.
+  const refPattern = /^(REF|HATCHE)-[A-Za-z0-9]+$/;
   return refPattern.test(referralId.trim());
 };
