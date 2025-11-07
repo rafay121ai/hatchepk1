@@ -26,7 +26,7 @@ function InfluencerGuideViewer() {
     return () => clearInterval(heartbeatInterval);
   }, [guideSlug]);
 
-  // Fast initial load - skip API call, just load guide from database
+  // Fast initial load - OPTIMIZED
   const loadGuideQuick = async () => {
     try {
       const sessionToken = sessionStorage.getItem('influencer_session_token');
@@ -35,44 +35,37 @@ function InfluencerGuideViewer() {
       const influencerName = sessionStorage.getItem('influencer_name');
       const expiresAt = sessionStorage.getItem('influencer_expires_at');
 
-      // Check if session data exists
+      // Quick validation
       if (!sessionToken || !deviceFingerprint || !storedGuideId) {
-        console.log('❌ No session data found');
         navigate('/influencer-access');
         return;
       }
 
-      console.log('⚡ Fast loading guide...');
-
-      // Set influencer info immediately
+      // Set UI state immediately
       setInfluencerInfo({
         name: influencerName,
         expiresAt: expiresAt
       });
 
-      // Fetch guide data directly (skip API verification for speed)
+      // Fetch guide data - select only needed columns for faster query
       const { data: guideData, error: guideError } = await supabase
         .from('guides')
-        .select('*')
+        .select('id, title, file_url')
         .eq('id', storedGuideId)
         .maybeSingle();
 
       if (guideError || !guideData) {
-        console.error('❌ Error fetching guide:', guideError);
-        setError('Guide not found in database.');
+        setError('Guide not found.');
         setLoading(false);
         return;
       }
-
-      console.log('✅ Guide loaded quickly:', guideData.title);
 
       setGuideData(guideData);
       setSessionVerified(true);
       setLoading(false);
 
     } catch (error) {
-      console.error('❌ Loading error:', error);
-      setError('Unable to load guide. Please try again.');
+      setError('Unable to load guide.');
       setLoading(false);
     }
   };

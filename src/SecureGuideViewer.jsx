@@ -159,91 +159,79 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     };
   }, [guideId, user, isMobile, isInfluencer]);
 
-  // Load guide for influencer access (skip authentication)
+  // Load guide for influencer access (skip authentication) - OPTIMIZED
   const loadInfluencerGuide = async () => {
     try {
-      console.log("🎓 Loading guide for influencer access");
-      
       if (!guideData || !guideData.file_url) {
         throw new Error("Guide data not provided");
       }
 
-      console.log("Guide data:", guideData);
-
-      // Get signed URL for the PDF
-      let finalPdfUrl;
+      // Extract clean file path quickly
+      let filePath = guideData.file_url;
       
-      if (guideData.file_url && guideData.file_url.includes("token=")) {
-        console.log("Using existing signed URL");
-        finalPdfUrl = guideData.file_url;
-      } else {
-        console.log("Creating new signed URL for influencer");
-        let filePath = guideData.file_url;
-        
-        // Extract clean file path
-        if (filePath.includes('/storage/v1/object/public/guides/')) {
-          filePath = filePath.split('/storage/v1/object/public/guides/')[1];
-        } else if (filePath.includes('guides/')) {
-          const parts = filePath.split('guides/');
-          filePath = parts[parts.length - 1].split('?')[0];
-        }
-
-        console.log("File path:", filePath);
-
-        const { data: signed, error: signErr } = await supabase.storage
-          .from("guides")
-          .createSignedUrl(filePath, 3600); // 1 hour
-
-        if (signErr) {
-          console.error("Error creating signed URL:", signErr);
-          throw new Error("Failed to access guide file");
-        }
-
-        finalPdfUrl = signed.signedUrl;
+      if (filePath.includes('/storage/v1/object/public/guides/')) {
+        filePath = filePath.split('/storage/v1/object/public/guides/')[1];
+      } else if (filePath.includes('guides/')) {
+        const parts = filePath.split('guides/');
+        filePath = parts[parts.length - 1].split('?')[0];
       }
 
-      console.log("✓ PDF URL ready");
+      // Create signed URL in parallel with PDF.js loading
+      const urlPromise = supabase.storage
+        .from("guides")
+        .createSignedUrl(filePath, 3600);
+
+      // Pre-load PDF.js for mobile while getting URL
+      const pdfJsPromise = isMobile ? preloadPdfJs() : Promise.resolve();
+
+      // Wait for both in parallel
+      const [urlResult] = await Promise.all([urlPromise, pdfJsPromise]);
+
+      if (urlResult.error) {
+        throw new Error("Failed to access guide file");
+      }
+
+      const finalPdfUrl = urlResult.data.signedUrl;
       setPdfUrl(finalPdfUrl);
 
-      // Load PDF.js for mobile rendering
+      // Render first page only if mobile (PDF.js already loaded)
       if (isMobile) {
         await loadPdfWithPdfJs(finalPdfUrl);
       }
 
       setLoading(false);
-      console.log("✓ Influencer guide loaded successfully");
 
     } catch (err) {
-      console.error("❌ Influencer guide load error:", err);
+      console.error("❌ Load error:", err);
       setError(err.message);
       setLoading(false);
     }
   };
 
-  // Load PDF.js library and render PDF
+  // Pre-load PDF.js library (doesn't load PDF yet)
+  const preloadPdfJs = async () => {
+    if (window.pdfjsLib) return;
+    
+    await new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  };
+
+  // Load and render PDF (PDF.js already loaded)
   const loadPdfWithPdfJs = async (url) => {
     try {
-      // Load PDF.js from CDN
-      if (!window.pdfjsLib) {
-        await new Promise((resolve, reject) => {
-          const script = document.createElement('script');
-          script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-          script.onload = resolve;
-          script.onerror = reject;
-          document.head.appendChild(script);
-        });
-        
-        // Set worker
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
-          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      }
-
       // Load the PDF document
       const loadingTask = window.pdfjsLib.getDocument(url);
       const pdf = await loadingTask.promise;
       setPdfDoc(pdf);
       setTotalPages(pdf.numPages);
-      console.log('PDF loaded with', pdf.numPages, 'pages');
       
       // Render first page
       await renderPage(pdf, 1);
@@ -253,7 +241,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     }
   };
 
-  // Render a specific page
+  // Render a specific page - OPTIMIZED
   const renderPage = async (pdf, pageNum) => {
     if (rendering || !pdf) return;
     
@@ -263,45 +251,39 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       const container = canvasContainerRef.current;
       if (!container) return;
 
-      // Clear previous content
-      container.innerHTML = '';
-
-      // Calculate scale based on container width
-      const containerWidth = container.clientWidth || window.innerWidth;
+      // Calculate scale - use window width for faster calculation
+      const containerWidth = window.innerWidth - 32; // Account for padding
       const viewport = page.getViewport({ scale: 1 });
-      const scale = containerWidth / viewport.width;
+      const scale = Math.min(containerWidth / viewport.width, 2); // Cap at 2x for performance
       const scaledViewport = page.getViewport({ scale });
 
-      // Get device pixel ratio for crisp rendering
-      const pixelRatio = window.devicePixelRatio || 1;
-      const outputScale = pixelRatio;
+      // Use lower DPI for faster initial render (can be improved later)
+      const outputScale = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x
 
       // Create canvas
       const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
+      const context = canvas.getContext('2d', { alpha: false }); // Disable alpha for performance
       
-      // Set canvas size with device pixel ratio
       canvas.width = scaledViewport.width * outputScale;
       canvas.height = scaledViewport.height * outputScale;
-      
-      // Scale context for high DPI
       context.scale(outputScale, outputScale);
       
-      // Set CSS size (1x)
       canvas.style.width = `${scaledViewport.width}px`;
       canvas.style.height = `${scaledViewport.height}px`;
       canvas.style.display = 'block';
       canvas.style.maxWidth = '100%';
 
+      // Clear and append canvas
+      container.innerHTML = '';
       container.appendChild(canvas);
 
-      // Render PDF page
-      const renderContext = {
+      // Render with lower quality for faster initial display
+      await page.render({
         canvasContext: context,
-        viewport: scaledViewport
-      };
+        viewport: scaledViewport,
+        intent: 'display' // Optimize for display
+      }).promise;
       
-      await page.render(renderContext).promise;
       setCurrentPage(pageNum);
     } catch (err) {
       console.error('Error rendering page:', err);
