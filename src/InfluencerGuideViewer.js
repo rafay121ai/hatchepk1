@@ -78,22 +78,21 @@ function InfluencerGuideViewer() {
         expiresAt: expiresAt
       });
 
-      // Fetch guide data from Supabase by title (stored in session)
+      // Fetch guide data from Supabase by title (same as YourGuides.js)
       console.log('🔍 Fetching guide with title:', storedGuideTitle);
       
-      const { data: guides, error: guideError } = await supabase
+      const { data: guideData, error: guideError } = await supabase
         .from('guides')
         .select('*')
-        .eq('title', storedGuideTitle);
+        .eq('title', storedGuideTitle)
+        .maybeSingle();
 
-      console.log('📊 Guide fetch result:', { guides, error: guideError });
+      console.log('📊 Guide found:', guideData);
+      console.log('📊 Error:', guideError);
 
-      const guide = guides && guides.length > 0 ? guides[0] : null;
-
-      if (guideError || !guide) {
+      if (guideError || !guideData) {
         console.error('❌ Error fetching guide:', guideError);
         console.error('📋 Title searched:', storedGuideTitle);
-        console.error('📋 Guides found:', guides);
         
         // Try fetching all guides to see what titles exist
         const { data: allGuides } = await supabase
@@ -101,14 +100,14 @@ function InfluencerGuideViewer() {
           .select('id, title');
         console.error('📚 Available guides in database:', allGuides);
         
-        setError('Guide not found. The guide title may not match the database.');
+        setError('Guide not found. Please check that the guide title in your access code exactly matches the database.');
         setLoading(false);
         return;
       }
 
-      console.log('✅ Guide found:', guide.title);
+      console.log('✅ Guide found:', guideData.title);
 
-      setGuideData(guide);
+      setGuideData(guideData);
       setSessionVerified(true);
       setLoading(false);
 
