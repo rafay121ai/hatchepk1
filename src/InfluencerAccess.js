@@ -69,7 +69,7 @@ function InfluencerAccess() {
     <div className="influencer-access-page">
       <div className="influencer-access-container">
         <div className="influencer-logo">
-          <h1>🎓 Hatche</h1>
+          <img src="/HATCHE800.png" alt="Hatche" className="influencer-logo-img" />
         </div>
         
         <h2>Influencer Access</h2>

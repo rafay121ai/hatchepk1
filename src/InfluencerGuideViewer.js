@@ -81,11 +81,12 @@ function InfluencerGuideViewer() {
       });
 
       // Fetch guide data from Supabase by slug
-      const { data: guide, error: guideError } = await supabase
+      const { data: guides, error: guideError } = await supabase
         .from('guides')
         .select('*')
-        .eq('slug', guideSlug)
-        .single();
+        .eq('slug', guideSlug);
+
+      const guide = guides && guides.length > 0 ? guides[0] : null;
 
       if (guideError || !guide) {
         console.error('Error fetching guide:', guideError);
@@ -137,7 +138,7 @@ function InfluencerGuideViewer() {
       {/* Influencer Badge */}
       <div className="influencer-badge">
         <div className="influencer-badge-content">
-          <span className="influencer-badge-icon">🎓</span>
+          <img src="/HATCHE800.png" alt="Hatche" className="influencer-badge-logo" />
           <div className="influencer-badge-text">
             <div className="influencer-badge-title">Influencer Preview</div>
             {influencerInfo && (

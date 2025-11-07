@@ -107,6 +107,12 @@
   margin-bottom: 8px;
 }
 
+.influencer-badge-logo {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+}
+
 .influencer-badge-icon {
   font-size: 24px;
   line-height: 1;
@@ -168,6 +174,10 @@
   .influencer-badge-content {
     gap: 10px;
     margin-bottom: 6px;
+  }
+
+  .influencer-badge-logo {
+    height: 28px;
   }
 
   .influencer-badge-icon {
