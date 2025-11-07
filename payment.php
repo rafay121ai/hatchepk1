@@ -56,7 +56,7 @@
         $currency_code
 
     ) {
-        $tokenApiUrl = 'https://ipguat.apps.net.pk/Ecommerce/api/Transaction/GetAccessToken';
+        $tokenApiUrl = 'https://ipg1.apps.net.pk/Ecommerce/api/Transaction/GetAccessToken';
         $urlPostParams = sprintf(
             'MERCHANT_ID=%s&SECURED_KEY=%s&BASKET_ID=%s&TXNAMT=%s&CURRENCY_CODE=%s',
             $merchant_id,
@@ -97,7 +97,7 @@
     <!-- Actual Payment Request -->
 
     <form class="form-inline" id='PayFast_payment_form' name='PayFast-payment-form' method='post'
-        action="https://ipguat.apps.net.pk/Ecommerce/api/Transaction/PostTransaction">
+        action="https://ipg1.apps.net.pk/Ecommerce/api/Transaction/PostTransaction">
 
 
 

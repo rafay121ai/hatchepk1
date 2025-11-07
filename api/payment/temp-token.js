@@ -41,7 +41,7 @@ module.exports = async function handler(req, res) {
     }
 
     const tempTokenUrl = process.env.PAYFAST_TEMP_TOKEN_URL ||
-      'https://ipguat.apps.net.pk/Ecommerce/api/Transaction/transaction/token';
+      'https://ipg1.apps.net.pk/Ecommerce/api/Transaction/transaction/token';
     const merchantCategoryCode = process.env.MERCHANT_CATEGORY_CODE || 'default';
 
     console.log('Calling PayFast temp token API...');

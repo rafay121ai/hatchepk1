@@ -17,19 +17,22 @@ function PaymentFailure() {
     const pendingOrderStr = sessionStorage.getItem('pendingOrder');
     const pendingOrder = pendingOrderStr ? JSON.parse(pendingOrderStr) : null;
 
-    console.log('Payment failed:', {
-      basketId,
-      errCode,
-      errMsg,
-      pendingOrder
+    // Log all URL parameters for debugging
+    const allParams = {};
+    searchParams.forEach((value, key) => {
+      allParams[key] = value;
     });
+    
+    console.log('🔴 Payment failed - All URL parameters:', allParams);
+    console.log('📦 Pending order:', pendingOrder);
 
     setErrorInfo({
-      basketId: basketId || pendingOrder?.basketId,
+      basketId: basketId || pendingOrder?.basket_id,
       errCode: errCode || 'Unknown',
       errMsg: errMsg || 'Payment was not completed',
-      guideTitle: pendingOrder?.guideTitle,
-      amount: pendingOrder?.amount
+      guideTitle: pendingOrder?.product_name || 'Your Guide',
+      amount: pendingOrder?.amount || 0,
+      allParams: allParams
     });
 
     // Clear pending order and checkout guide

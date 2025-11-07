@@ -42,7 +42,7 @@ module.exports = async function handler(req, res) {
 
     // Get transaction URL from environment
     const transactionUrl = process.env.PAYFAST_TRANSACTION_URL || 
-      'https://ipguat.apps.net.pk/Ecommerce/api/Transaction/transaction';
+      'https://ipg1.apps.net.pk/Ecommerce/api/Transaction/transaction';
     const merchantCategoryCode = process.env.MERCHANT_CATEGORY_CODE || 'default';
 
     console.log('Calling PayFast transaction API...');
