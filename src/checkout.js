@@ -199,8 +199,7 @@ function Checkout() {
         product_name: guide.title,
         amount: guide.price,
         by_ref_id: referralId,
-        order_status: 'pending',
-        basket_id: basketId
+        order_status: 'pending'
       };
 
       const { data: orderData, error: orderError } = await supabase
