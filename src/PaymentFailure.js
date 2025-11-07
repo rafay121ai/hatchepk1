@@ -32,8 +32,9 @@ function PaymentFailure() {
       amount: pendingOrder?.amount
     });
 
-    // Clear pending order
+    // Clear pending order and checkout guide
     sessionStorage.removeItem('pendingOrder');
+    sessionStorage.removeItem('checkoutGuide');
   }, [searchParams]);
 
   const getErrorMessage = (errCode) => {

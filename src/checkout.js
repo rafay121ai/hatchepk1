@@ -52,11 +52,31 @@ function Checkout() {
 
   useEffect(() => {
     const loadGuideFromDatabase = async () => {
-      const guideData = location.state?.guide;
+      // Try to get guide from location state first, then from sessionStorage
+      let guideData = location.state?.guide;
+      
       if (!guideData) {
+        // Check if guide data exists in sessionStorage (for page refreshes)
+        const storedGuide = sessionStorage.getItem('checkoutGuide');
+        if (storedGuide) {
+          try {
+            guideData = JSON.parse(storedGuide);
+            console.log('📦 Retrieved guide from sessionStorage:', guideData.title);
+          } catch (error) {
+            console.error('Error parsing stored guide:', error);
+          }
+        }
+      }
+      
+      if (!guideData) {
+        console.log('❌ No guide data found, redirecting to Our Guides');
         navigate('/our-guides');
         return;
       }
+      
+      // Store guide in sessionStorage for page refreshes
+      sessionStorage.setItem('checkoutGuide', JSON.stringify(guideData));
+      console.log('💾 Stored guide in sessionStorage for refresh protection');
 
       try {
         // Fetch the guide from the database to ensure we have the latest data

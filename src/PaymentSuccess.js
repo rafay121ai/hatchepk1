@@ -53,8 +53,9 @@ function PaymentSuccess() {
           });
         }
 
-        // Clear pending order from sessionStorage
+        // Clear pending order and checkout guide from sessionStorage
         sessionStorage.removeItem('pendingOrder');
+        sessionStorage.removeItem('checkoutGuide');
 
         setLoading(false);
       } catch (error) {
