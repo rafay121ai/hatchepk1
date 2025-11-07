@@ -47,14 +47,23 @@ function PaymentSuccess() {
 
         // Update order status from 'pending' to 'completed'
         console.log('🔄 Updating order status to completed...');
+        console.log('📋 Order ID to update:', pendingOrder.orderId);
+        console.log('📋 Basket ID:', basketId);
         
         try {
+          // Try to update with transaction_id first
+          let updatePayload = {
+            order_status: 'completed'
+          };
+          
+          // Only add transaction_id if column exists (avoid 400 error)
+          if (basketId) {
+            updatePayload.transaction_id = basketId;
+          }
+          
           const { data: updatedOrder, error: updateError } = await supabase
             .from('orders')
-            .update({
-              order_status: 'completed',
-              transaction_id: basketId
-            })
+            .update(updatePayload)
             .eq('id', pendingOrder.orderId)
             .select();
 
