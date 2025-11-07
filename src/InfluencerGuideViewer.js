@@ -26,7 +26,7 @@ function InfluencerGuideViewer() {
     return () => clearInterval(heartbeatInterval);
   }, [guideSlug]);
 
-  // Fast initial load - OPTIMIZED
+  // INSTANT LOAD - Use pre-loaded data from InfluencerAccess
   const loadGuideQuick = async () => {
     try {
       const sessionToken = sessionStorage.getItem('influencer_session_token');
@@ -47,20 +47,60 @@ function InfluencerGuideViewer() {
         expiresAt: expiresAt
       });
 
-      // Fetch guide data - select only needed columns for faster query
-      const { data: guideData, error: guideError } = await supabase
+      // CHECK IF DATA WAS PRE-LOADED (instant!)
+      const preloadedData = sessionStorage.getItem('preloaded_guide_data');
+      
+      if (preloadedData) {
+        console.log('⚡ Using pre-loaded guide data (instant!)');
+        const guide = JSON.parse(preloadedData);
+        
+        setGuideData(guide);
+        setSessionVerified(true);
+        setLoading(false);
+        return;
+      }
+
+      // Fallback: Fetch if not pre-loaded
+      console.log('📥 Fetching guide data (not pre-loaded)');
+      const { data: guide, error: guideError } = await supabase
         .from('guides')
         .select('id, title, file_url')
         .eq('id', storedGuideId)
         .maybeSingle();
 
-      if (guideError || !guideData) {
+      if (guideError || !guide) {
         setError('Guide not found.');
         setLoading(false);
         return;
       }
 
-      setGuideData(guideData);
+      // Create signed URL if needed
+      if (!guide.file_url.includes("token=")) {
+        let filePath = guide.file_url;
+        
+        if (filePath.includes('/storage/v1/object/public/guides/')) {
+          filePath = filePath.split('/storage/v1/object/public/guides/')[1];
+        } else if (filePath.includes('guides/')) {
+          const parts = filePath.split('guides/');
+          filePath = parts[parts.length - 1].split('?')[0];
+        }
+
+        try {
+          filePath = decodeURIComponent(filePath);
+        } catch (e) {
+          // Already decoded
+        }
+
+        const { data: signed, error: signErr } = await supabase.storage
+          .from("guides")
+          .createSignedUrl(filePath, 3600);
+
+        if (!signErr && signed) {
+          guide.file_url = signed.signedUrl;
+        }
+      }
+
+      setGuideData(guide);
       setSessionVerified(true);
       setLoading(false);
 

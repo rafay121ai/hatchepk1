@@ -2,6 +2,56 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './InfluencerAccess.css';
 import { generateDeviceFingerprint } from './utils/deviceFingerprint';
+import { supabase } from './supabaseClient';
+
+// Pre-load guide data and create signed URL in background
+async function preloadGuideData(guideId) {
+  try {
+    // Fetch guide data
+    const { data: guide, error } = await supabase
+      .from('guides')
+      .select('id, title, file_url')
+      .eq('id', guideId)
+      .maybeSingle();
+
+    if (error || !guide) {
+      throw new Error('Failed to fetch guide');
+    }
+
+    // Pre-create signed URL if needed
+    if (!guide.file_url.includes("token=")) {
+      let filePath = guide.file_url;
+      
+      if (filePath.includes('/storage/v1/object/public/guides/')) {
+        filePath = filePath.split('/storage/v1/object/public/guides/')[1];
+      } else if (filePath.includes('guides/')) {
+        const parts = filePath.split('guides/');
+        filePath = parts[parts.length - 1].split('?')[0];
+      }
+
+      try {
+        filePath = decodeURIComponent(filePath);
+      } catch (e) {
+        // Already decoded
+      }
+
+      const { data: signed, error: signErr } = await supabase.storage
+        .from("guides")
+        .createSignedUrl(filePath, 3600);
+
+      if (!signErr && signed) {
+        guide.file_url = signed.signedUrl;
+      }
+    }
+
+    // Store pre-loaded guide data
+    sessionStorage.setItem('preloaded_guide_data', JSON.stringify(guide));
+    return guide;
+  } catch (err) {
+    console.error('Pre-load error:', err);
+    throw err;
+  }
+}
 
 function InfluencerAccess() {
   const navigate = useNavigate();
@@ -56,8 +106,17 @@ function InfluencerAccess() {
       sessionStorage.setItem('influencer_name', data.influencerName);
       sessionStorage.setItem('influencer_expires_at', data.expiresAt);
 
-      // Redirect to influencer guide viewer (use slug for clean URLs)
-      navigate(`/influencer-guide/${data.guideSlug}`);
+      // PRE-LOAD GUIDE DATA IN BACKGROUND (so it's ready before navigation)
+      console.log('⚡ Pre-loading guide data...');
+      preloadGuideData(data.guideId).then(() => {
+        console.log('✅ Guide pre-loaded, navigating...');
+        // Redirect to influencer guide viewer (use slug for clean URLs)
+        navigate(`/influencer-guide/${data.guideSlug}`);
+      }).catch(err => {
+        console.error('⚠️ Pre-load failed, navigating anyway:', err);
+        // Navigate even if pre-load fails
+        navigate(`/influencer-guide/${data.guideSlug}`);
+      });
 
     } catch (error) {
       console.error('❌ Access error:', error);
