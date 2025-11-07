@@ -77,62 +77,69 @@ module.exports = async (req, res) => {
 
     // Check if payment was successful
     if (errCode === '000' || errCode === '00') {
-      console.log('✅ PAYMENT SUCCESSFUL');
+      console.log('✅ PAYMENT SUCCESSFUL - Creating order in database');
       
-      // Find and update order in database
-      // First, try to find order by looking for pending orders with matching product
-      const { data: orders, error: fetchError } = await supabase
+      // Extract order details from IPN data (custom fields we passed)
+      const customerEmail = ipnData.customer_email_address || ipnData.CUSTOMER_EMAIL_ADDRESS;
+      const customerName = ipnData.customer_name || ipnData.CUSTOMER_NAME;
+      const productName = ipnData.product_name || ipnData.PRODUCT_NAME;
+      const guideId = ipnData.guide_id || ipnData.GUIDE_ID;
+      const refId = ipnData.ref_id || ipnData.REF_ID || null;
+
+      // Create order in database (ONLY on successful payment)
+      const orderPayload = {
+        customer_email: customerEmail,
+        customer_name: customerName,
+        product_name: productName,
+        guide_id: guideId,
+        amount: parseFloat(transactionAmount),
+        by_ref_id: refId,
+        order_status: 'completed',
+        transaction_id: transactionId,
+        basket_id: basketId
+      };
+
+      const { data: orderData, error: orderError } = await supabase
         .from('orders')
-        .select('*')
-        .eq('order_status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(10);
+        .insert([orderPayload])
+        .select();
 
-      if (fetchError) {
-        console.error('Error fetching orders:', fetchError);
-      }
-
-      console.log('Found pending orders:', orders);
-
-      // Update the most recent pending order to completed
-      if (orders && orders.length > 0) {
-        const orderToUpdate = orders[0]; // Most recent pending order
-        
-        const { error: updateError } = await supabase
-          .from('orders')
-          .update({ order_status: 'completed' })
-          .eq('id', orderToUpdate.id);
-
-        if (updateError) {
-          console.error('Error updating order:', updateError);
-        } else {
-          console.log('✅ Order updated to completed:', orderToUpdate.id);
-        }
+      if (orderError) {
+        console.error('❌ Error creating order:', orderError);
       } else {
-        console.log('⚠️ No pending orders found to update');
+        console.log('✅ Order created successfully:', orderData[0]?.id);
+
+        // Send order confirmation email (ONLY on successful payment)
+        try {
+          const emailResponse = await fetch(process.env.VERCEL_URL 
+            ? `https://${process.env.VERCEL_URL}/api/emails/send-order-confirmation`
+            : 'https://hatchepk.com/api/emails/send-order-confirmation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              customerName: customerName,
+              customerEmail: customerEmail,
+              guideTitle: productName,
+              orderAmount: parseFloat(transactionAmount),
+              orderId: orderData[0]?.id
+            })
+          });
+
+          if (emailResponse.ok) {
+            console.log('✅ Order confirmation email sent');
+          } else {
+            console.error('⚠️ Email failed (non-critical)');
+          }
+        } catch (emailError) {
+          console.error('⚠️ Email error (non-critical):', emailError);
+        }
       }
 
     } else {
-      console.log('❌ PAYMENT FAILED');
+      console.log('❌ PAYMENT FAILED - No order created, no email sent');
       console.log('Error Code:', errCode);
       console.log('Error Message:', errMsg);
-
-      // Update order to failed status if found
-      const { data: orders } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('order_status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (orders && orders.length > 0) {
-        await supabase
-          .from('orders')
-          .update({ order_status: 'failed' })
-          .eq('id', orders[0].id);
-        
-        console.log('Order marked as failed');
-      }
+      // Do nothing - failed payments don't create database entries or send emails
     }
     
     // IMPORTANT: Return 200 status to acknowledge receipt

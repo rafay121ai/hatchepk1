@@ -170,46 +170,23 @@ function Checkout() {
 
       console.log('✅ Token received:', tokenData.token);
 
-      // Step 2: Create order in database with pending status
-      const orderPayload = {
+      // Step 2: Store order info in sessionStorage (will be created in DB only on successful payment)
+      const pendingOrderInfo = {
         customer_email: user?.email || formData.email,
         customer_name: `${formData.firstName} ${formData.lastName}`,
         product_name: guide.title,
+        guide_id: guide.id,
         amount: guide.price,
         by_ref_id: referralId,
-        order_status: 'pending',
+        basket_id: basketId,
+        timestamp: Date.now()
       };
 
-      const { data: orderData, error: orderError } = await supabase
-        .from('orders')
-        .insert([orderPayload])
-        .select();
+      // Store in sessionStorage for webhook to use after payment
+      sessionStorage.setItem('pendingOrder', JSON.stringify(pendingOrderInfo));
+      console.log('Order info stored in session, will be created only on successful payment');
 
-      if (orderError) {
-        console.error('Error creating order:', orderError);
-        throw new Error('Failed to create order. Please try again.');
-      }
-
-      // Step 3: Send order confirmation email
-      try {
-        await fetch('/api/emails/send-order-confirmation', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            customerName: `${formData.firstName} ${formData.lastName}`,
-            customerEmail: user?.email || formData.email,
-            guideTitle: guide.title,
-            orderAmount: guide.price,
-            orderId: orderData[0]?.id
-          })
-        });
-        console.log('Order confirmation email sent');
-      } catch (emailError) {
-        console.error('Email failed (non-critical):', emailError);
-        // Continue even if email fails
-      }
-
-      // Step 4: Submit form to PayFast (matching PHP example)
+      // Step 3: Submit form to PayFast (matching PHP example)
       console.log('Redirecting to PayFast...');
       
       const form = payfastFormRef.current;
@@ -225,6 +202,7 @@ function Checkout() {
       form.innerHTML = '';
 
       // Add form fields (matching PHP example with UPPERCASE names)
+      // Include order details so webhook can create the order
       const fields = {
         MERCHANT_ID: tokenData.merchantId,
         MERCHANT_NAME: 'Hatche',
@@ -242,7 +220,12 @@ function Checkout() {
         VERSION: 'HATCHE-1.0',
         TXNDESC: `Purchase: ${guide.title}`,
         PROCCODE: '00',
-        TRAN_TYPE: 'ECOMM_PURCHASE'
+        TRAN_TYPE: 'ECOMM_PURCHASE',
+        // Custom fields for order creation (passed back in IPN)
+        CUSTOMER_NAME: `${formData.firstName} ${formData.lastName}`,
+        PRODUCT_NAME: guide.title,
+        GUIDE_ID: guide.id,
+        REF_ID: referralId || ''
       };
 
       console.log('Form fields:', fields);

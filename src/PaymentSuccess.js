@@ -28,23 +28,13 @@ function PaymentSuccess() {
           pendingOrder
         });
 
-        // Update order status to completed
-        if (pendingOrder && pendingOrder.orderId) {
-          const { error: updateError } = await supabase
-            .from('orders')
-            .update({ order_status: 'completed' })
-            .eq('id', pendingOrder.orderId);
-
-          if (updateError) {
-            console.error('Error updating order status:', updateError);
-          }
-        }
+        // Note: Order creation and email sending is handled by webhook
+        // This page just displays success information
 
         setOrderInfo({
-          basketId: basketId || pendingOrder?.basketId,
-          guideTitle: pendingOrder?.guideTitle || 'Your Guide',
+          basketId: basketId || pendingOrder?.basket_id,
+          guideTitle: pendingOrder?.product_name || 'Your Guide',
           amount: pendingOrder?.amount || 0,
-          orderId: pendingOrder?.orderId,
           status: status,
           errCode: errCode
         });
@@ -52,9 +42,14 @@ function PaymentSuccess() {
         // Track purchase with Google Analytics
         if (typeof window !== 'undefined' && window.gtag && pendingOrder) {
           window.gtag('event', 'purchase', {
-            transaction_id: pendingOrder.orderId,
+            transaction_id: basketId,
             value: pendingOrder.amount,
-            currency: 'PKR'
+            currency: 'PKR',
+            items: [{
+              item_name: pendingOrder.product_name,
+              price: pendingOrder.amount,
+              quantity: 1
+            }]
           });
         }
 
