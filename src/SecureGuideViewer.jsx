@@ -259,8 +259,8 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       const container = canvasContainerRef.current;
       if (!container) return;
 
-      // Calculate scale - full screen width on mobile
-      const containerWidth = window.innerWidth - 16; // Full width minus small padding
+      // Calculate scale - mobile optimized with reasonable max width
+      const containerWidth = Math.min(window.innerWidth - 32, 800); // Max 800px looks better
       const viewport = page.getViewport({ scale: 1 });
       const scale = containerWidth / viewport.width;
       const scaledViewport = page.getViewport({ scale });
@@ -280,10 +280,10 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       canvas.height = Math.floor(scaledViewport.height * outputScale);
       context.scale(outputScale, outputScale);
       
-      canvas.style.width = '100%';
-      canvas.style.height = 'auto';
+      canvas.style.width = `${scaledViewport.width}px`;
+      canvas.style.height = `${scaledViewport.height}px`;
       canvas.style.display = 'block';
-      canvas.style.maxWidth = '100vw';
+      canvas.style.maxWidth = '100%';
 
       // Append canvas immediately (shows blank canvas while rendering)
       container.innerHTML = '';
@@ -746,9 +746,9 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           style={{
             flex: 1,
             overflow: 'auto',
-            backgroundColor: '#2c2c2c',
+            backgroundColor: '#fff',
             display: 'flex',
-            alignItems: 'flex-start',
+            alignItems: 'center',
             justifyContent: 'center',
             padding: '0',
             WebkitOverflowScrolling: 'touch',
