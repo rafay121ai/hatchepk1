@@ -15,17 +15,19 @@ function InfluencerGuideViewer() {
   const [influencerInfo, setInfluencerInfo] = useState(null);
 
   useEffect(() => {
-    verifyInfluencerSession();
+    // Fast initial load - skip API verification, just load guide
+    loadGuideQuick();
     
-    // Set up heartbeat to keep session alive
+    // Set up heartbeat to verify session periodically (not on initial load)
     const heartbeatInterval = setInterval(() => {
-      verifyInfluencerSession();
+      verifySessionInBackground();
     }, 60000); // Every 1 minute
 
     return () => clearInterval(heartbeatInterval);
   }, [guideSlug]);
 
-  const verifyInfluencerSession = async () => {
+  // Fast initial load - skip API call, just load guide from database
+  const loadGuideQuick = async () => {
     try {
       const sessionToken = sessionStorage.getItem('influencer_session_token');
       const deviceFingerprint = sessionStorage.getItem('influencer_device_fp');
@@ -40,7 +42,52 @@ function InfluencerGuideViewer() {
         return;
       }
 
-      // Call verification API
+      console.log('⚡ Fast loading guide...');
+
+      // Set influencer info immediately
+      setInfluencerInfo({
+        name: influencerName,
+        expiresAt: expiresAt
+      });
+
+      // Fetch guide data directly (skip API verification for speed)
+      const { data: guideData, error: guideError } = await supabase
+        .from('guides')
+        .select('*')
+        .eq('id', storedGuideId)
+        .maybeSingle();
+
+      if (guideError || !guideData) {
+        console.error('❌ Error fetching guide:', guideError);
+        setError('Guide not found in database.');
+        setLoading(false);
+        return;
+      }
+
+      console.log('✅ Guide loaded quickly:', guideData.title);
+
+      setGuideData(guideData);
+      setSessionVerified(true);
+      setLoading(false);
+
+    } catch (error) {
+      console.error('❌ Loading error:', error);
+      setError('Unable to load guide. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  // Background session verification (doesn't affect initial load)
+  const verifySessionInBackground = async () => {
+    try {
+      const sessionToken = sessionStorage.getItem('influencer_session_token');
+      const deviceFingerprint = sessionStorage.getItem('influencer_device_fp');
+
+      if (!sessionToken || !deviceFingerprint) {
+        return;
+      }
+
+      // Verify session silently in background
       const response = await fetch('/api/influencer/verify-session', {
         method: 'POST',
         headers: {
@@ -55,57 +102,19 @@ function InfluencerGuideViewer() {
       const data = await response.json();
 
       if (!response.ok || !data.valid) {
-        console.log('❌ Session invalid');
+        console.log('❌ Background verification failed - session invalid');
         sessionStorage.clear();
-        setError(data.error || 'Your access has expired or is invalid');
+        setError('Your access has expired');
         setTimeout(() => {
           navigate('/influencer-access');
-        }, 3000);
-        return;
+        }, 2000);
+      } else {
+        console.log('✅ Background verification passed');
       }
-
-      console.log('✅ Session verified');
-
-      // Set influencer info for badge
-      setInfluencerInfo({
-        name: influencerName,
-        expiresAt: expiresAt
-      });
-
-      // Fetch guide data from Supabase by ID (most reliable)
-      console.log('🔍 Fetching guide with ID:', storedGuideId);
-      
-      const { data: guideData, error: guideError } = await supabase
-        .from('guides')
-        .select('*')
-        .eq('id', storedGuideId)
-        .maybeSingle();
-
-      console.log('📊 Guide found:', guideData);
-      console.log('📊 Error:', guideError);
-
-      if (guideError || !guideData) {
-        console.error('❌ Error fetching guide:', guideError);
-        console.error('📋 Guide ID searched:', storedGuideId);
-        
-        setError('Guide not found in database.');
-        setLoading(false);
-        return;
-      }
-
-      console.log('✅ Guide loaded:', guideData.title);
-
-      setGuideData(guideData);
-      setSessionVerified(true);
-      setLoading(false);
 
     } catch (error) {
-      console.error('❌ Verification error:', error);
-      setError('Unable to verify your access. Please try again.');
-      setLoading(false);
-      setTimeout(() => {
-        navigate('/influencer-access');
-      }, 3000);
+      console.error('⚠️ Background verification error:', error);
+      // Don't interrupt user experience for background check failures
     }
   };
 
