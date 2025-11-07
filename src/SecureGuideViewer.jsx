@@ -265,8 +265,8 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       const scale = containerWidth / viewport.width;
       const scaledViewport = page.getViewport({ scale });
 
-      // Use 2x DPI for crisp display (good balance of speed/quality)
-      const outputScale = Math.min(window.devicePixelRatio || 1, 2);
+      // Use 2.5x DPI for even crisper display
+      const outputScale = Math.min(window.devicePixelRatio || 1, 2.5);
 
       // Create canvas with optimized settings
       const canvas = document.createElement('canvas');
