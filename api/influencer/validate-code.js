@@ -163,10 +163,22 @@ module.exports = async (req, res) => {
       return res.status(403).json({ error: 'Access code has expired' });
     }
 
-    // 3. Check device limit
+    // 3. Clean up old/inactive sessions (>5 days old)
+    const fiveDaysAgo = new Date();
+    fiveDaysAgo.setDate(fiveDaysAgo.getDate() - 5);
+    
+    await supabase
+      .from('access_code_sessions')
+      .delete()
+      .eq('access_code_id', accessCode.id)
+      .lt('last_accessed_at', fiveDaysAgo.toISOString());
+
+    console.log('✓ Cleaned up old sessions (>5 days)');
+
+    // 4. Check device limit (only active sessions)
     const { data: existingSessions, error: sessionsError } = await supabase
       .from('access_code_sessions')
-      .select('device_fingerprint')
+      .select('device_fingerprint, last_accessed_at')
       .eq('access_code_id', accessCode.id);
 
     if (sessionsError) {
@@ -177,7 +189,7 @@ module.exports = async (req, res) => {
     const uniqueDevices = new Set(existingSessions.map(s => s.device_fingerprint));
     const isExistingDevice = uniqueDevices.has(deviceFingerprint);
 
-    console.log('Existing devices:', uniqueDevices.size);
+    console.log('Active devices:', uniqueDevices.size);
     console.log('Is existing device:', isExistingDevice);
     console.log('Max devices:', accessCode.max_devices);
 
@@ -196,7 +208,7 @@ module.exports = async (req, res) => {
       });
     }
 
-    // 4. Create or update session
+    // 5. Create or update session
     const sessionToken = crypto.randomBytes(32).toString('hex');
     
     const { data: session, error: sessionError } = await supabase
@@ -219,7 +231,7 @@ module.exports = async (req, res) => {
       throw sessionError;
     }
 
-    // 5. Log successful access
+    // 6. Log successful access
     await logAccess(
       accessCode.id, 
       'code_validated', 
@@ -233,10 +245,10 @@ module.exports = async (req, res) => {
       }
     );
 
-    // 6. Send email notification (non-blocking)
+    // 7. Send email notification (non-blocking)
     sendAccessNotification(accessCode, ipAddress).catch(console.error);
 
-    // 7. Return success with session token
+    // 8. Return success with session token
     console.log('✅ Code validated successfully');
     
     // Extract guide details from the joined guides table

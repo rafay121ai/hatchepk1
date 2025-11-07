@@ -5,64 +5,39 @@
 
 export async function generateDeviceFingerprint() {
   try {
+    // Check if we already have a stored fingerprint for this device
+    const stored = localStorage.getItem('device_fingerprint');
+    if (stored) {
+      console.log('🔐 Using stored device fingerprint:', stored.substring(0, 20) + '...');
+      return stored;
+    }
+
+    // Generate new fingerprint using only STABLE components
     const components = [
-      // Browser info
+      // Browser info (stable)
       navigator.userAgent,
       navigator.language,
-      navigator.languages ? navigator.languages.join(',') : '',
+      navigator.platform,
       
-      // Screen info
+      // Screen info (stable)
       window.screen.colorDepth,
       window.screen.width + 'x' + window.screen.height,
-      window.screen.availWidth + 'x' + window.screen.availHeight,
       window.screen.pixelDepth,
       
-      // Timezone
+      // Timezone (stable)
       new Date().getTimezoneOffset(),
       Intl.DateTimeFormat().resolvedOptions().timeZone,
       
-      // Storage
-      !!window.sessionStorage,
-      !!window.localStorage,
-      
-      // Hardware
+      // Hardware (stable)
       navigator.hardwareConcurrency || 'unknown',
-      navigator.platform,
       navigator.deviceMemory || 'unknown',
       
-      // Browser features
-      !!window.indexedDB,
-      !!window.openDatabase,
-      typeof Worker !== 'undefined',
-      typeof SharedWorker !== 'undefined',
-      
-      // Plugins (deprecated but still useful)
-      navigator.plugins ? navigator.plugins.length : 0,
-      
-      // Touch support
+      // Touch support (stable)
       'ontouchstart' in window,
       navigator.maxTouchPoints || 0
     ];
 
-    // Add canvas fingerprint
-    try {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.textBaseline = 'top';
-        ctx.font = '14px Arial';
-        ctx.fillStyle = '#f60';
-        ctx.fillRect(0, 0, 125, 30);
-        ctx.fillStyle = '#069';
-        ctx.fillText('HatchePK', 2, 2);
-        canvas.toBlob((blob) => {}, 'image/png');
-        components.push(canvas.toDataURL());
-      }
-    } catch (e) {
-      components.push('canvas-error');
-    }
-
-    // Add WebGL fingerprint
+    // Add WebGL fingerprint (more stable than canvas)
     try {
       const glCanvas = document.createElement('canvas');
       const gl = glCanvas.getContext('webgl') || glCanvas.getContext('experimental-webgl');
@@ -72,6 +47,7 @@ export async function generateDeviceFingerprint() {
           components.push(gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL));
           components.push(gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL));
         }
+        components.push(gl.getParameter(gl.VERSION));
       }
     } catch (e) {
       components.push('webgl-error');
@@ -86,7 +62,10 @@ export async function generateDeviceFingerprint() {
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     
-    console.log('🔐 Device fingerprint generated:', hashHex.substring(0, 20) + '...');
+    // Store for future use (persists across sessions on same device)
+    localStorage.setItem('device_fingerprint', hashHex);
+    
+    console.log('🔐 New device fingerprint generated & stored:', hashHex.substring(0, 20) + '...');
     
     return hashHex;
   } catch (error) {
@@ -97,6 +76,7 @@ export async function generateDeviceFingerprint() {
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    localStorage.setItem('device_fingerprint', hashHex);
     return hashHex;
   }
 }
