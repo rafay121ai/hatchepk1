@@ -32,7 +32,10 @@ module.exports = async (req, res) => {
     const ipnData = req.body;
     
     console.log('=== PAYMENT NOTIFICATION RECEIVED ===');
-    console.log('Full IPN Data:', ipnData);
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Request method:', req.method);
+    console.log('Request headers:', req.headers);
+    console.log('Full IPN Data:', JSON.stringify(ipnData, null, 2));
 
     // Extract fields (support both lowercase and uppercase)
     const basketId = ipnData.basket_id || ipnData.BASKET_ID;
