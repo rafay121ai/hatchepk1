@@ -12,7 +12,7 @@ function InfluencerAccess() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    const trimmedCode = code.trim().toUpperCase();
+    const trimmedCode = code.trim().toLowerCase();  // Convert to lowercase to match database
     
     if (!trimmedCode) {
       setError('Please enter an access code');
