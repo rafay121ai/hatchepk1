@@ -61,7 +61,6 @@ function Checkout() {
         if (storedGuide) {
           try {
             guideData = JSON.parse(storedGuide);
-            console.log('📦 Retrieved guide from sessionStorage:', guideData.title);
           } catch (error) {
             console.error('Error parsing stored guide:', error);
           }
@@ -69,14 +68,12 @@ function Checkout() {
       }
       
       if (!guideData) {
-        console.log('❌ No guide data found, redirecting to Our Guides');
         navigate('/our-guides');
         return;
       }
       
       // Store guide in sessionStorage for page refreshes
       sessionStorage.setItem('checkoutGuide', JSON.stringify(guideData));
-      console.log('💾 Stored guide in sessionStorage for refresh protection');
 
       try {
         // Fetch the guide from the database to ensure we have the latest data
@@ -91,9 +88,6 @@ function Checkout() {
           // Fallback to state data if database fetch fails
           setGuide(guideData);
         } else {
-          if (process.env.NODE_ENV === 'development') {
-            console.log('Loaded guide from database:', data);
-          }
           setGuide(data);
         }
       } catch (err) {
@@ -188,11 +182,7 @@ function Checkout() {
         throw new Error(tokenData.error || 'Failed to get payment token');
       }
 
-      console.log('✅ Token received:', tokenData.token);
-
-      // Step 2: Create order in database with 'pending' status BEFORE payment
-      console.log('📝 Creating pending order in database...');
-      
+      // Create order in database with 'pending' status
       const orderPayload = {
         customer_email: user?.email || formData.email,
         customer_name: `${formData.firstName} ${formData.lastName}`,
@@ -208,14 +198,13 @@ function Checkout() {
         .select();
 
       if (orderError) {
-        console.error('❌ Error creating pending order:', orderError);
+        console.error('Error creating pending order:', orderError);
         throw new Error('Failed to create order. Please try again.');
       }
 
       const orderId = orderData[0]?.id;
-      console.log('✅ Pending order created with ID:', orderId);
 
-      // Store order ID and details in sessionStorage (for success/failure pages)
+      // Store order ID and details in sessionStorage
       const orderInfo = {
         orderId: orderId,
         basket_id: basketId,
@@ -225,10 +214,8 @@ function Checkout() {
         amount: guide.price
       };
       sessionStorage.setItem('pendingOrder', JSON.stringify(orderInfo));
-      console.log('💾 Order info stored in session');
 
-      // Step 3: Submit form to PayFast (matching PHP example)
-      console.log('Redirecting to PayFast...');
+      // Submit form to PayFast
       
       const form = payfastFormRef.current;
       if (!form) {
@@ -267,8 +254,6 @@ function Checkout() {
         PRODUCT_NAME: guide.title,
         REF_ID: referralId || ''
       };
-
-      console.log('Form fields:', fields);
 
       // Create hidden input fields
       Object.entries(fields).forEach(([key, value]) => {
