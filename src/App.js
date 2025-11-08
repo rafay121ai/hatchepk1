@@ -12,13 +12,11 @@ import InfluencerAccess from './InfluencerAccess';
 import InfluencerGuideViewer from './InfluencerGuideViewer';
 import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { testSupabaseConnection } from './supabaseTest';
 import { initializeReferralTracking } from './referralUtils';
 import { AuthProvider } from './AuthContext';
 import { initializeDatabase } from './databaseUtils';
 import ProtectedRoute from './ProtectedRoute';
 import Navigation from './Navigation';
-import DatabaseTest from './DatabaseTest';
 import Policies from './Policies';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -101,11 +99,7 @@ function App() {
     }
     
     // Test Supabase connection and initialize database
-    const runTests = async () => {
-      await testSupabaseConnection();
-      await initializeDatabase();
-    };
-    runTests();
+    initializeDatabase();
 
     // Cleanup: ensure body scroll is reset on unmount
     return () => {
@@ -146,7 +140,6 @@ function App() {
               </ProtectedRoute>
             } />
             <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
-            <Route path="/database-test" element={<DatabaseTest />} />
             <Route path="/payment-success" element={<PaymentSuccess />} />
             <Route path="/payment-failure" element={<PaymentFailure />} />
             
