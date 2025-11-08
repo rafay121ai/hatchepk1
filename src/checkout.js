@@ -156,6 +156,9 @@ function Checkout() {
 
       // Step 1: Get access token from our backend API
       // Use relative path so it works with any domain (localhost, vercel, custom domain)
+      // Note: This can take 30-60 seconds due to PayFast API slowness
+      setSubmitError('Connecting to payment gateway... This may take up to 60 seconds. Please wait.');
+      
       const tokenResponse = await fetch('/api/payment/get-token', {
         method: 'POST',
         headers: {
@@ -181,6 +184,8 @@ function Checkout() {
       if (!tokenData.success || !tokenData.token) {
         throw new Error(tokenData.error || 'Failed to get payment token');
       }
+
+      setSubmitError('Payment gateway connected! Creating your order...');
 
       // Create order in database with 'pending' status
       const orderPayload = {
@@ -214,6 +219,8 @@ function Checkout() {
         amount: guide.price
       };
       sessionStorage.setItem('pendingOrder', JSON.stringify(orderInfo));
+
+      setSubmitError('Redirecting to payment page...');
 
       // Submit form to PayFast
       
