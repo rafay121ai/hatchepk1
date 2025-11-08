@@ -157,10 +157,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         console.log("✓ PDF URL ready");
         setPdfUrl(finalPdfUrl);
         
-        // Load PDF.js for mobile rendering
-        if (isMobile) {
-          await loadPdfWithPdfJs(finalPdfUrl);
-        }
+        // Mobile now uses iframe (no PDF.js needed)
         
         heartbeatRef.current = setInterval(() => {
           updateSessionHeartbeat(sessionIdRef.current);
