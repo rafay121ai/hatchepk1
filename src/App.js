@@ -82,16 +82,13 @@ function App() {
 
   // Initialize referral tracking, test Supabase connection, and initialize database
   useEffect(() => {
-    // Initialize Google Analytics
-    initGA();
-    
-    // Initialize referral tracking first
+    // Initialize referral tracking
     const referralId = initializeReferralTracking();
     if (referralId && process.env.NODE_ENV === 'development') {
       console.log('Referral tracking initialized with ID:', referralId);
     }
     
-    // Test Supabase connection and initialize database
+    // Initialize database
     initializeDatabase();
 
     // Cleanup: ensure body scroll is reset on unmount
