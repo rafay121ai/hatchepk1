@@ -248,6 +248,15 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           
           setPdfUrl(guideData.file_url);
           console.log("✅ PDF URL set:", guideData.file_url.substring(0, 50) + '...');
+          
+          // Load PDF.js and render securely for mobile
+          if (isMobile) {
+            if (!window.pdfjsLib) {
+              await preloadPdfJs();
+            }
+            await loadPdfWithPdfJs(guideData.file_url);
+          }
+          
           setLoading(false);
           
           return;
