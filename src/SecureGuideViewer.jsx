@@ -840,7 +840,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
             }}
             title="Secure PDF Viewer"
             allow="fullscreen"
-            sandbox="allow-same-origin"
           />
         ) : (
           <div style={{ color: '#fff', fontSize: '18px' }}>Loading PDF...</div>
