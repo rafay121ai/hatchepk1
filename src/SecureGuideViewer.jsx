@@ -10,6 +10,8 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const heartbeatRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
   const [isLandscape, setIsLandscape] = useState(false);
+  const [zoom, setZoom] = useState(100);
+  const iframeRef = useRef(null);
 
   // Detect mobile device
   useEffect(() => {
@@ -25,7 +27,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
   
-  // Detect landscape orientation for mobile (for rotation suggestion)
+  // Detect landscape orientation for mobile
   useEffect(() => {
     const checkOrientation = () => {
       const landscape = window.innerWidth > window.innerHeight;
@@ -41,7 +43,20 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     };
   }, []);
 
-  // Helper functions defined with useCallback to avoid re-creation
+  // Zoom handlers
+  const handleZoomIn = () => {
+    setZoom(prev => Math.min(prev + 10, 200));
+  };
+
+  const handleZoomOut = () => {
+    setZoom(prev => Math.max(prev - 10, 50));
+  };
+
+  const handleResetZoom = () => {
+    setZoom(100);
+  };
+
+  // Helper functions defined with useCallback
   const generateDeviceFingerprint = useCallback(() => {
     try {
       const fingerprint = {
@@ -250,10 +265,9 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         setLoading(true);
         setError(null);
 
-        // INSTANT DISPLAY for influencer access (data already pre-loaded)
+        // INSTANT DISPLAY for influencer access
         if (isInfluencer) {
           console.log("🎁 Influencer mode - instant display");
-          console.log("📱 Is mobile:", isMobile);
           
           if (!guideData || !guideData.file_url) {
             throw new Error("Guide data not provided");
@@ -261,7 +275,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           
           setPdfUrl(guideData.file_url);
           console.log("✅ PDF URL set:", guideData.file_url.substring(0, 50) + '...');
-          console.log("✅ Using native iframe viewer (fast!)");
           setLoading(false);
           
           return;
@@ -336,7 +349,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           const { data: signed, error: signErr } = await supabase.storage
             .from("guides")
             .createSignedUrl(filePath, 3600, {
-              download: false // Enable streaming for faster loading
+              download: false
             });
 
           if (signErr) {
@@ -349,16 +362,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
         console.log("✅ PDF URL ready");
         setPdfUrl(finalPdfUrl);
-        
-        // Preload PDF for faster display
-        if (isMobile) {
-          const link = document.createElement('link');
-          link.rel = 'preload';
-          link.as = 'fetch';
-          link.href = finalPdfUrl;
-          link.crossOrigin = 'anonymous';
-          document.head.appendChild(link);
-        }
         
         heartbeatRef.current = setInterval(() => {
           updateSessionHeartbeat(sessionIdRef.current);
@@ -385,7 +388,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         closeSession(sessionIdRef.current);
       }
     };
-  }, [guideId, user, isMobile, isInfluencer, guideData, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordAccessSession, updateSessionHeartbeat, closeSession]);
+  }, [guideId, user, isInfluencer, guideData, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordAccessSession, updateSessionHeartbeat, closeSession]);
 
   // Security effect
   useEffect(() => {
@@ -563,7 +566,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     }}>
       {/* Header */}
       <div style={{
-        padding: isMobile ? '12px 16px' : '8px 16px',
+        padding: isMobile ? '10px 12px' : '8px 16px',
         background: 'linear-gradient(to bottom, #1a1a1a, #0d0d0d)',
         borderBottom: '1px solid #333',
         display: 'flex',
@@ -571,17 +574,85 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         alignItems: 'center',
         color: 'white',
         boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
-        minHeight: isMobile ? '60px' : '50px'
+        flexWrap: 'wrap',
+        gap: '8px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
           <span style={{ fontSize: '20px', flexShrink: 0 }}>🔒</span>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <div style={{ fontWeight: 'bold', fontSize: '14px', lineHeight: '1.2' }}>Secure PDF Viewer</div>
-              <div style={{ fontSize: '10px', color: '#888', lineHeight: '1.2' }}>
-                Protected content
-              </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontWeight: 'bold', fontSize: '14px', lineHeight: '1.2', whiteSpace: 'nowrap' }}>Secure PDF</div>
+            <div style={{ fontSize: '10px', color: '#888', lineHeight: '1.2' }}>
+              {zoom}%
+            </div>
           </div>
         </div>
+        
+        {/* Zoom Controls */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px',
+          backgroundColor: '#2a2a2a',
+          padding: '6px 10px',
+          borderRadius: '6px'
+        }}>
+          <button 
+            onClick={handleZoomOut}
+            style={{
+              background: '#444',
+              color: 'white',
+              padding: '6px 12px',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              transition: 'background 0.2s'
+            }}
+            onMouseOver={(e) => e.target.style.background = '#555'}
+            onMouseOut={(e) => e.target.style.background = '#444'}
+          >
+            −
+          </button>
+          <button 
+            onClick={handleResetZoom}
+            style={{
+              background: '#444',
+              color: 'white',
+              padding: '6px 12px',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '11px',
+              fontWeight: '600',
+              transition: 'background 0.2s',
+              minWidth: '45px'
+            }}
+            onMouseOver={(e) => e.target.style.background = '#555'}
+            onMouseOut={(e) => e.target.style.background = '#444'}
+          >
+            100%
+          </button>
+          <button 
+            onClick={handleZoomIn}
+            style={{
+              background: '#444',
+              color: 'white',
+              padding: '6px 12px',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+              fontSize: '16px',
+              fontWeight: 'bold',
+              transition: 'background 0.2s'
+            }}
+            onMouseOver={(e) => e.target.style.background = '#555'}
+            onMouseOut={(e) => e.target.style.background = '#444'}
+          >
+            +
+          </button>
+        </div>
+        
         <button 
           onClick={onClose}
           style={{
@@ -603,34 +674,83 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         </button>
       </div>
       
-      {/* PDF Viewer */}
+      {/* PDF Viewer with Scrolling */}
       <div style={{ 
         flex: 1, 
         position: 'relative', 
-        overflow: 'hidden', 
+        overflow: 'auto',
         display: 'flex', 
         justifyContent: 'center', 
-        alignItems: 'center', 
-        backgroundColor: '#36454F' 
+        alignItems: 'flex-start',
+        backgroundColor: '#2b2b2b',
+        WebkitOverflowScrolling: 'touch'
       }}>
         {pdfUrl && (
-          <iframe 
-            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=Fit`}
-            style={{
-              width: isMobile ? '100%' : '95%',
-              height: isMobile ? '100%' : '90%',
-              border: 'none',
-              display: 'block',
-              boxShadow: isMobile ? 'none' : '0 4px 20px rgba(0,0,0,0.3)'
-            }}
-            title="Secure PDF Viewer"
-            allow="fullscreen"
-            loading="eager"
-            fetchpriority="high"
-          />
+          <div style={{
+            width: '100%',
+            height: '100%',
+            transform: `scale(${zoom / 100})`,
+            transformOrigin: 'top center',
+            transition: 'transform 0.2s ease-out'
+          }}>
+            <iframe 
+              ref={iframeRef}
+              src={`${pdfUrl}#view=FitH`}
+              style={{
+                width: '100%',
+                height: isMobile ? `${100 * (100 / zoom)}vh` : '100%',
+                minHeight: isMobile ? `${100 * (100 / zoom)}vh` : '100vh',
+                border: 'none',
+                display: 'block',
+                backgroundColor: '#fff'
+              }}
+              title="Secure PDF Viewer"
+              allow="fullscreen"
+              loading="eager"
+              fetchpriority="high"
+              scrolling="yes"
+            />
+          </div>
         )}
       </div>
       
+      {/* Helpful Tips Banner */}
+      {isMobile && (
+        <div style={{
+          position: 'absolute',
+          bottom: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(0, 0, 0, 0.85)',
+          color: 'white',
+          padding: '10px 16px',
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          fontSize: '12px',
+          boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
+          zIndex: 10,
+          maxWidth: '90%',
+          animation: 'slideUp 0.3s ease-out',
+          pointerEvents: 'none'
+        }}>
+          <span style={{ fontSize: '16px' }}>💡</span>
+          <span>Swipe to scroll • Pinch to zoom • Use +/− buttons</span>
+          <style>{`
+            @keyframes slideUp {
+              from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+              }
+              to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+              }
+            }
+          `}</style>
+        </div>
+      )}
     </div>
   );
 }
