@@ -577,9 +577,9 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           <span style={{ fontSize: '20px', flexShrink: 0 }}>🔒</span>
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontWeight: 'bold', fontSize: '14px', lineHeight: '1.2' }}>Secure PDF Viewer</div>
-            <div style={{ fontSize: '10px', color: '#888', lineHeight: '1.2' }}>
-              {isMobile && !isLandscape ? '📱 Rotate for better view' : 'Protected content'}
-            </div>
+              <div style={{ fontSize: '10px', color: '#888', lineHeight: '1.2' }}>
+                {isMobile && !isLandscape ? '📱 Auto-rotated for viewing' : 'Protected content'}
+              </div>
           </div>
         </div>
         <button 
@@ -607,67 +607,42 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       <div style={{ 
         flex: 1, 
         position: 'relative', 
-        overflow: 'hidden', 
+        overflow: isMobile && !isLandscape ? 'hidden' : 'hidden', 
         display: 'flex', 
         justifyContent: 'center', 
         alignItems: 'center', 
         backgroundColor: '#36454F' 
       }}>
         {pdfUrl && (
-          <iframe 
-            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitV`}
-            style={{
-              width: isMobile ? '100%' : '95%',
-              height: isMobile ? '100%' : '90%',
-              border: 'none',
-              display: 'block',
-              minHeight: isMobile ? '100%' : 'calc(90vh - 50px)',
-              boxShadow: isMobile ? 'none' : '0 4px 20px rgba(0,0,0,0.3)'
-            }}
-            title="Secure PDF Viewer"
-            allow="fullscreen"
-            loading="eager"
-            fetchpriority="high"
-          />
+          <div style={{
+            width: isMobile && !isLandscape ? '100vh' : (isMobile ? '100%' : '95%'),
+            height: isMobile && !isLandscape ? '100vw' : (isMobile ? '100%' : '90%'),
+            transform: isMobile && !isLandscape ? 'rotate(90deg)' : 'none',
+            transformOrigin: 'center center',
+            position: isMobile && !isLandscape ? 'absolute' : 'relative',
+            top: isMobile && !isLandscape ? '50%' : 'auto',
+            left: isMobile && !isLandscape ? '50%' : 'auto',
+            marginLeft: isMobile && !isLandscape ? '-50vh' : '0',
+            marginTop: isMobile && !isLandscape ? '-50vw' : '0'
+          }}>
+            <iframe 
+              src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+              style={{
+                width: '100%',
+                height: '100%',
+                border: 'none',
+                display: 'block',
+                boxShadow: isMobile ? 'none' : '0 4px 20px rgba(0,0,0,0.3)'
+              }}
+              title="Secure PDF Viewer"
+              allow="fullscreen"
+              loading="eager"
+              fetchpriority="high"
+            />
+          </div>
         )}
       </div>
       
-      {/* Rotation Suggestion Banner for Mobile Portrait */}
-      {isMobile && !isLandscape && (
-        <div style={{
-          position: 'absolute',
-          bottom: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: 'rgba(0, 0, 0, 0.85)',
-          color: 'white',
-          padding: '12px 20px',
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          fontSize: '14px',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
-          zIndex: 10,
-          maxWidth: '90%',
-          animation: 'slideUp 0.3s ease-out'
-        }}>
-          <span style={{ fontSize: '24px' }}>🔄</span>
-          <span>Rotate device for better reading experience</span>
-          <style>{`
-            @keyframes slideUp {
-              from {
-                opacity: 0;
-                transform: translateX(-50%) translateY(20px);
-              }
-              to {
-                opacity: 1;
-                transform: translateX(-50%) translateY(0);
-              }
-            }
-          `}</style>
-        </div>
-      )}
     </div>
   );
 }
