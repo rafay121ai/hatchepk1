@@ -78,13 +78,41 @@ module.exports = async function handler(req, res) {
     });
 
     // Call PayFast API with form-encoded data (matching PHP example)
-    const response = await axios.post(tokenUrl, params.toString(), {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'CURL/NodeJS PayFast Integration'
-      },
-      timeout: 25000 // 25 second timeout (increased for PayFast production)
-    });
+    // PayFast production can be slow, so we use 60s timeout with retry
+    let response;
+    let lastError;
+    const maxRetries = 2;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`PayFast API call attempt ${attempt}/${maxRetries}...`);
+        
+        response = await axios.post(tokenUrl, params.toString(), {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'CURL/NodeJS PayFast Integration'
+          },
+          timeout: 60000 // 60 second timeout for PayFast production
+        });
+        
+        console.log(`✅ Success on attempt ${attempt}`);
+        break; // Success, exit retry loop
+        
+      } catch (err) {
+        lastError = err;
+        console.log(`⚠️ Attempt ${attempt} failed:`, err.message);
+        
+        // If not last attempt, wait before retry
+        if (attempt < maxRetries) {
+          console.log('Retrying in 2 seconds...');
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+    }
+    
+    if (!response) {
+      throw lastError; // All retries failed
+    }
 
     console.log('PayFast response:', response.data);
 
