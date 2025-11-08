@@ -9,8 +9,11 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const sessionIdRef = useRef(null);
   const heartbeatRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [zoom, setZoom] = useState(100);
-  const iframeRef = useRef(null);
+  const [pdfDoc, setPdfDoc] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [rendering, setRendering] = useState(false);
+  const canvasContainerRef = useRef(null);
 
   // Detect mobile device
   useEffect(() => {
@@ -25,19 +28,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
-
-  // Zoom handlers
-  const handleZoomIn = () => {
-    setZoom(prev => Math.min(prev + 10, 200));
-  };
-
-  const handleZoomOut = () => {
-    setZoom(prev => Math.max(prev - 10, 50));
-  };
-
-  const handleResetZoom = () => {
-    setZoom(100);
-  };
 
   // Helper functions defined with useCallback
   const generateDeviceFingerprint = useCallback(() => {
@@ -371,7 +361,107 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         closeSession(sessionIdRef.current);
       }
     };
-  }, [guideId, user, isInfluencer, guideData, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordAccessSession, updateSessionHeartbeat, closeSession]);
+  }, [guideId, user, isMobile, isInfluencer, guideData, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordAccessSession, updateSessionHeartbeat, closeSession]);
+
+  // Pre-load PDF.js library
+  const preloadPdfJs = async () => {
+    if (window.pdfjsLib) return;
+    
+    await new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+    
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  };
+
+  // Load and render PDF with PDF.js
+  const loadPdfWithPdfJs = async (url) => {
+    try {
+      const loadingTask = window.pdfjsLib.getDocument(url);
+      const pdf = await loadingTask.promise;
+      setPdfDoc(pdf);
+      setTotalPages(pdf.numPages);
+      console.log(`✅ PDF loaded: ${pdf.numPages} pages`);
+      
+      // Render first page
+      await renderPage(pdf, 1);
+    } catch (err) {
+      console.error('❌ Error loading PDF:', err);
+      setError('Failed to load PDF document');
+    }
+  };
+
+  // Render page with 90deg rotation for portrait mobile
+  const renderPage = async (pdf, pageNum) => {
+    if (rendering || !pdf) return;
+    
+    setRendering(true);
+    
+    try {
+      const page = await pdf.getPage(pageNum);
+      const container = canvasContainerRef.current;
+      if (!container) return;
+
+      // Get original page size
+      const originalViewport = page.getViewport({ scale: 1, rotation: 90 }); // Rotate 90 degrees
+      
+      // Calculate scale to fit screen height (since rotated)
+      const availableHeight = window.innerHeight - 120; // Account for header
+      const scale = availableHeight / originalViewport.height;
+      const viewport = page.getViewport({ scale, rotation: 90 });
+
+      // Use 2x DPI for good quality
+      const outputScale = 2;
+
+      // Create canvas
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d', { alpha: false });
+      
+      canvas.width = Math.floor(viewport.width * outputScale);
+      canvas.height = Math.floor(viewport.height * outputScale);
+      context.scale(outputScale, outputScale);
+      
+      canvas.style.width = `${viewport.width}px`;
+      canvas.style.height = `${viewport.height}px`;
+      canvas.style.display = 'block';
+
+      // Clear and append
+      container.innerHTML = '';
+      container.appendChild(canvas);
+
+      // Render
+      await page.render({
+        canvasContext: context,
+        viewport: viewport
+      }).promise;
+      
+      setCurrentPage(pageNum);
+      console.log(`✅ Page ${pageNum} rendered (rotated)`);
+      
+    } catch (err) {
+      console.error('❌ Error rendering page:', err);
+    } finally {
+      setRendering(false);
+    }
+  };
+
+  // Navigation handlers
+  const goToPreviousPage = () => {
+    if (currentPage > 1 && pdfDoc) {
+      renderPage(pdfDoc, currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages && pdfDoc) {
+      renderPage(pdfDoc, currentPage + 1);
+    }
+  };
 
   // Security effect
   useEffect(() => {
@@ -535,6 +625,128 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     );
   }
 
+  // Mobile: Secure page-by-page with canvas
+  if (isMobile && pdfDoc) {
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: '#2b2b2b',
+        zIndex: 9999,
+        display: 'flex',
+        flexDirection: 'column',
+        userSelect: 'none',
+        WebkitUserSelect: 'none',
+        WebkitTouchCallout: 'none'
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '12px 16px',
+          background: 'linear-gradient(to bottom, #1a1a1a, #0d0d0d)',
+          borderBottom: '1px solid #333',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          color: 'white',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
+          flexShrink: 0
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '20px' }}>🔒</span>
+            <div>
+              <div style={{ fontWeight: 'bold', fontSize: '14px' }}>Secure Viewer</div>
+              <div style={{ fontSize: '10px', color: '#888' }}>
+                Page {currentPage} of {totalPages}
+              </div>
+            </div>
+          </div>
+          <button 
+            onClick={onClose}
+            style={{
+              background: '#dc2626',
+              color: 'white',
+              padding: '8px 16px',
+              border: 'none',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontWeight: '600',
+              fontSize: '12px'
+            }}
+          >
+            Close
+          </button>
+        </div>
+
+        {/* PDF Canvas (Rotated 90° for landscape) */}
+        <div 
+          ref={canvasContainerRef}
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            overflow: 'hidden',
+            backgroundColor: '#2b2b2b'
+          }}
+        />
+
+        {/* Navigation Controls */}
+        <div style={{
+          padding: '12px 16px',
+          background: '#1a1a1a',
+          borderTop: '1px solid #333',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '16px',
+          flexShrink: 0
+        }}>
+          <button
+            onClick={goToPreviousPage}
+            disabled={currentPage === 1}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: currentPage === 1 ? '#333' : '#73160f',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+              opacity: currentPage === 1 ? 0.5 : 1
+            }}
+          >
+            ← Previous
+          </button>
+          <span style={{ color: 'white', fontSize: '14px', fontWeight: '600' }}>
+            {currentPage} / {totalPages}
+          </span>
+          <button
+            onClick={goToNextPage}
+            disabled={currentPage === totalPages}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: currentPage === totalPages ? '#333' : '#73160f',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              fontSize: '14px',
+              fontWeight: '600',
+              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+              opacity: currentPage === totalPages ? 0.5 : 1
+            }}
+          >
+            Next →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop: Secure iframe (or canvas if needed)
   return (
     <div className="secure-pdf-viewer" style={{
       position: 'fixed',
@@ -549,93 +761,22 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     }}>
       {/* Header */}
       <div style={{
-        padding: isMobile ? '10px 12px' : '8px 16px',
+        padding: '8px 16px',
         background: 'linear-gradient(to bottom, #1a1a1a, #0d0d0d)',
         borderBottom: '1px solid #333',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
         color: 'white',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
-        flexWrap: 'wrap',
-        gap: '8px'
+        boxShadow: '0 2px 10px rgba(0,0,0,0.5)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-          <span style={{ fontSize: '20px', flexShrink: 0 }}>🔒</span>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontWeight: 'bold', fontSize: '14px', lineHeight: '1.2', whiteSpace: 'nowrap' }}>Secure PDF</div>
-            <div style={{ fontSize: '10px', color: '#888', lineHeight: '1.2' }}>
-              {zoom}%
-            </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '20px' }}>🔒</span>
+          <div>
+            <div style={{ fontWeight: 'bold', fontSize: '14px' }}>Secure PDF Viewer</div>
+            <div style={{ fontSize: '10px', color: '#888' }}>Protected content</div>
           </div>
         </div>
-        
-        {/* Zoom Controls */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
-          gap: '8px',
-          backgroundColor: '#2a2a2a',
-          padding: '6px 10px',
-          borderRadius: '6px'
-        }}>
-          <button 
-            onClick={handleZoomOut}
-            style={{
-              background: '#444',
-              color: 'white',
-              padding: '6px 12px',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              transition: 'background 0.2s'
-            }}
-            onMouseOver={(e) => e.target.style.background = '#555'}
-            onMouseOut={(e) => e.target.style.background = '#444'}
-          >
-            −
-          </button>
-          <button 
-            onClick={handleResetZoom}
-            style={{
-              background: '#444',
-              color: 'white',
-              padding: '6px 12px',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '11px',
-              fontWeight: '600',
-              transition: 'background 0.2s',
-              minWidth: '45px'
-            }}
-            onMouseOver={(e) => e.target.style.background = '#555'}
-            onMouseOut={(e) => e.target.style.background = '#444'}
-          >
-            100%
-          </button>
-          <button 
-            onClick={handleZoomIn}
-            style={{
-              background: '#444',
-              color: 'white',
-              padding: '6px 12px',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              transition: 'background 0.2s'
-            }}
-            onMouseOver={(e) => e.target.style.background = '#555'}
-            onMouseOut={(e) => e.target.style.background = '#444'}
-          >
-            +
-          </button>
-        </div>
-        
         <button 
           onClick={onClose}
           style={{
@@ -647,8 +788,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
             cursor: 'pointer',
             fontWeight: '600',
             fontSize: '12px',
-            transition: 'background 0.2s',
-            flexShrink: 0
+            transition: 'background 0.2s'
           }}
           onMouseOver={(e) => e.target.style.background = '#b91c1c'}
           onMouseOut={(e) => e.target.style.background = '#dc2626'}
@@ -657,83 +797,28 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         </button>
       </div>
       
-      {/* PDF Viewer with Scrolling */}
+      {/* Desktop: iframe with reduced functionality */}
       <div style={{ 
         flex: 1, 
-        position: 'relative', 
-        overflow: 'auto',
         display: 'flex', 
         justifyContent: 'center', 
-        alignItems: 'flex-start',
-        backgroundColor: '#2b2b2b',
-        WebkitOverflowScrolling: 'touch'
+        alignItems: 'center', 
+        backgroundColor: '#36454F' 
       }}>
         {pdfUrl && (
-          <div style={{
-            width: '100%',
-            height: '100%',
-            transform: `scale(${zoom / 100})`,
-            transformOrigin: 'top center',
-            transition: 'transform 0.2s ease-out'
-          }}>
-            <iframe 
-              ref={iframeRef}
-              src={`${pdfUrl}#view=FitH`}
-              style={{
-                width: '100%',
-                height: isMobile ? `${100 * (100 / zoom)}vh` : '100%',
-                minHeight: isMobile ? `${100 * (100 / zoom)}vh` : '100vh',
-                border: 'none',
-                display: 'block',
-                backgroundColor: '#fff'
-              }}
-              title="Secure PDF Viewer"
-              allow="fullscreen"
-              loading="eager"
-              fetchpriority="high"
-              scrolling="yes"
-            />
-          </div>
+          <iframe 
+            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=Fit`}
+            style={{
+              width: '95%',
+              height: '90%',
+              border: 'none',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+            }}
+            title="Secure PDF Viewer"
+            allow="fullscreen"
+          />
         )}
       </div>
-      
-      {/* Helpful Tips Banner */}
-      {isMobile && (
-        <div style={{
-          position: 'absolute',
-          bottom: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: 'rgba(0, 0, 0, 0.85)',
-          color: 'white',
-          padding: '10px 16px',
-          borderRadius: '8px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          fontSize: '12px',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
-          zIndex: 10,
-          maxWidth: '90%',
-          animation: 'slideUp 0.3s ease-out',
-          pointerEvents: 'none'
-        }}>
-          <span style={{ fontSize: '16px' }}>💡</span>
-          <span>Swipe to scroll • Pinch to zoom • Use +/− buttons</span>
-          <style>{`
-            @keyframes slideUp {
-              from {
-                opacity: 0;
-                transform: translateX(-50%) translateY(20px);
-              }
-              to {
-                opacity: 1;
-                transform: translateX(-50%) translateY(0);
-              }
-            }
-          `}</style>
-        </div>
-      )}
     </div>
   );
 }
