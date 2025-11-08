@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 
 export default function SecureGuideViewer({ guideId, user, onClose, guideData, isInfluencer = false }) {
+  const canvasContainerRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pdfUrl, setPdfUrl] = useState(null);
@@ -9,6 +10,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const sessionIdRef = useRef(null);
   const heartbeatRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [isLandscape, setIsLandscape] = useState(false);
 
   // Detect mobile device
   useEffect(() => {
@@ -24,12 +26,11 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
   
-  // Detect portrait orientation for mobile
-  const [isPortrait, setIsPortrait] = useState(true);
+  // Detect landscape orientation for mobile (for rotation suggestion)
   useEffect(() => {
     const checkOrientation = () => {
-      const portrait = window.innerHeight > window.innerWidth;
-      setIsPortrait(portrait);
+      const landscape = window.innerWidth > window.innerHeight;
+      setIsLandscape(landscape);
     };
     
     checkOrientation();
@@ -39,6 +40,206 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       window.removeEventListener('resize', checkOrientation);
       window.removeEventListener('orientationchange', checkOrientation);
     };
+  }, []);
+
+  // Helper functions defined with useCallback to avoid re-creation
+  const generateDeviceFingerprint = useCallback(() => {
+    try {
+      const fingerprint = {
+        userAgent: navigator.userAgent,
+        language: navigator.language,
+        platform: navigator.platform,
+        screen: `${window.screen.width}x${window.screen.height}`,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        colorDepth: window.screen.colorDepth
+      };
+      return btoa(JSON.stringify(fingerprint)).substring(0, 100);
+    } catch (err) {
+      return `fallback_${Date.now()}_${Math.random()}`;
+    }
+  }, []);
+
+  const getClientIP = useCallback(async () => {
+    try {
+      const response = await fetch('https://api.ipify.org?format=json');
+      const data = await response.json();
+      return data.ip;
+    } catch {
+      return 'unknown';
+    }
+  }, []);
+
+  const ensurePurchaseRecord = useCallback(async (gId, usr) => {
+    try {
+      const ipAddress = await getClientIP();
+
+      const { error: insertError } = await supabase
+        .from('purchases')
+        .upsert({
+          user_id: usr.id,
+          guide_id: gId,
+          device_id: deviceIdRef.current,
+          ip_address: ipAddress,
+          purchased_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,guide_id',
+          ignoreDuplicates: false
+        });
+
+      if (insertError && !insertError.message.includes('duplicate')) {
+        console.error('Error creating purchase record:', insertError);
+      }
+    } catch (err) {
+      console.error('Error in ensurePurchaseRecord:', err);
+    }
+  }, [getClientIP]);
+
+  const verifyPurchaseAccess = useCallback(async (gId, usr) => {
+    try {
+      console.log("Checking purchases table...");
+      const { data: purchase, error: purchaseError } = await supabase
+        .from('purchases')
+        .select('*')
+        .eq('user_id', usr.id)
+        .eq('guide_id', gId)
+        .maybeSingle();
+
+      if (purchaseError) {
+        console.error('Purchase check error:', purchaseError);
+      }
+
+      if (purchase) {
+        console.log('✓ Found in purchases table');
+        return true;
+      }
+
+      console.log("Checking orders table...");
+      
+      const { data: guide, error: guideError } = await supabase
+        .from('guides')
+        .select('title')
+        .eq('id', gId)
+        .maybeSingle();
+      
+      if (guideError) {
+        console.error('Guide fetch error:', guideError);
+        return false;
+      }
+      
+      const guideTitle = guide?.title || '';
+      console.log('Guide title:', guideTitle);
+      
+      const { data: orders, error: orderError } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('customer_email', usr.email)
+        .eq('order_status', 'completed');
+
+      if (orderError) {
+        console.error('Orders check error:', orderError);
+        return false;
+      }
+
+      if (orders && orders.length > 0) {
+        const hasOrder = orders.some(order => {
+          const productName = order.product_name || '';
+          const matches = productName.toLowerCase().includes(guideTitle.toLowerCase()) ||
+                         guideTitle.toLowerCase().includes(productName.toLowerCase());
+          console.log(`Order ${order.id}: "${productName}" vs Guide "${guideTitle}" - Match: ${matches}`);
+          return matches;
+        });
+
+        if (hasOrder) {
+          console.log('✓ Found in orders, creating purchase record');
+          await ensurePurchaseRecord(gId, usr);
+          return true;
+        }
+      }
+
+      console.log('✗ No purchase found');
+      return false;
+    } catch (err) {
+      console.error('Error in verifyPurchaseAccess:', err);
+      return false;
+    }
+  }, [ensurePurchaseRecord]);
+
+  const checkConcurrentSessions = useCallback(async (gId, usr, deviceId) => {
+    try {
+      const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+      
+      const { data: activeSessions, error: sessionError } = await supabase
+        .from('active_sessions')
+        .select('device_id, session_id, last_heartbeat')
+        .eq('user_id', usr.id)
+        .eq('guide_id', gId)
+        .gte('last_heartbeat', twoMinutesAgo);
+
+      if (sessionError) {
+        console.error('Concurrent session check error (allowing access):', sessionError);
+        return true;
+      }
+
+      const uniqueDevices = new Set();
+      activeSessions?.forEach(session => {
+        if (session.device_id !== deviceId) {
+          uniqueDevices.add(session.device_id);
+        }
+      });
+
+      const count = uniqueDevices.size;
+      console.log(`Active devices: ${count} (limit: 2)`);
+      return count < 2;
+    } catch (err) {
+      console.error('Error in checkConcurrentSessions:', err);
+      return true;
+    }
+  }, []);
+
+  const recordAccessSession = useCallback(async (gId, usr, deviceId, sessionId) => {
+    try {
+      const ipAddress = await getClientIP();
+      
+      const { error: recordError } = await supabase
+        .from('active_sessions')
+        .insert({
+          user_id: usr.id,
+          guide_id: gId,
+          device_id: deviceId,
+          session_id: sessionId,
+          ip_address: ipAddress,
+          last_heartbeat: new Date().toISOString(),
+          started_at: new Date().toISOString()
+        });
+
+      if (recordError) {
+        console.error('Error recording session:', recordError);
+      }
+    } catch (err) {
+      console.error('Error in recordAccessSession:', err);
+    }
+  }, [getClientIP]);
+
+  const updateSessionHeartbeat = useCallback(async (sessionId) => {
+    try {
+      await supabase
+        .from('active_sessions')
+        .update({ last_heartbeat: new Date().toISOString() })
+        .eq('session_id', sessionId);
+    } catch (err) {
+      console.error('Heartbeat error:', err);
+    }
+  }, []);
+
+  const closeSession = useCallback(async (sessionId) => {
+    try {
+      await supabase
+        .from('active_sessions')
+        .delete()
+        .eq('session_id', sessionId);
+    } catch (err) {
+      console.error('Error closing session:', err);
+    }
   }, []);
 
   useEffect(() => {
@@ -52,19 +253,15 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
         // INSTANT DISPLAY for influencer access (data already pre-loaded)
         if (isInfluencer) {
-          console.log("🎓 Influencer mode - instant display");
+          console.log("🎁 Influencer mode - instant display");
           console.log("📱 Is mobile:", isMobile);
-          console.log("📚 PDF.js loaded:", !!window.pdfjsLib);
           
           if (!guideData || !guideData.file_url) {
             throw new Error("Guide data not provided");
           }
           
-          // Data is already prepared, just set it
           setPdfUrl(guideData.file_url);
           console.log("✅ PDF URL set:", guideData.file_url.substring(0, 50) + '...');
-          
-          // Mobile now uses iframe too (MUCH faster than PDF.js!)
           console.log("✅ Using native iframe viewer (fast!)");
           setLoading(false);
           
@@ -140,7 +337,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           const { data: signed, error: signErr } = await supabase.storage
             .from("guides")
             .createSignedUrl(filePath, 3600, {
-              download: false // Prevent download, allow streaming
+              download: false // Enable streaming for faster loading
             });
 
           if (signErr) {
@@ -151,10 +348,18 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           finalPdfUrl = signed.signedUrl;
         }
 
-        console.log("✓ PDF URL ready");
+        console.log("✅ PDF URL ready");
         setPdfUrl(finalPdfUrl);
         
-        // Mobile now uses iframe (no PDF.js needed)
+        // Preload PDF for faster display
+        if (isMobile) {
+          const link = document.createElement('link');
+          link.rel = 'preload';
+          link.as = 'fetch';
+          link.href = finalPdfUrl;
+          link.crossOrigin = 'anonymous';
+          document.head.appendChild(link);
+        }
         
         heartbeatRef.current = setInterval(() => {
           updateSessionHeartbeat(sessionIdRef.current);
@@ -181,212 +386,9 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         closeSession(sessionIdRef.current);
       }
     };
-  }, [guideId, user, isMobile, isInfluencer, guideData, recordAccessSession, verifyPurchaseAccess]);
+  }, [guideId, user, isMobile, isInfluencer, guideData, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordAccessSession, updateSessionHeartbeat, closeSession]);
 
-  // All PDF.js functions removed - mobile now uses iframe (much faster!)
-
-  const verifyPurchaseAccess = async (guideId, user) => {
-    try {
-      console.log("Checking purchases table...");
-      const { data: purchase, error: purchaseError } = await supabase
-        .from('purchases')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('guide_id', guideId)
-        .maybeSingle();
-
-      if (purchaseError) {
-        console.error('Purchase check error:', purchaseError);
-      }
-
-      if (purchase) {
-        console.log('✓ Found in purchases table');
-        return true;
-      }
-
-      console.log("Checking orders table...");
-      
-      // First, fetch the guide to get its title
-      const { data: guide, error: guideError } = await supabase
-        .from('guides')
-        .select('title')
-        .eq('id', guideId)
-        .maybeSingle();
-      
-      if (guideError) {
-        console.error('Guide fetch error:', guideError);
-        return false;
-      }
-      
-      const guideTitle = guide?.title || '';
-      console.log('Guide title:', guideTitle);
-      
-      const { data: orders, error: orderError } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('customer_email', user.email)
-        .eq('order_status', 'completed');
-
-      if (orderError) {
-        console.error('Orders check error:', orderError);
-        return false;
-      }
-
-      if (orders && orders.length > 0) {
-        const hasOrder = orders.some(order => {
-          const productName = order.product_name || '';
-          // Compare guide title with product name
-          const matches = productName.toLowerCase().includes(guideTitle.toLowerCase()) ||
-                         guideTitle.toLowerCase().includes(productName.toLowerCase());
-          console.log(`Order ${order.id}: "${productName}" vs Guide "${guideTitle}" - Match: ${matches}`);
-          return matches;
-        });
-
-        if (hasOrder) {
-          console.log('✓ Found in orders, creating purchase record');
-          await ensurePurchaseRecord(guideId, user);
-          return true;
-        }
-      }
-
-      console.log('✗ No purchase found');
-      return false;
-    } catch (error) {
-      console.error('Error in verifyPurchaseAccess:', error);
-      return false;
-    }
-  };
-
-  const ensurePurchaseRecord = async (guideId, user) => {
-    try {
-      const ipAddress = await getClientIP();
-
-      const { error } = await supabase
-        .from('purchases')
-        .upsert({
-          user_id: user.id,
-          guide_id: guideId,
-          device_id: deviceIdRef.current,
-          ip_address: ipAddress,
-          purchased_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id,guide_id',
-          ignoreDuplicates: false
-        });
-
-      if (error && !error.message.includes('duplicate')) {
-        console.error('Error creating purchase record:', error);
-      }
-    } catch (error) {
-      console.error('Error in ensurePurchaseRecord:', error);
-    }
-  };
-
-  const checkConcurrentSessions = async (guideId, user, deviceId) => {
-    try {
-      const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-      
-      const { data: activeSessions, error } = await supabase
-        .from('active_sessions')
-        .select('device_id, session_id, last_heartbeat')
-        .eq('user_id', user.id)
-        .eq('guide_id', guideId)
-        .gte('last_heartbeat', twoMinutesAgo);
-
-      if (error) {
-        console.error('Concurrent session check error (allowing access):', error);
-        return true;
-      }
-
-      const uniqueDevices = new Set();
-      activeSessions?.forEach(session => {
-        if (session.device_id !== deviceId) {
-          uniqueDevices.add(session.device_id);
-        }
-      });
-
-      const count = uniqueDevices.size;
-      console.log(`Active devices: ${count} (limit: 2)`);
-      return count < 2;
-    } catch (error) {
-      console.error('Error in checkConcurrentSessions:', error);
-      return true;
-    }
-  };
-
-  const recordAccessSession = async (guideId, user, deviceId, sessionId) => {
-    try {
-      const ipAddress = await getClientIP();
-      
-      const { error } = await supabase
-        .from('active_sessions')
-        .insert({
-          user_id: user.id,
-          guide_id: guideId,
-          device_id: deviceId,
-          session_id: sessionId,
-          ip_address: ipAddress,
-          last_heartbeat: new Date().toISOString(),
-          started_at: new Date().toISOString()
-        });
-
-      if (error) {
-        console.error('Error recording session:', error);
-      }
-    } catch (error) {
-      console.error('Error in recordAccessSession:', error);
-    }
-  };
-
-  const updateSessionHeartbeat = async (sessionId) => {
-    try {
-      await supabase
-        .from('active_sessions')
-        .update({ last_heartbeat: new Date().toISOString() })
-        .eq('session_id', sessionId);
-    } catch (error) {
-      console.error('Heartbeat error:', error);
-    }
-  };
-
-  const closeSession = async (sessionId) => {
-    try {
-      await supabase
-        .from('active_sessions')
-        .delete()
-        .eq('session_id', sessionId);
-    } catch (error) {
-      console.error('Error closing session:', error);
-    }
-  };
-
-  const generateDeviceFingerprint = () => {
-    try {
-      const fingerprint = {
-        userAgent: navigator.userAgent,
-        language: navigator.language,
-        platform: navigator.platform,
-        screen: `${window.screen.width}x${window.screen.height}`,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        colorDepth: window.screen.colorDepth
-      };
-      return btoa(JSON.stringify(fingerprint)).substring(0, 100);
-    } catch (error) {
-      return `fallback_${Date.now()}_${Math.random()}`;
-    }
-  };
-
-  const getClientIP = async () => {
-    try {
-      const response = await fetch('https://api.ipify.org?format=json');
-      const data = await response.json();
-      return data.ip;
-    } catch {
-      return 'unknown';
-    }
-  };
-
-  // Security effect (for both mobile and desktop)
+  // Security effect
   useEffect(() => {
     if (!pdfUrl) return;
 
@@ -444,11 +446,13 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     document.addEventListener('copy', blockSelection);
     document.addEventListener('cut', blockSelection);
 
-    window.addEventListener('beforeprint', (e) => {
+    const preventPrint = (e) => {
       e.preventDefault();
       alert('Printing is disabled for this document.');
       return false;
-    });
+    };
+
+    window.addEventListener('beforeprint', preventPrint);
 
     return () => {
       document.removeEventListener('contextmenu', blockRightClick);
@@ -458,6 +462,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       document.removeEventListener('drop', blockSelection);
       document.removeEventListener('copy', blockSelection);
       document.removeEventListener('cut', blockSelection);
+      window.removeEventListener('beforeprint', preventPrint);
       if (style.parentNode) {
         style.parentNode.removeChild(style);
       }
@@ -545,7 +550,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     );
   }
 
-  // Universal view: iframe for both mobile and desktop (FAST!)
   return (
     <div className="secure-pdf-viewer" style={{
       position: 'fixed',
@@ -558,6 +562,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       display: 'flex',
       flexDirection: 'column'
     }}>
+      {/* Header */}
       <div style={{
         padding: isMobile ? '12px 16px' : '8px 16px',
         background: 'linear-gradient(to bottom, #1a1a1a, #0d0d0d)',
@@ -574,7 +579,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontWeight: 'bold', fontSize: '14px', lineHeight: '1.2' }}>Secure PDF Viewer</div>
             <div style={{ fontSize: '10px', color: '#888', lineHeight: '1.2' }}>
-              {isMobile && isPortrait ? 'Portrait View' : 'Protected content'}
+              {isMobile && !isLandscape ? '📱 Rotate for better view' : 'Protected content'}
             </div>
           </div>
         </div>
@@ -599,6 +604,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         </button>
       </div>
       
+      {/* PDF Viewer */}
       <div style={{ 
         flex: 1, 
         position: 'relative', 
@@ -617,14 +623,52 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
               border: 'none',
               display: 'block',
               minHeight: isMobile ? '100%' : 'calc(90vh - 50px)',
-              boxShadow: isMobile ? 'none' : '0 4px 20px rgba(0,0,0,0.3)',
-              transform: isMobile && isPortrait ? 'none' : 'none'
+              boxShadow: isMobile ? 'none' : '0 4px 20px rgba(0,0,0,0.3)'
             }}
             title="Secure PDF Viewer"
             allow="fullscreen"
+            loading="eager"
+            fetchpriority="high"
           />
         )}
       </div>
+      
+      {/* Rotation Suggestion Banner for Mobile Portrait */}
+      {isMobile && !isLandscape && (
+        <div style={{
+          position: 'absolute',
+          bottom: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(0, 0, 0, 0.85)',
+          color: 'white',
+          padding: '12px 20px',
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          fontSize: '14px',
+          boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
+          zIndex: 10,
+          maxWidth: '90%',
+          animation: 'slideUp 0.3s ease-out'
+        }}>
+          <span style={{ fontSize: '24px' }}>🔄</span>
+          <span>Rotate device for better reading experience</span>
+          <style>{`
+            @keyframes slideUp {
+              from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+              }
+              to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+              }
+            }
+          `}</style>
+        </div>
+      )}
     </div>
   );
 }
