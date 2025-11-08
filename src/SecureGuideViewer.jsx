@@ -578,7 +578,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontWeight: 'bold', fontSize: '14px', lineHeight: '1.2' }}>Secure PDF Viewer</div>
               <div style={{ fontSize: '10px', color: '#888', lineHeight: '1.2' }}>
-                {isMobile && !isLandscape ? '📱 Auto-rotated for viewing' : 'Protected content'}
+                Protected content
               </div>
           </div>
         </div>
@@ -607,39 +607,27 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       <div style={{ 
         flex: 1, 
         position: 'relative', 
-        overflow: isMobile && !isLandscape ? 'hidden' : 'hidden', 
+        overflow: 'hidden', 
         display: 'flex', 
         justifyContent: 'center', 
         alignItems: 'center', 
         backgroundColor: '#36454F' 
       }}>
         {pdfUrl && (
-          <div style={{
-            width: isMobile && !isLandscape ? '100vh' : (isMobile ? '100%' : '95%'),
-            height: isMobile && !isLandscape ? '100vw' : (isMobile ? '100%' : '90%'),
-            transform: isMobile && !isLandscape ? 'rotate(90deg)' : 'none',
-            transformOrigin: 'center center',
-            position: isMobile && !isLandscape ? 'absolute' : 'relative',
-            top: isMobile && !isLandscape ? '50%' : 'auto',
-            left: isMobile && !isLandscape ? '50%' : 'auto',
-            marginLeft: isMobile && !isLandscape ? '-50vh' : '0',
-            marginTop: isMobile && !isLandscape ? '-50vw' : '0'
-          }}>
-            <iframe 
-              src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
-              style={{
-                width: '100%',
-                height: '100%',
-                border: 'none',
-                display: 'block',
-                boxShadow: isMobile ? 'none' : '0 4px 20px rgba(0,0,0,0.3)'
-              }}
-              title="Secure PDF Viewer"
-              allow="fullscreen"
-              loading="eager"
-              fetchpriority="high"
-            />
-          </div>
+          <iframe 
+            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=Fit`}
+            style={{
+              width: isMobile ? '100%' : '95%',
+              height: isMobile ? '100%' : '90%',
+              border: 'none',
+              display: 'block',
+              boxShadow: isMobile ? 'none' : '0 4px 20px rgba(0,0,0,0.3)'
+            }}
+            title="Secure PDF Viewer"
+            allow="fullscreen"
+            loading="eager"
+            fetchpriority="high"
+          />
         )}
       </div>
       
