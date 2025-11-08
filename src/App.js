@@ -1,24 +1,26 @@
 import './App.css';
-import Home from './Home';
-import AboutUs from './aboutus';
-import Affiliate from './affiliate';
-import OurGuides from './ourguides';
-import YourGuides from './YourGuides';
-import Checkout from './checkout';
-import AffiliateDashboard from './AffiliateDashboard';
-import PaymentSuccess from './PaymentSuccess';
-import PaymentFailure from './PaymentFailure';
-import InfluencerAccess from './InfluencerAccess';
-import InfluencerGuideViewer from './InfluencerGuideViewer';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { initializeReferralTracking } from './referralUtils';
 import { AuthProvider } from './AuthContext';
 import { initializeDatabase } from './databaseUtils';
 import ProtectedRoute from './ProtectedRoute';
 import Navigation from './Navigation';
-import Policies from './Policies';
 import ErrorBoundary from './components/ErrorBoundary';
+
+// Lazy load route components for code-splitting
+const Home = lazy(() => import('./Home'));
+const AboutUs = lazy(() => import('./aboutus'));
+const Affiliate = lazy(() => import('./affiliate'));
+const OurGuides = lazy(() => import('./ourguides'));
+const YourGuides = lazy(() => import('./YourGuides'));
+const Checkout = lazy(() => import('./checkout'));
+const AffiliateDashboard = lazy(() => import('./AffiliateDashboard'));
+const PaymentSuccess = lazy(() => import('./PaymentSuccess'));
+const PaymentFailure = lazy(() => import('./PaymentFailure'));
+const InfluencerAccess = lazy(() => import('./InfluencerAccess'));
+const InfluencerGuideViewer = lazy(() => import('./InfluencerGuideViewer'));
+const Policies = lazy(() => import('./Policies'));
 
 // Google Analytics
 const GA_TRACKING_ID = 'G-M8M2WM9PVN';
@@ -125,34 +127,48 @@ function App() {
         closeMenu={closeMenu} 
       />
 
-      {/* Routes with fade-in wrapper */}
+      {/* Routes with lazy loading and fade-in wrapper */}
       <div className="page-content fade-in">
         <ErrorBoundary>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/about-us" element={<AboutUs />} />
-            <Route path="/our-guides" element={<OurGuides />} />
-            <Route path="/your-guides" element={<YourGuides />} />
-            <Route path="/affiliate-program" element={<Affiliate />} />
-            <Route path="/checkout" element={
-              <ProtectedRoute>
-                <Checkout />
-              </ProtectedRoute>
-            } />
-            <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
-            <Route path="/payment-success" element={<PaymentSuccess />} />
-            <Route path="/payment-failure" element={<PaymentFailure />} />
-            
-            {/* Hidden Influencer Access Routes */}
-            <Route path="/influencer-access" element={<InfluencerAccess />} />
-            <Route path="/influencer-guide/:guideSlug" element={<InfluencerGuideViewer />} />
-            
-            {/* Policy Routes */}
-            <Route path="/return-policy" element={<Policies />} />
-            <Route path="/privacy-policy" element={<Policies />} />
-            <Route path="/refund-policy" element={<Policies />} />
-            <Route path="/terms-conditions" element={<Policies />} />
-          </Routes>
+          <Suspense fallback={
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              minHeight: '50vh',
+              flexDirection: 'column',
+              gap: '1rem'
+            }}>
+              <div className="loading-spinner"></div>
+              <p style={{ color: '#666', fontSize: '0.9rem' }}>Loading...</p>
+            </div>
+          }>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/about-us" element={<AboutUs />} />
+              <Route path="/our-guides" element={<OurGuides />} />
+              <Route path="/your-guides" element={<YourGuides />} />
+              <Route path="/affiliate-program" element={<Affiliate />} />
+              <Route path="/checkout" element={
+                <ProtectedRoute>
+                  <Checkout />
+                </ProtectedRoute>
+              } />
+              <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
+              <Route path="/payment-success" element={<PaymentSuccess />} />
+              <Route path="/payment-failure" element={<PaymentFailure />} />
+              
+              {/* Hidden Influencer Access Routes */}
+              <Route path="/influencer-access" element={<InfluencerAccess />} />
+              <Route path="/influencer-guide/:guideSlug" element={<InfluencerGuideViewer />} />
+              
+              {/* Policy Routes */}
+              <Route path="/return-policy" element={<Policies />} />
+              <Route path="/privacy-policy" element={<Policies />} />
+              <Route path="/refund-policy" element={<Policies />} />
+              <Route path="/terms-conditions" element={<Policies />} />
+            </Routes>
+          </Suspense>
         </ErrorBoundary>
       </div>
 
