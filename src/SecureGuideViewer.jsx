@@ -251,13 +251,17 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           
           // Load PDF.js and render securely for mobile
           if (isMobile) {
+            console.log("📱 Loading PDF.js for mobile...");
             if (!window.pdfjsLib) {
               await preloadPdfJs();
             }
+            console.log("📱 Rendering first page...");
             await loadPdfWithPdfJs(guideData.file_url);
+            console.log("✅ First page rendered");
           }
           
           setLoading(false);
+          console.log("✅ Influencer viewer ready");
           
           return;
         }
@@ -347,10 +351,13 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         
         // Load PDF.js and render for mobile
         if (isMobile) {
+          console.log("📱 Loading PDF.js for mobile...");
           if (!window.pdfjsLib) {
             await preloadPdfJs();
           }
+          console.log("📱 Rendering first page...");
           await loadPdfWithPdfJs(finalPdfUrl);
+          console.log("✅ First page rendered");
         }
         
         heartbeatRef.current = setInterval(() => {
