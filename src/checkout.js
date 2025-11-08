@@ -501,7 +501,7 @@ function Checkout() {
                   className="btn btn-primary"
                   disabled={isProcessing}
                 >
-                  {isProcessing ? 'Processing Payment...' : `Complete Purchase - PKR ${guide.price}`}
+                  {isProcessing ? 'Processing Payment... Please wait up to 60 seconds...' : `Complete Purchase - PKR ${guide.price}`}
                 </button>
               )}
             </div>
