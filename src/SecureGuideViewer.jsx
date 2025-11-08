@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from './supabaseClient';
 
 export default function SecureGuideViewer({ guideId, user, onClose, guideData, isInfluencer = false }) {
-  const canvasContainerRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pdfUrl, setPdfUrl] = useState(null);
@@ -10,10 +9,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const sessionIdRef = useRef(null);
   const heartbeatRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [pdfDoc, setPdfDoc] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(0);
-  const [rendering, setRendering] = useState(false);
 
   // Detect mobile device
   useEffect(() => {
@@ -186,7 +181,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         closeSession(sessionIdRef.current);
       }
     };
-  }, [guideId, user, isMobile, isInfluencer, guideData]);
+  }, [guideId, user, isMobile, isInfluencer, guideData, recordAccessSession, verifyPurchaseAccess]);
 
   // All PDF.js functions removed - mobile now uses iframe (much faster!)
 
