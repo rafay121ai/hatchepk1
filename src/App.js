@@ -21,6 +21,7 @@ const PaymentFailure = lazy(() => import('./PaymentFailure'));
 const InfluencerAccess = lazy(() => import('./InfluencerAccess'));
 const InfluencerGuideViewer = lazy(() => import('./InfluencerGuideViewer'));
 const Policies = lazy(() => import('./Policies'));
+const ResetPassword = lazy(() => import('./ResetPassword'));
 
 // Google Analytics - Deferred loading in index.html
 // Track page views (exported for use in other components if needed)
@@ -149,6 +150,9 @@ function App() {
               {/* Hidden Influencer Access Routes */}
               <Route path="/influencer-access" element={<InfluencerAccess />} />
               <Route path="/influencer-guide/:guideSlug" element={<InfluencerGuideViewer />} />
+              
+              {/* Password Reset Route */}
+              <Route path="/reset-password" element={<ResetPassword />} />
               
               {/* Policy Routes */}
               <Route path="/return-policy" element={<Policies />} />
