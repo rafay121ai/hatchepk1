@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { supabase } from './supabaseClient';
 
 function DatabaseTest() {
@@ -12,7 +12,7 @@ function DatabaseTest() {
     try {
       // Test 1: Check Supabase connection
       results.push('Testing Supabase connection...');
-      const { data: testData, error: testError } = await supabase
+      const { error: testError } = await supabase
         .from('orders')
         .select('count')
         .limit(1);

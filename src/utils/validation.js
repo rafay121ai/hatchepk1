@@ -23,7 +23,7 @@ export const validators = {
   },
 
   phone: (value) => {
-    const phoneRegex = /^[\d\s\-\+\(\)]{10,}$/;
+    const phoneRegex = /^[\d\s\-+()]{10,}$/;
     if (!value) return 'Phone number is required';
     if (!phoneRegex.test(value)) return 'Please enter a valid phone number';
     return '';

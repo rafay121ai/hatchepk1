@@ -11,7 +11,7 @@ import { validators, useFormValidation } from './utils/validation';
 function Checkout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, updateUser } = useAuth();
+  const { user } = useAuth();
   const [guide, setGuide] = useState(null);
   const [step, setStep] = useState(1);
   const [isProcessing, setIsProcessing] = useState(false);

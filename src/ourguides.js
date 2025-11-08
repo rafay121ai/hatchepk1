@@ -164,7 +164,7 @@ function OurGuides() {
     };
 
     loadGuides();
-  }, []);
+  }, [user]);
 
   // Scroll detection for showing preview buttons
   useEffect(() => {

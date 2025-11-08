@@ -1,7 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from './supabaseClient';
-import { generateDeviceFingerprint } from './utils/deviceFingerprint';
 import SecureGuideViewer from './SecureGuideViewer';
 import './InfluencerGuideViewer.css';
 
@@ -14,20 +13,8 @@ function InfluencerGuideViewer() {
   const [guideData, setGuideData] = useState(null);
   const [influencerInfo, setInfluencerInfo] = useState(null);
 
-  useEffect(() => {
-    // Fast initial load - skip API verification, just load guide
-    loadGuideQuick();
-    
-    // Set up heartbeat to verify session periodically (not on initial load)
-    const heartbeatInterval = setInterval(() => {
-      verifySessionInBackground();
-    }, 60000); // Every 1 minute
-
-    return () => clearInterval(heartbeatInterval);
-  }, [guideSlug]);
-
   // INSTANT LOAD - Use pre-loaded data from InfluencerAccess
-  const loadGuideQuick = async () => {
+  const loadGuideQuick = useCallback(async () => {
     try {
       const sessionToken = sessionStorage.getItem('influencer_session_token');
       const deviceFingerprint = sessionStorage.getItem('influencer_device_fp');
@@ -108,10 +95,10 @@ function InfluencerGuideViewer() {
       setError('Unable to load guide.');
       setLoading(false);
     }
-  };
+  }, [navigate]);
 
   // Background session verification (doesn't affect initial load)
-  const verifySessionInBackground = async () => {
+  const verifySessionInBackground = useCallback(async () => {
     try {
       const sessionToken = sessionStorage.getItem('influencer_session_token');
       const deviceFingerprint = sessionStorage.getItem('influencer_device_fp');
@@ -149,7 +136,19 @@ function InfluencerGuideViewer() {
       console.error('⚠️ Background verification error:', error);
       // Don't interrupt user experience for background check failures
     }
-  };
+  }, [navigate]);
+
+  useEffect(() => {
+    // Fast initial load - skip API verification, just load guide
+    loadGuideQuick();
+    
+    // Set up heartbeat to verify session periodically (not on initial load)
+    const heartbeatInterval = setInterval(() => {
+      verifySessionInBackground();
+    }, 60000); // Every 1 minute
+
+    return () => clearInterval(heartbeatInterval);
+  }, [guideSlug, loadGuideQuick, verifySessionInBackground]);
 
   if (loading) {
     return (

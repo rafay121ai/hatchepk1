@@ -52,29 +52,7 @@ export const trackEvent = (action, category, label, value) => {
   }
 };
 
-// ScrollToTop component to handle scroll and fade-in
-function ScrollToTop() {
-  const { pathname } = useLocation();
-
-  useEffect(() => {
-    // Scroll to top instantly
-    window.scrollTo(0, 0);
-    
-    // Track page view for Google Analytics
-    trackPageView(window.location.href);
-    
-    // Add fade-in animation to page content
-    const pageContent = document.querySelector('.page-content');
-    if (pageContent) {
-      pageContent.classList.remove('fade-in');
-      // Force reflow to restart animation
-      void pageContent.offsetWidth;
-      pageContent.classList.add('fade-in');
-    }
-  }, [pathname]);
-
-  return null;
-}
+// Removed unused ScrollToTop component
 
 function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
