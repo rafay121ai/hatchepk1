@@ -21,8 +21,6 @@ function YourGuides() {
       }
 
       try {
-        console.log('⚡ Loading your guides...');
-        
         // Fetch user's purchased guides from the orders table (completed only)
         const { data: orders, error: ordersError } = await supabase
           .from('orders')
@@ -39,13 +37,10 @@ function YourGuides() {
         }
 
         if (!orders || orders.length === 0) {
-          console.log('ℹ️ No completed orders found');
           setUserGuides([]);
           setLoading(false);
           return;
         }
-
-        console.log(`✅ Found ${orders.length} order(s)`);
 
         // Get unique guide titles to fetch
         const uniqueTitles = [...new Set(orders.map(o => o.product_name))];
@@ -104,7 +99,6 @@ function YourGuides() {
           };
         });
         
-        console.log(`✅ Loaded ${guidesWithData.length} guide(s) quickly`);
         setUserGuides(guidesWithData);
       } catch (error) {
         console.error('Error loading user guides:', error);

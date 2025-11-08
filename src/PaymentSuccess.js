@@ -21,16 +21,7 @@ function PaymentSuccess() {
         const status = searchParams.get('STATUS');
         const errCode = searchParams.get('ERR_CODE') || '000';
 
-        console.log('Payment success page loaded:', {
-          basketId,
-          status,
-          errCode,
-          pendingOrder
-        });
-
         // Update pending order to completed status
-        console.log('📦 Pending order from session:', pendingOrder);
-        console.log('🔍 URL params:', { basketId, status, errCode });
 
         if (!pendingOrder || !pendingOrder.orderId) {
           console.error('❌ No pending order found in sessionStorage');
@@ -46,10 +37,6 @@ function PaymentSuccess() {
         }
 
         // Update order status from 'pending' to 'completed'
-        console.log('🔄 Updating order status to completed...');
-        console.log('📋 Order ID to update:', pendingOrder.orderId);
-        console.log('📋 Basket ID:', basketId);
-        
         try {
           // Update order status to 'completed' (no transaction_id - column doesn't exist)
           const { data: updatedOrder, error: updateError } = await supabase
@@ -65,8 +52,6 @@ function PaymentSuccess() {
             console.error('❌ Error details:', JSON.stringify(updateError, null, 2));
             console.error('❌ Order ID tried:', pendingOrder.orderId);
           } else {
-            console.log('✅ Order updated to completed:', updatedOrder);
-            
             // Send order confirmation email
             try {
               await fetch('/api/emails/send-order-confirmation', {
@@ -80,7 +65,6 @@ function PaymentSuccess() {
                   orderId: pendingOrder.orderId
                 })
               });
-              console.log('✅ Order confirmation email sent');
             } catch (emailError) {
               console.error('⚠️ Email error (non-critical):', emailError);
             }
