@@ -370,7 +370,8 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         closeSession(sessionIdRef.current);
       }
     };
-  }, [guideId, user, isMobile, isInfluencer, guideData, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordAccessSession, updateSessionHeartbeat, closeSession]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guideId, user, isMobile, isInfluencer, guideData]);
 
   // Pre-load PDF.js library
   const preloadPdfJs = async () => {
