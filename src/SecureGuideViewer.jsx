@@ -144,7 +144,9 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
           const { data: signed, error: signErr } = await supabase.storage
             .from("guides")
-            .createSignedUrl(filePath, 3600);
+            .createSignedUrl(filePath, 3600, {
+              download: false // Prevent download, allow streaming
+            });
 
           if (signErr) {
             console.error("Signed URL error:", signErr);
