@@ -155,6 +155,17 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     try {
       const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
       
+      // FIRST: Clean up old sessions (>2 minutes inactive)
+      await supabase
+        .from('active_sessions')
+        .delete()
+        .eq('user_id', usr.id)
+        .eq('guide_id', gId)
+        .lt('last_heartbeat', twoMinutesAgo);
+      
+      console.log('✓ Cleaned up old sessions');
+      
+      // NOW: Check active sessions (only recent ones)
       const { data: activeSessions, error: sessionError } = await supabase
         .from('active_sessions')
         .select('device_id, session_id, last_heartbeat')
@@ -175,7 +186,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       });
 
       const count = uniqueDevices.size;
-      console.log(`Active devices: ${count} (limit: 2)`);
+      console.log(`Active devices (after cleanup): ${count} (limit: 2)`);
       return count < 2;
     } catch (err) {
       console.error('Error in checkConcurrentSessions:', err);
@@ -187,9 +198,10 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     try {
       const ipAddress = await getClientIP();
       
+      // Use UPSERT to handle duplicates gracefully
       const { error: recordError } = await supabase
         .from('active_sessions')
-        .insert({
+        .upsert({
           user_id: usr.id,
           guide_id: gId,
           device_id: deviceId,
@@ -197,10 +209,15 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           ip_address: ipAddress,
           last_heartbeat: new Date().toISOString(),
           started_at: new Date().toISOString()
+        }, {
+          onConflict: 'session_id',  // If session_id exists, update it
+          ignoreDuplicates: false     // Update the record
         });
 
       if (recordError) {
-        console.error('Error recording session:', recordError);
+        console.error('❌ Error recording session:', recordError);
+      } else {
+        console.log('✅ Session recorded successfully');
       }
     } catch (err) {
       console.error('Error in recordAccessSession:', err);
@@ -272,7 +289,8 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         }
 
         deviceIdRef.current = generateDeviceFingerprint();
-        sessionIdRef.current = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        // Use crypto for truly unique session ID
+        sessionIdRef.current = crypto.randomUUID ? crypto.randomUUID() : `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${Math.random().toString(36).substr(2, 9)}`;
         console.log("Device/Session IDs generated");
 
         console.log("Step 2: Verifying purchase");
