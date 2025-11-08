@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getAffiliateStats, getRecentConversions, getPayoutHistory } from './conversionUtils';
 import { useAuth } from './AuthContext';
 import { supabase } from './supabaseClient';
+import './affiliate.css';
 
 function AffiliateDashboard() {
   const { user } = useAuth();
@@ -17,7 +18,6 @@ function AffiliateDashboard() {
       try {
         let refId = null;
         
-        // Only show dashboard to logged-in approved affiliates
         if (user?.email) {
           const { data: affiliate, error: affiliateError } = await supabase
             .from('affiliates')
@@ -27,19 +27,14 @@ function AffiliateDashboard() {
             .maybeSingle();
 
           if (!affiliateError && affiliate) {
-            console.log('User is an approved affiliate:', affiliate);
             setAffiliateData(affiliate);
             refId = affiliate.ref_id;
           }
         }
         
-        // Don't show dashboard to people who just clicked referral links
-        // Only approved affiliates should see this dashboard
-        
         setAffiliateRefId(refId);
 
         if (refId) {
-          // Load all dashboard data
           const [statsResult, conversionsResult, payoutsResult] = await Promise.all([
             getAffiliateStats(refId),
             getRecentConversions(refId, 5),
@@ -50,7 +45,6 @@ function AffiliateDashboard() {
           if (conversionsResult.success) setRecentConversions(conversionsResult.conversions);
           if (payoutsResult.success) setPayoutHistory(payoutsResult.payouts);
           
-          // Also fetch payout summary from payouts table
           try {
             const { data: payoutData, error: payoutError } = await supabase
               .from('payouts')
@@ -59,8 +53,6 @@ function AffiliateDashboard() {
               .maybeSingle();
               
             if (!payoutError && payoutData) {
-              console.log('Payout data found:', payoutData);
-              // Add payout info to stats
               setStats(prev => ({
                 ...prev,
                 total_payout_amount: payoutData.total_commission || 0,
@@ -83,328 +75,301 @@ function AffiliateDashboard() {
 
   if (loading) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <div>Loading dashboard...</div>
+      <div className="dashboard-loading">
+        <div className="loading-spinner"></div>
+        <p>Loading your dashboard...</p>
       </div>
     );
   }
 
   if (!affiliateRefId) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h2>Affiliate Dashboard</h2>
-        {!user ? (
-          <p>Please log in to access your affiliate dashboard.</p>
-        ) : (
-          <div>
-            <p>This dashboard is only available to approved affiliates.</p>
-            <p>You are not currently an approved affiliate.</p>
-            <p>If you have applied to become an affiliate, your application may still be under review.</p>
-            <p>Visit our <a href="/affiliate-program" style={{ color: '#73160f' }}>Affiliate Program</a> page to learn more or apply.</p>
-          </div>
-        )}
+      <div className="dashboard-empty">
+        <div className="empty-content">
+          <div className="empty-icon">🎯</div>
+          <h2>Affiliate Dashboard</h2>
+          {!user ? (
+            <p>Please log in to access your affiliate dashboard.</p>
+          ) : (
+            <div>
+              <p>This dashboard is only available to approved affiliates.</p>
+              <p>You are not currently an approved affiliate.</p>
+              <p>If you have applied to become an affiliate, your application may still be under review.</p>
+              <a href="/affiliate-program" className="apply-link">
+                Apply to Affiliate Program →
+              </a>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
-  return (
-    <div style={{ padding: '20px', maxWidth: '1200px', margin: '0 auto' }}>
-      <h1>Affiliate Dashboard</h1>
-      
-      {/* Affiliate Info */}
-      {affiliateData && (
-        <div style={{ 
-          backgroundColor: '#f8f9fa', 
-          borderRadius: '8px', 
-          padding: '20px', 
-          marginBottom: '20px',
-          border: '1px solid #dee2e6'
-        }}>
-          <h3 style={{ margin: '0 0 10px 0', color: '#2c2c2c' }}>Your Affiliate Information</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
-            <div>
-              <strong>Name:</strong> {affiliateData.name || user?.name || 'N/A'}
-            </div>
-            <div>
-              <strong>Email:</strong> {user?.email}
-            </div>
-            <div>
-              <strong>Referral ID:</strong> {affiliateRefId}
-            </div>
-            <div>
-              <strong>Tier:</strong> {affiliateData.tier_name || affiliateData.tier}
-            </div>
-            <div>
-              <strong>Commission Rate:</strong> {affiliateData.commission}%
-            </div>
-            <div>
-              <strong>Status:</strong> <span style={{ color: '#28a745', fontWeight: 'bold' }}>Approved</span>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      <p><strong>Your Referral ID:</strong> {affiliateRefId}</p>
-      
-      {/* Key Metrics - Highlighted */}
-      {stats && (
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
-          gap: '20px', 
-          marginBottom: '30px' 
-        }}>
-          {/* People Who Bought Through Your Link */}
-          <div style={{ 
-            padding: '25px', 
-            backgroundColor: '#e3f2fd', 
-            borderRadius: '12px',
-            border: '2px solid #2196f3',
-            textAlign: 'center'
-          }}>
-            <h3 style={{ margin: '0 0 10px 0', color: '#1976d2' }}>People Who Bought</h3>
-            <div style={{ fontSize: '3em', fontWeight: 'bold', color: '#1976d2', marginBottom: '5px' }}>
-              {stats.total_conversions || 0}
-            </div>
-            <p style={{ margin: '0', color: '#666', fontSize: '0.9em' }}>
-              Through your referral link
-            </p>
-          </div>
-          
-          {/* Total Payout Amount */}
-          <div style={{ 
-            padding: '25px', 
-            backgroundColor: '#e8f5e8', 
-            borderRadius: '12px',
-            border: '2px solid #4caf50',
-            textAlign: 'center'
-          }}>
-            <h3 style={{ margin: '0 0 10px 0', color: '#388e3c' }}>Total Payout</h3>
-            <div style={{ fontSize: '3em', fontWeight: 'bold', color: '#388e3c', marginBottom: '5px' }}>
-              PKR {stats.total_commission_earned || 0}
-            </div>
-            <p style={{ margin: '0', color: '#666', fontSize: '0.9em' }}>
-              Commission earned
-            </p>
-          </div>
-          
-          {/* Payout Status */}
-          <div style={{ 
-            padding: '25px', 
-            backgroundColor: '#fff3e0', 
-            borderRadius: '12px',
-            border: '2px solid #ff9800',
-            textAlign: 'center'
-          }}>
-            <h3 style={{ margin: '0 0 10px 0', color: '#f57c00' }}>Payout Status</h3>
-            <div style={{ fontSize: '2em', fontWeight: 'bold', color: '#f57c00', marginBottom: '5px' }}>
-              {stats.pending_conversions || 0} Pending
-            </div>
-            <div style={{ fontSize: '1.5em', fontWeight: 'bold', color: '#4caf50', marginBottom: '5px' }}>
-              {stats.approved_conversions || 0} Approved
-            </div>
-            <p style={{ margin: '0', color: '#666', fontSize: '0.9em' }}>
-              Conversion status
-            </p>
-          </div>
-        </div>
-      )}
+  // Calculate conversion rate
+  const conversionRate = stats && stats.total_conversions 
+    ? ((stats.approved_conversions / stats.total_conversions) * 100).toFixed(1)
+    : 0;
 
-      {/* Payout Summary */}
-      {stats && (
-        <div style={{ 
-          backgroundColor: '#f8f9fa', 
-          borderRadius: '12px', 
-          padding: '25px', 
-          marginBottom: '30px',
-          border: '1px solid #dee2e6'
-        }}>
-          <h2 style={{ margin: '0 0 20px 0', color: '#2c2c2c' }}>Payout Summary</h2>
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-            gap: '20px' 
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#28a745', marginBottom: '5px' }}>
-                PKR {stats.total_commission_earned || 0}
+  return (
+    <div className="affiliate-dashboard">
+      <div className="dashboard-container">
+        {/* Header */}
+        <div className="dashboard-header">
+          <div>
+            <h1>Affiliate Dashboard</h1>
+            <p className="dashboard-subtitle">Welcome back, {affiliateData?.name || user?.email}!</p>
+          </div>
+          <div className="referral-badge">
+            <span className="badge-label">Your Referral ID</span>
+            <span className="badge-value">{affiliateRefId}</span>
+          </div>
+        </div>
+
+        {/* Affiliate Info Card */}
+        {affiliateData && (
+          <div className="info-card">
+            <h3>Your Affiliate Information</h3>
+            <div className="info-grid">
+              <div className="info-item">
+                <span className="info-label">Name</span>
+                <span className="info-value">{affiliateData.name || user?.name || 'N/A'}</span>
               </div>
-              <div style={{ color: '#666', fontSize: '0.9em' }}>Ready for Payout</div>
-              <div style={{ color: '#28a745', fontSize: '0.8em', marginTop: '5px' }}>
-                ({stats.approved_conversions || 0} approved conversions)
+              <div className="info-item">
+                <span className="info-label">Email</span>
+                <span className="info-value">{user?.email}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Tier</span>
+                <span className="info-value">{affiliateData.tier_name || affiliateData.tier}</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Commission Rate</span>
+                <span className="info-value">{affiliateData.commission}%</span>
+              </div>
+              <div className="info-item">
+                <span className="info-label">Status</span>
+                <span className="status-badge status-approved">Approved</span>
               </div>
             </div>
-            
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#ff9800', marginBottom: '5px' }}>
+          </div>
+        )}
+
+        {/* Key Metrics Cards */}
+        {stats && (
+          <div className="metrics-grid">
+            {/* Total Conversions */}
+            <div className="metric-card metric-primary">
+              <div className="metric-icon">👥</div>
+              <div className="metric-content">
+                <h3 className="metric-label">People Who Bought</h3>
+                <div className="metric-value">{stats.total_conversions || 0}</div>
+                <p className="metric-description">Through your referral link</p>
+              </div>
+              <div className="metric-chart">
+                <div 
+                  className="chart-bar" 
+                  style={{ width: `${Math.min((stats.total_conversions / 10) * 100, 100)}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Total Earnings */}
+            <div className="metric-card metric-success">
+              <div className="metric-icon">💰</div>
+              <div className="metric-content">
+                <h3 className="metric-label">Total Earnings</h3>
+                <div className="metric-value">PKR {stats.total_commission_earned || 0}</div>
+                <p className="metric-description">Commission earned</p>
+              </div>
+              <div className="metric-trend metric-trend-up">
+                ↑ {conversionRate}% conversion rate
+              </div>
+            </div>
+
+            {/* Pending Conversions */}
+            <div className="metric-card metric-warning">
+              <div className="metric-icon">⏳</div>
+              <div className="metric-content">
+                <h3 className="metric-label">Pending Review</h3>
+                <div className="metric-value">{stats.pending_conversions || 0}</div>
+                <p className="metric-description">Awaiting approval</p>
+              </div>
+              <div className="metric-amount">
                 PKR {stats.pending_commission_amount || 0}
               </div>
-              <div style={{ color: '#666', fontSize: '0.9em' }}>Pending Review</div>
-              <div style={{ color: '#ff9800', fontSize: '0.8em', marginTop: '5px' }}>
-                ({stats.pending_conversions || 0} pending conversions)
-              </div>
             </div>
-            
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontSize: '1.2em', fontWeight: 'bold', color: '#dc3545', marginBottom: '5px' }}>
-                PKR {stats.rejected_commission_amount || 0}
-              </div>
-              <div style={{ color: '#666', fontSize: '0.9em' }}>Rejected</div>
-              <div style={{ color: '#dc3545', fontSize: '0.8em', marginTop: '5px' }}>
-                ({stats.rejected_conversions || 0} rejected conversions)
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      {/* Additional Stats */}
-      {stats && (
-        <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-          gap: '15px', 
-          marginBottom: '30px' 
-        }}>
-          <div style={{ 
-            padding: '15px', 
-            backgroundColor: '#f8f9fa', 
-            borderRadius: '8px',
-            border: '1px solid #dee2e6',
-            textAlign: 'center'
-          }}>
-            <h4 style={{ margin: '0 0 8px 0', color: '#6c757d' }}>Total Sales</h4>
-            <div style={{ fontSize: '1.5em', fontWeight: 'bold', color: '#17a2b8' }}>
-              PKR {stats.total_sales_amount || 0}
+            {/* Approved Conversions */}
+            <div className="metric-card metric-info">
+              <div className="metric-icon">✅</div>
+              <div className="metric-content">
+                <h3 className="metric-label">Approved</h3>
+                <div className="metric-value">{stats.approved_conversions || 0}</div>
+                <p className="metric-description">Ready for payout</p>
+              </div>
+              <div className="metric-amount metric-amount-success">
+                PKR {stats.total_commission_earned || 0}
+              </div>
             </div>
           </div>
-          
-          <div style={{ 
-            padding: '15px', 
-            backgroundColor: '#f8f9fa', 
-            borderRadius: '8px',
-            border: '1px solid #dee2e6',
-            textAlign: 'center'
-          }}>
-            <h4 style={{ margin: '0 0 8px 0', color: '#6c757d' }}>Rejected</h4>
-            <div style={{ fontSize: '1.5em', fontWeight: 'bold', color: '#dc3545' }}>
-              {stats.rejected_conversions || 0}
-            </div>
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* Recent Conversions */}
-      {recentConversions.length > 0 && (
-        <div style={{ marginBottom: '30px' }}>
-          <h2>Recent Conversions</h2>
-          <div style={{ 
-            backgroundColor: 'white', 
-            borderRadius: '8px', 
-            border: '1px solid #dee2e6',
-            overflow: 'hidden'
-          }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead style={{ backgroundColor: '#f8f9fa' }}>
-                <tr>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Date</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Customer</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Product</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Sale Amount</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Commission</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {recentConversions.map((conversion) => (
-                  <tr key={conversion.id}>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      {new Date(conversion.conversion_date).toLocaleDateString()}
-                    </td>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      {conversion.customer_name || conversion.customer_email}
-                    </td>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      {conversion.product_name}
-                    </td>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      PKR {conversion.product_price}
-                    </td>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      PKR {conversion.commission_amount}
-                    </td>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      <span style={{
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '0.8em',
-                        backgroundColor: conversion.status === 'approved' ? '#d4edda' : 
-                                        conversion.status === 'rejected' ? '#f8d7da' : '#fff3cd',
-                        color: conversion.status === 'approved' ? '#155724' : 
-                               conversion.status === 'rejected' ? '#721c24' : '#856404'
-                      }}>
-                        {conversion.status}
-                      </span>
-                    </td>
+        {/* Payout Summary with Visual Graph */}
+        {stats && (
+          <div className="payout-summary-card">
+            <h2>Payout Summary</h2>
+            <div className="payout-grid">
+              <div className="payout-item payout-approved">
+                <div className="payout-label">Ready for Payout</div>
+                <div className="payout-value">PKR {stats.total_commission_earned || 0}</div>
+                <div className="payout-detail">
+                  {stats.approved_conversions || 0} approved conversions
+                </div>
+                <div className="payout-bar">
+                  <div 
+                    className="payout-bar-fill payout-bar-approved"
+                    style={{ 
+                      width: `${(stats.total_commission_earned / (stats.total_commission_earned + stats.pending_commission_amount + stats.rejected_commission_amount || 1)) * 100}%` 
+                    }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="payout-item payout-pending">
+                <div className="payout-label">Pending Review</div>
+                <div className="payout-value">PKR {stats.pending_commission_amount || 0}</div>
+                <div className="payout-detail">
+                  {stats.pending_conversions || 0} pending conversions
+                </div>
+                <div className="payout-bar">
+                  <div 
+                    className="payout-bar-fill payout-bar-pending"
+                    style={{ 
+                      width: `${(stats.pending_commission_amount / (stats.total_commission_earned + stats.pending_commission_amount + stats.rejected_commission_amount || 1)) * 100}%` 
+                    }}
+                  ></div>
+                </div>
+              </div>
+
+              <div className="payout-item payout-rejected">
+                <div className="payout-label">Rejected</div>
+                <div className="payout-value">PKR {stats.rejected_commission_amount || 0}</div>
+                <div className="payout-detail">
+                  {stats.rejected_conversions || 0} rejected conversions
+                </div>
+                <div className="payout-bar">
+                  <div 
+                    className="payout-bar-fill payout-bar-rejected"
+                    style={{ 
+                      width: `${(stats.rejected_commission_amount / (stats.total_commission_earned + stats.pending_commission_amount + stats.rejected_commission_amount || 1)) * 100}%` 
+                    }}
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Additional Stats */}
+        {stats && (
+          <div className="additional-stats">
+            <div className="stat-box">
+              <div className="stat-icon">💵</div>
+              <div className="stat-content">
+                <div className="stat-label">Total Sales</div>
+                <div className="stat-value">PKR {stats.total_sales_amount || 0}</div>
+              </div>
+            </div>
+            <div className="stat-box">
+              <div className="stat-icon">❌</div>
+              <div className="stat-content">
+                <div className="stat-label">Rejected</div>
+                <div className="stat-value">{stats.rejected_conversions || 0}</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Recent Conversions Table */}
+        {recentConversions.length > 0 && (
+          <div className="conversions-section">
+            <h2>Recent Conversions</h2>
+            <div className="table-container">
+              <table className="conversions-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Customer</th>
+                    <th>Product</th>
+                    <th>Sale</th>
+                    <th>Commission</th>
+                    <th>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {recentConversions.map((conversion) => (
+                    <tr key={conversion.id}>
+                      <td data-label="Date">
+                        {new Date(conversion.conversion_date).toLocaleDateString()}
+                      </td>
+                      <td data-label="Customer">
+                        {conversion.customer_name || conversion.customer_email}
+                      </td>
+                      <td data-label="Product">{conversion.product_name}</td>
+                      <td data-label="Sale">PKR {conversion.product_price}</td>
+                      <td data-label="Commission">
+                        <strong>PKR {conversion.commission_amount}</strong>
+                      </td>
+                      <td data-label="Status">
+                        <span className={`status-badge status-${conversion.status}`}>
+                          {conversion.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Payout History */}
-      {payoutHistory.length > 0 && (
-        <div>
-          <h2>Payout History</h2>
-          <div style={{ 
-            backgroundColor: 'white', 
-            borderRadius: '8px', 
-            border: '1px solid #dee2e6',
-            overflow: 'hidden'
-          }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead style={{ backgroundColor: '#f8f9fa' }}>
-                <tr>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Payout Date</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Total Commission</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Payout Amount</th>
-                  <th style={{ padding: '12px', textAlign: 'left', borderBottom: '1px solid #dee2e6' }}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payoutHistory.map((payout) => (
-                  <tr key={payout.id}>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      {payout.payout_date ? new Date(payout.payout_date).toLocaleDateString() : 'Pending'}
-                    </td>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      PKR {payout.total_commission}
-                    </td>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      PKR {payout.payout_amount}
-                    </td>
-                    <td style={{ padding: '12px', borderBottom: '1px solid #dee2e6' }}>
-                      <span style={{
-                        padding: '4px 8px',
-                        borderRadius: '4px',
-                        fontSize: '0.8em',
-                        backgroundColor: payout.status === 'paid' ? '#d4edda' : 
-                                        payout.status === 'failed' ? '#f8d7da' : '#fff3cd',
-                        color: payout.status === 'paid' ? '#155724' : 
-                               payout.status === 'failed' ? '#721c24' : '#856404'
-                      }}>
-                        {payout.status}
-                      </span>
-                    </td>
+        {/* Payout History Table */}
+        {payoutHistory.length > 0 && (
+          <div className="payouts-section">
+            <h2>Payout History</h2>
+            <div className="table-container">
+              <table className="payouts-table">
+                <thead>
+                  <tr>
+                    <th>Payout Date</th>
+                    <th>Total Commission</th>
+                    <th>Payout Amount</th>
+                    <th>Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {payoutHistory.map((payout) => (
+                    <tr key={payout.id}>
+                      <td data-label="Payout Date">
+                        {payout.payout_date ? new Date(payout.payout_date).toLocaleDateString() : 'Pending'}
+                      </td>
+                      <td data-label="Total Commission">PKR {payout.total_commission}</td>
+                      <td data-label="Payout Amount">
+                        <strong>PKR {payout.payout_amount}</strong>
+                      </td>
+                      <td data-label="Status">
+                        <span className={`status-badge status-${payout.status}`}>
+                          {payout.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
