@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from './supabaseClient';
 
 export default function SecureGuideViewer({ guideId, user, onClose, guideData, isInfluencer = false }) {
-  const canvasContainerRef = useRef(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [pdfUrl, setPdfUrl] = useState(null);
