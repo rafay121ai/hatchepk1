@@ -74,9 +74,10 @@ function Home() {
             <button 
               className="btn btn-primary"
               onClick={() => navigate('/our-guides')}
+              aria-label="Explore our collection of premium guides for creators"
             >
               Explore Guides
-              <span className="btn-arrow">↗</span>
+              <span className="btn-arrow" aria-hidden="true">↗</span>
             </button>
           </div>
         </div>
@@ -86,6 +87,10 @@ function Home() {
               className="card-image business-card"
               style={{ backgroundImage: `url('/guidepic.jpeg')` }}
               onClick={() => navigate('/our-guides')}
+              role="button"
+              tabIndex={0}
+              onKeyPress={(e) => e.key === 'Enter' && navigate('/our-guides')}
+              aria-label="Explore business guides - View our collection of creator resources"
             >
             </div>
           </div>
@@ -94,6 +99,10 @@ function Home() {
               className="card-image creative-card"
               style={{ backgroundImage: `url('/Studentspic.jpeg')` }}
               onClick={() => navigate('/our-guides')}
+              role="button"
+              tabIndex={0}
+              onKeyPress={(e) => e.key === 'Enter' && navigate('/our-guides')}
+              aria-label="Explore creative guides - Discover resources for content creators"
             >
             </div>
           </div>
