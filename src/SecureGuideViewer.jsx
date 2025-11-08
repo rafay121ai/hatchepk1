@@ -9,7 +9,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const sessionIdRef = useRef(null);
   const heartbeatRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [isLandscape, setIsLandscape] = useState(false);
   const [zoom, setZoom] = useState(100);
   const iframeRef = useRef(null);
 
@@ -25,22 +24,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-  
-  // Detect landscape orientation for mobile
-  useEffect(() => {
-    const checkOrientation = () => {
-      const landscape = window.innerWidth > window.innerHeight;
-      setIsLandscape(landscape);
-    };
-    
-    checkOrientation();
-    window.addEventListener('resize', checkOrientation);
-    window.addEventListener('orientationchange', checkOrientation);
-    return () => {
-      window.removeEventListener('resize', checkOrientation);
-      window.removeEventListener('orientationchange', checkOrientation);
-    };
   }, []);
 
   // Zoom handlers
