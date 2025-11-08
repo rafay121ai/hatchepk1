@@ -21,6 +21,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
                      window.innerWidth <= 768;
       setIsMobile(mobile);
+      console.log('Is mobile device:', mobile);
     };
     
     checkMobile();
@@ -82,6 +83,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
   const verifyPurchaseAccess = useCallback(async (gId, usr) => {
     try {
+      console.log("Checking purchases table...");
       const { data: purchase, error: purchaseError } = await supabase
         .from('purchases')
         .select('*')
@@ -94,9 +96,12 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       }
 
       if (purchase) {
+        console.log('✓ Found in purchases table');
         return true;
       }
 
+      console.log("Checking orders table...");
+      
       const { data: guide, error: guideError } = await supabase
         .from('guides')
         .select('title')
@@ -109,6 +114,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       }
       
       const guideTitle = guide?.title || '';
+      console.log('Guide title:', guideTitle);
       
       const { data: orders, error: orderError } = await supabase
         .from('orders')
@@ -124,16 +130,20 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       if (orders && orders.length > 0) {
         const hasOrder = orders.some(order => {
           const productName = order.product_name || '';
-          return productName.toLowerCase().includes(guideTitle.toLowerCase()) ||
-                 guideTitle.toLowerCase().includes(productName.toLowerCase());
+          const matches = productName.toLowerCase().includes(guideTitle.toLowerCase()) ||
+                         guideTitle.toLowerCase().includes(productName.toLowerCase());
+          console.log(`Order ${order.id}: "${productName}" vs Guide "${guideTitle}" - Match: ${matches}`);
+          return matches;
         });
 
         if (hasOrder) {
+          console.log('✓ Found in orders, creating purchase record');
           await ensurePurchaseRecord(gId, usr);
           return true;
         }
       }
 
+      console.log('✗ No purchase found');
       return false;
     } catch (err) {
       console.error('Error in verifyPurchaseAccess:', err);
@@ -143,17 +153,26 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
   const checkConcurrentSessions = useCallback(async (gId, usr, deviceId) => {
     try {
+      // CONCURRENT SESSION LIMITING (max 2 devices at the same time)
+      // Sessions expire after 2 minutes of inactivity
+      
       const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
       
-      // Clean up old sessions
-      await supabase
+      // FIRST: Clean up old sessions (>2 minutes inactive)
+      const { error: deleteError } = await supabase
         .from('active_sessions')
         .delete()
         .eq('user_id', usr.id)
         .eq('guide_id', gId)
         .lt('last_heartbeat', twoMinutesAgo);
       
-      // Check active sessions
+      if (deleteError) {
+        console.error('⚠️ Cleanup error (non-critical):', deleteError);
+      } else {
+        console.log('✓ Cleaned up inactive sessions (>2 min)');
+      }
+      
+      // NOW: Check ACTIVE sessions only (recent heartbeats)
       const { data: activeSessions, error: sessionError } = await supabase
         .from('active_sessions')
         .select('device_id, session_id, last_heartbeat')
@@ -162,7 +181,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         .gte('last_heartbeat', twoMinutesAgo);
 
       if (sessionError) {
-        console.error('Session check error:', sessionError);
+        console.error('Session check error (allowing access):', sessionError);
         return true;
       }
 
@@ -175,12 +194,15 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       });
 
       const activeDeviceCount = uniqueDevices.size;
+      console.log(`📱 Active devices (excluding this one): ${activeDeviceCount}/2`);
 
       // Allow if less than 2 OTHER devices are active
       if (activeDeviceCount >= 2) {
+        console.log(`❌ Too many concurrent sessions: ${activeDeviceCount} other devices active`);
         return false;
       }
 
+      console.log(`✅ Access allowed - ${activeDeviceCount + 1} total active devices`);
       return true;
       
     } catch (err) {
@@ -211,7 +233,9 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         });
 
       if (recordError) {
-        console.error('Error recording session:', recordError);
+        console.error('❌ Error recording session:', recordError);
+      } else {
+        console.log('✅ Session recorded - will expire after 2 min of inactivity');
       }
     } catch (err) {
       console.error('Error in recordAccessSession:', err);
@@ -241,52 +265,67 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   }, []);
 
   useEffect(() => {
+    console.log("SecureGuideViewer mounted");
+    console.log("Props:", { guideId, user: user?.email, guideData, isInfluencer });
+
     const initializeViewer = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // Influencer access
+        // INSTANT DISPLAY for influencer access
         if (isInfluencer) {
+          console.log("🎁 Influencer mode - instant display");
+          
           if (!guideData || !guideData.file_url) {
             throw new Error("Guide data not provided");
           }
           
           setPdfUrl(guideData.file_url);
+          console.log("✅ PDF URL set:", guideData.file_url.substring(0, 50) + '...');
           
-          // Load PDF.js for mobile
+          // Load PDF.js and render securely for mobile
           if (isMobile) {
+            console.log("📱 Loading PDF.js for mobile...");
             if (!window.pdfjsLib) {
               await preloadPdfJs();
             }
+            console.log("📱 Rendering first page...");
             await loadPdfWithPdfJs(guideData.file_url);
+            console.log("✅ First page rendered");
           }
           
           setLoading(false);
+          console.log("✅ Influencer viewer ready");
+          
           return;
         }
 
-        // Validate user
+        console.log("Step 1: Validating user");
         if (!user || !user.id || !user.email) {
           throw new Error("User not authenticated");
         }
 
         deviceIdRef.current = generateDeviceFingerprint();
+        // Use crypto for truly unique session ID
         sessionIdRef.current = crypto.randomUUID ? crypto.randomUUID() : `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${Math.random().toString(36).substr(2, 9)}`;
+        console.log("Device/Session IDs generated");
 
-        // Verify purchase
+        console.log("Step 2: Verifying purchase");
         const hasAccess = await verifyPurchaseAccess(guideId, user);
         if (!hasAccess) {
           throw new Error("You have not purchased this guide.");
         }
+        console.log("✓ Purchase verified");
 
-        // Check concurrent sessions
+        console.log("Step 3: Checking concurrent sessions");
         const canAccess = await checkConcurrentSessions(guideId, user, deviceIdRef.current);
         if (!canAccess) {
           throw new Error("Maximum device limit reached (2 devices). Please close this guide on another device.");
         }
+        console.log("✓ Concurrent session check passed");
 
-        // Fetch guide data
+        console.log("Step 4: Fetching guide data");
         const { data: guide, error: guideError } = await supabase
           .from("guides")
           .select("*")
@@ -302,15 +341,20 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           throw new Error("Guide not found");
         }
 
-        // Record session
-        await recordAccessSession(guideId, user, deviceIdRef.current, sessionIdRef.current);
+        console.log("✓ Guide fetched:", guide);
 
-        // Get PDF URL
+        console.log("Step 5: Recording session");
+        await recordAccessSession(guideId, user, deviceIdRef.current, sessionIdRef.current);
+        console.log("✓ Session recorded");
+
+        console.log("Step 6: Getting PDF URL");
         let finalPdfUrl;
         
         if (guide.file_url && guide.file_url.includes("token=")) {
+          console.log("Using existing signed URL");
           finalPdfUrl = guide.file_url;
         } else {
+          console.log("Creating new signed URL");
           let filePath = guide.file_url;
           
           if (filePath.includes('/storage/v1/object/public/guides/')) {
@@ -321,6 +365,8 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
             const parts = filePath.split('guides/');
             filePath = parts[parts.length - 1].split('?')[0];
           }
+
+          console.log("File path:", filePath);
 
           const { data: signed, error: signErr } = await supabase.storage
             .from("guides")
@@ -336,14 +382,18 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           finalPdfUrl = signed.signedUrl;
         }
 
+        console.log("✅ PDF URL ready");
         setPdfUrl(finalPdfUrl);
         
-        // Load PDF.js for mobile
+        // Load PDF.js and render for mobile
         if (isMobile) {
+          console.log("📱 Loading PDF.js for mobile...");
           if (!window.pdfjsLib) {
             await preloadPdfJs();
           }
+          console.log("📱 Rendering first page...");
           await loadPdfWithPdfJs(finalPdfUrl);
+          console.log("✅ First page rendered");
         }
         
         heartbeatRef.current = setInterval(() => {
@@ -351,9 +401,10 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         }, 30000);
 
         setLoading(false);
+        console.log("✓ Viewer initialized successfully");
 
       } catch (err) {
-        console.error("Viewer initialization error:", err);
+        console.error("Initialization error:", err);
         setError(err.message);
         setLoading(false);
       }
@@ -362,6 +413,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     initializeViewer();
 
     return () => {
+      console.log("Cleaning up viewer");
       if (heartbeatRef.current) {
         clearInterval(heartbeatRef.current);
       }
@@ -395,11 +447,12 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       const pdf = await loadingTask.promise;
       setPdfDoc(pdf);
       setTotalPages(pdf.numPages);
+      console.log(`✅ PDF loaded: ${pdf.numPages} pages`);
       
       // Render first page
       await renderPage(pdf, 1);
     } catch (err) {
-      console.error('Error loading PDF:', err);
+      console.error('❌ Error loading PDF:', err);
       setError('Failed to load PDF document');
     }
   };
@@ -449,9 +502,10 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       }).promise;
       
       setCurrentPage(pageNum);
+      console.log(`✅ Page ${pageNum} rendered (rotated)`);
       
     } catch (err) {
-      console.error('Error rendering page:', err);
+      console.error('❌ Error rendering page:', err);
     } finally {
       setRendering(false);
     }

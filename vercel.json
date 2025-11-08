@@ -4,33 +4,6 @@
       "memory": 1024,
       "maxDuration": 10
     }
-  },
-  "headers": [
-    {
-      "source": "/static/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/(.*).(.js|css|png|jpg|jpeg|gif|svg|ico|webp)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    }
-  ],
-  "redirects": [
-    {
-      "source": "/www.hatchepk.com/:path*",
-      "destination": "/:path*",
-      "permanent": true
-    }
-  ]
+  }
 }
 

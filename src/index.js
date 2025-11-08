@@ -4,8 +4,26 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
-// PDF.js will be loaded on-demand only when viewing guides
-// This prevents loading 72KB of unused JavaScript on home/other pages
+// Pre-load PDF.js library immediately on app start (for faster guide loading)
+if (typeof window !== 'undefined') {
+  // Check if mobile device
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768;
+  
+  if (isMobile) {
+    // Pre-load PDF.js for mobile users
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.async = true;
+    script.onload = () => {
+      if (window.pdfjsLib) {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        console.log('✅ PDF.js pre-loaded');
+      }
+    };
+    document.head.appendChild(script);
+  }
+}
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

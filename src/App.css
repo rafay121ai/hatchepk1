@@ -181,7 +181,6 @@ body {
   color: #2c2c2c;
   margin-top: auto;
   width: 100%;
-  min-height: 300px; /* Prevent layout shift */
 }
 
 .footer-red-bar {
@@ -199,7 +198,6 @@ body {
   max-width: 1400px;
   margin: 0 auto;
   background: #fdfcf1;
-  min-height: 250px; /* Prevent layout shift */
 }
 
 .footer-columns {
