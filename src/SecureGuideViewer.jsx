@@ -153,19 +153,26 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
   const checkConcurrentSessions = useCallback(async (gId, usr, deviceId) => {
     try {
+      // CONCURRENT SESSION LIMITING (max 2 devices at the same time)
+      // Sessions expire after 2 minutes of inactivity
+      
       const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
       
       // FIRST: Clean up old sessions (>2 minutes inactive)
-      await supabase
+      const { error: deleteError } = await supabase
         .from('active_sessions')
         .delete()
         .eq('user_id', usr.id)
         .eq('guide_id', gId)
         .lt('last_heartbeat', twoMinutesAgo);
       
-      console.log('✓ Cleaned up old sessions');
+      if (deleteError) {
+        console.error('⚠️ Cleanup error (non-critical):', deleteError);
+      } else {
+        console.log('✓ Cleaned up inactive sessions (>2 min)');
+      }
       
-      // NOW: Check active sessions (only recent ones)
+      // NOW: Check ACTIVE sessions only (recent heartbeats)
       const { data: activeSessions, error: sessionError } = await supabase
         .from('active_sessions')
         .select('device_id, session_id, last_heartbeat')
@@ -174,10 +181,11 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         .gte('last_heartbeat', twoMinutesAgo);
 
       if (sessionError) {
-        console.error('Concurrent session check error (allowing access):', sessionError);
+        console.error('Session check error (allowing access):', sessionError);
         return true;
       }
 
+      // Count unique active devices (excluding current device)
       const uniqueDevices = new Set();
       activeSessions?.forEach(session => {
         if (session.device_id !== deviceId) {
@@ -185,9 +193,18 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         }
       });
 
-      const count = uniqueDevices.size;
-      console.log(`Active devices (after cleanup): ${count} (limit: 2)`);
-      return count < 2;
+      const activeDeviceCount = uniqueDevices.size;
+      console.log(`📱 Active devices (excluding this one): ${activeDeviceCount}/2`);
+
+      // Allow if less than 2 OTHER devices are active
+      if (activeDeviceCount >= 2) {
+        console.log(`❌ Too many concurrent sessions: ${activeDeviceCount} other devices active`);
+        return false;
+      }
+
+      console.log(`✅ Access allowed - ${activeDeviceCount + 1} total active devices`);
+      return true;
+      
     } catch (err) {
       console.error('Error in checkConcurrentSessions:', err);
       return true;
@@ -198,7 +215,8 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     try {
       const ipAddress = await getClientIP();
       
-      // Use UPSERT to handle duplicates gracefully
+      // CONCURRENT SESSION TRACKING
+      // Records active session, will be cleaned up after 2 min of inactivity
       const { error: recordError } = await supabase
         .from('active_sessions')
         .upsert({
@@ -210,14 +228,14 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           last_heartbeat: new Date().toISOString(),
           started_at: new Date().toISOString()
         }, {
-          onConflict: 'session_id',  // If session_id exists, update it
-          ignoreDuplicates: false     // Update the record
+          onConflict: 'session_id',  // Update if same session reopens
+          ignoreDuplicates: false
         });
 
       if (recordError) {
         console.error('❌ Error recording session:', recordError);
       } else {
-        console.log('✅ Session recorded successfully');
+        console.log('✅ Session recorded - will expire after 2 min of inactivity');
       }
     } catch (err) {
       console.error('Error in recordAccessSession:', err);
