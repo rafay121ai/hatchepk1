@@ -22,20 +22,11 @@ const InfluencerAccess = lazy(() => import('./InfluencerAccess'));
 const InfluencerGuideViewer = lazy(() => import('./InfluencerGuideViewer'));
 const Policies = lazy(() => import('./Policies'));
 
-// Google Analytics
-const GA_TRACKING_ID = 'G-M8M2WM9PVN';
-
-// Initialize Google Analytics
-const initGA = () => {
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('config', GA_TRACKING_ID);
-  }
-};
-
+// Google Analytics - Deferred loading in index.html
 // Track page views (exported for use in other components if needed)
 export const trackPageView = (url) => {
   if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('config', GA_TRACKING_ID, {
+    window.gtag('config', 'G-M8M2WM9PVN', {
       page_location: url,
     });
   }
