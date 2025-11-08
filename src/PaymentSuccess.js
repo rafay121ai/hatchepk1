@@ -39,13 +39,12 @@ function PaymentSuccess() {
         // Update order status from 'pending' to 'completed'
         try {
           // Update order status to 'completed' (no transaction_id - column doesn't exist)
-          const { data: updatedOrder, error: updateError } = await supabase
+          const { error: updateError } = await supabase
             .from('orders')
             .update({
               order_status: 'completed'
             })
-            .eq('id', pendingOrder.orderId)
-            .select();
+            .eq('id', pendingOrder.orderId);
 
           if (updateError) {
             console.error('❌ Error updating order:', updateError);
