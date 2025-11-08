@@ -345,6 +345,14 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         console.log("✅ PDF URL ready");
         setPdfUrl(finalPdfUrl);
         
+        // Load PDF.js and render for mobile
+        if (isMobile) {
+          if (!window.pdfjsLib) {
+            await preloadPdfJs();
+          }
+          await loadPdfWithPdfJs(finalPdfUrl);
+        }
+        
         heartbeatRef.current = setInterval(() => {
           updateSessionHeartbeat(sessionIdRef.current);
         }, 30000);
@@ -807,26 +815,35 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         </button>
       </div>
       
-      {/* Desktop: iframe with reduced functionality */}
+      {/* Desktop: iframe with scrolling enabled */}
       <div style={{ 
         flex: 1, 
+        position: 'relative',
+        overflow: 'hidden',
         display: 'flex', 
         justifyContent: 'center', 
         alignItems: 'center', 
-        backgroundColor: '#36454F' 
+        backgroundColor: '#36454F',
+        padding: '20px'
       }}>
-        {pdfUrl && (
+        {pdfUrl ? (
           <iframe 
-            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=Fit`}
+            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH&zoom=page-width`}
             style={{
-              width: '95%',
-              height: '90%',
+              width: '100%',
+              height: '100%',
+              maxWidth: '95%',
+              maxHeight: '90%',
               border: 'none',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+              boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+              backgroundColor: '#fff'
             }}
             title="Secure PDF Viewer"
             allow="fullscreen"
+            sandbox="allow-same-origin"
           />
+        ) : (
+          <div style={{ color: '#fff', fontSize: '18px' }}>Loading PDF...</div>
         )}
       </div>
     </div>
