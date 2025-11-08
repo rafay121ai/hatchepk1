@@ -32,8 +32,8 @@ const initGA = () => {
   }
 };
 
-// Track page views
-const trackPageView = (url) => {
+// Track page views (exported for use in other components if needed)
+export const trackPageView = (url) => {
   if (typeof window !== 'undefined' && window.gtag) {
     window.gtag('config', GA_TRACKING_ID, {
       page_location: url,
