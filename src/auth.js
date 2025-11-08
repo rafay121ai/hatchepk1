@@ -4,6 +4,8 @@ import { supabase } from './supabaseClient';
 
 function Auth({ onLogin, onClose }) {
   const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -12,6 +14,7 @@ function Auth({ onLogin, onClose }) {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const firstInputRef = useRef(null);
   const previousActiveElement = useRef(null);
 
@@ -40,13 +43,38 @@ function Auth({ onLogin, onClose }) {
     });
   };
 
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+
+      if (error) throw error;
+
+      setResetEmailSent(true);
+      setSuccess('Password reset link sent! Check your email.');
+    } catch (err) {
+      setError(err.message || 'Failed to send reset email');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
+    setSuccess('');
 
     try {
-      if (isLogin) {
+      if (isForgotPassword) {
+        await handleForgotPassword(e);
+      } else if (isLogin) {
         await handleLogin();
       } else {
         await handleRegister();
@@ -142,81 +170,152 @@ function Auth({ onLogin, onClose }) {
     <div className="auth-overlay">
       <div className="auth-modal">
         <div className="auth-header">
-          <h2>{isLogin ? 'Login' : 'Register'}</h2>
-          <button className="close-btn" onClick={onClose}>×</button>
+          <h2>
+            {isForgotPassword ? 'Reset Password' : (isLogin ? 'Login' : 'Register')}
+          </h2>
+          <button className="close-btn" onClick={onClose} aria-label="Close">×</button>
         </div>
         
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              ref={firstInputRef}
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="phone">Phone Number</label>
-            <input
-              type="tel"
-              id="phone"
-              name="phone"
-              value={formData.phone}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
-          
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleInputChange}
-              required
-            />
-          </div>
-          
-          {!isLogin && (
-            <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password</label>
-              <input
-                type="password"
-                id="confirmPassword"
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleInputChange}
-                required
-              />
-            </div>
-          )}
-          
-          {error && <div className="error-message">{error}</div>}
-          
-          <button type="submit" className="auth-btn" disabled={isLoading}>
-            {isLoading ? 'Processing...' : (isLogin ? 'Login' : 'Register')}
-          </button>
-        </form>
-        
-        <div className="auth-footer">
-          <p>
-            {isLogin ? "Don't have an account? " : "Already have an account? "}
+        {resetEmailSent ? (
+          <div className="reset-success">
+            <div className="success-icon">✓</div>
+            <h3>Check Your Email</h3>
+            <p>We've sent a password reset link to <strong>{formData.email}</strong></p>
+            <p style={{ fontSize: '0.9rem', color: '#666', marginTop: '1rem' }}>
+              Click the link in the email to reset your password. The link will expire in 1 hour.
+            </p>
             <button 
-              type="button" 
-              className="toggle-btn"
-              onClick={() => setIsLogin(!isLogin)}
+              className="auth-btn" 
+              onClick={() => {
+                setResetEmailSent(false);
+                setIsForgotPassword(false);
+                setIsLogin(true);
+              }}
+              style={{ marginTop: '1.5rem' }}
             >
-              {isLogin ? 'Register' : 'Login'}
+              Back to Login
             </button>
-          </p>
-        </div>
+          </div>
+        ) : (
+          <>
+            <form onSubmit={handleSubmit} className="auth-form">
+              <div className="form-group">
+                <label htmlFor="email">Email</label>
+                <input
+                  ref={firstInputRef}
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                />
+              </div>
+              
+              {!isForgotPassword && (
+                <>
+                  {!isLogin && (
+                    <div className="form-group">
+                      <label htmlFor="phone">Phone Number</label>
+                      <input
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        placeholder="03001234567"
+                        required
+                      />
+                    </div>
+                  )}
+                  
+                  <div className="form-group">
+                    <label htmlFor="password">Password</label>
+                    <input
+                      type="password"
+                      id="password"
+                      name="password"
+                      value={formData.password}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  
+                  {!isLogin && (
+                    <div className="form-group">
+                      <label htmlFor="confirmPassword">Confirm Password</label>
+                      <input
+                        type="password"
+                        id="confirmPassword"
+                        name="confirmPassword"
+                        value={formData.confirmPassword}
+                        onChange={handleInputChange}
+                        required
+                      />
+                    </div>
+                  )}
+
+                  {isLogin && (
+                    <div className="forgot-password-link">
+                      <button 
+                        type="button" 
+                        className="forgot-btn"
+                        onClick={() => {
+                          setIsForgotPassword(true);
+                          setError('');
+                          setSuccess('');
+                        }}
+                      >
+                        Forgot Password?
+                      </button>
+                    </div>
+                  )}
+                </>
+              )}
+              
+              {error && <div className="error-message">{error}</div>}
+              {success && <div className="success-message">{success}</div>}
+              
+              <button type="submit" className="auth-btn" disabled={isLoading}>
+                {isLoading ? 'Processing...' : (isForgotPassword ? 'Send Reset Link' : (isLogin ? 'Login' : 'Register'))}
+              </button>
+            </form>
+            
+            <div className="auth-footer">
+              {!isForgotPassword ? (
+                <p>
+                  {isLogin ? "Don't have an account? " : "Already have an account? "}
+                  <button 
+                    type="button" 
+                    className="toggle-btn"
+                    onClick={() => {
+                      setIsLogin(!isLogin);
+                      setError('');
+                      setSuccess('');
+                    }}
+                  >
+                    {isLogin ? 'Register' : 'Login'}
+                  </button>
+                </p>
+              ) : (
+                <p>
+                  <button 
+                    type="button" 
+                    className="toggle-btn"
+                    onClick={() => {
+                      setIsForgotPassword(false);
+                      setIsLogin(true);
+                      setError('');
+                      setSuccess('');
+                    }}
+                  >
+                    ← Back to Login
+                  </button>
+                </p>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

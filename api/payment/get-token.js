@@ -83,7 +83,7 @@ module.exports = async function handler(req, res) {
         'Content-Type': 'application/x-www-form-urlencoded',
         'User-Agent': 'CURL/NodeJS PayFast Integration'
       },
-      timeout: 15000 // 15 second timeout
+      timeout: 25000 // 25 second timeout (increased for PayFast production)
     });
 
     console.log('PayFast response:', response.data);
