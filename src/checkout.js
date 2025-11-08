@@ -309,16 +309,6 @@ function Checkout() {
       <div className="checkout-container">
         <div className="checkout-header">
           <h1>Checkout</h1>
-          <div className="demo-notice" style={{
-            backgroundColor: '#e8f5e9',
-            border: '1px solid #4caf50',
-            borderRadius: '8px',
-            padding: '12px',
-            marginBottom: '20px',
-            color: '#2e7d32'
-          }}>
-                  <strong>Secure Payment:</strong> Enter your card details securely. An OTP will be sent to your mobile.
-                </div>
           <div className="checkout-steps">
             <div className={`step ${step >= 1 ? 'active' : ''}`}>
               <span className="step-number">1</span>
@@ -420,50 +410,34 @@ function Checkout() {
             {step === 2 && (
               <div className="form-step">
                 <h2>Payment</h2>
-                <div className="demo-notice" style={{
-                  backgroundColor: '#fff3cd',
-                  border: '1px solid #ffc107',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  marginBottom: '20px',
-                  color: '#856404'
-                }}>
-                  <strong>Test Credentials:</strong> Use these on PayFast's payment page:<br/>
-                  <code style={{display: 'block', marginTop: '8px', fontSize: '13px'}}>
-                    Bank Account: 12353940226802034243<br/>
-                    NIC: 4210131315089<br/>
-                    OTP: 123456
-                  </code>
-                </div>
-
                 <div className="payment-info-box" style={{
-                  backgroundColor: '#f5f5f5',
-                  border: '2px dashed #9e9e9e',
+                  backgroundColor: '#fdfcf1',
+                  border: '2px solid #73160f',
                   borderRadius: '12px',
                   padding: '2rem',
                   textAlign: 'center',
                   margin: '2rem 0'
                 }}>
                   <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🔒</div>
-                  <h3 style={{ color: '#424242', marginBottom: '1rem' }}>Secure Payment with PayFast</h3>
-                  <p style={{ color: '#757575', lineHeight: '1.6' }}>
+                  <h3 style={{ color: '#73160f', marginBottom: '1rem', fontFamily: 'Georgia, serif' }}>Secure Payment with PayFast</h3>
+                  <p style={{ color: '#666', lineHeight: '1.6' }}>
                     Click "Complete Purchase" to be redirected to PayFast's secure payment page where you'll enter your payment details.
                   </p>
-                  <p style={{ color: '#757575', marginTop: '1rem', fontSize: '0.9rem' }}>
+                  <p style={{ color: '#666', marginTop: '1rem', fontSize: '0.9rem' }}>
                     Your payment information is processed securely by PayFast.
                   </p>
                 </div>
 
                 <div className="payment-notice" style={{
-                  backgroundColor: '#e3f2fd',
-                  border: '1px solid #2196f3',
+                  backgroundColor: '#e8f5e9',
+                  border: '1px solid #4caf50',
                   borderRadius: '8px',
                   padding: '12px',
                   marginTop: '20px',
-                  color: '#1565c0'
+                  color: '#2e7d32'
                 }}>
                   <p>
-                    <strong>✓ SSL Encrypted</strong> | <strong>✓ Secure Checkout</strong> | <strong>✓ Test Mode</strong>
+                    <strong>✓ SSL Encrypted</strong> | <strong>✓ Secure Checkout</strong> | <strong>✓ Bank-Grade Security</strong>
                   </p>
                 </div>
               </div>
@@ -501,7 +475,7 @@ function Checkout() {
                   className="btn btn-primary"
                   disabled={isProcessing}
                 >
-                  {isProcessing ? 'Processing Payment... Please wait up to 60 seconds...' : `Complete Purchase - PKR ${guide.price}`}
+                  {isProcessing ? 'Processing Payment...' : `Complete Purchase - PKR ${guide.price}`}
                 </button>
               )}
             </div>
@@ -511,7 +485,7 @@ function Checkout() {
             <h2>Order Summary</h2>
             <div className="summary-item">
               <img 
-                src={guide.thumbnail || '/placeholder-guide.png'} 
+                src="/creatortitle.png" 
                 alt={guide.title}
                 className="summary-image"
               />

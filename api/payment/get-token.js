@@ -78,13 +78,12 @@ module.exports = async function handler(req, res) {
     });
 
     // Call PayFast API with form-encoded data (matching PHP example)
-    // PayFast PRODUCTION (ipg1.apps.net.pk) can take 30-50 seconds to respond!
     const response = await axios.post(tokenUrl, params.toString(), {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
         'User-Agent': 'CURL/NodeJS PayFast Integration'
       },
-      timeout: 55000 // 55 second timeout (Vercel maxDuration is 60s)
+      timeout: 15000 // 15 second timeout
     });
 
     console.log('PayFast response:', response.data);
