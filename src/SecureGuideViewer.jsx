@@ -18,6 +18,10 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const [pageRendering, setPageRendering] = useState(false);
   const pdfDocRef = useRef(null);
   const canvasRef = useRef(null);
+  
+  // Cache for rendered pages (store as data URLs)
+  const pageCacheRef = useRef({});
+  const preloadingRef = useRef(false);
 
   const generateDeviceFingerprint = useCallback(() => {
     try {
@@ -131,27 +135,28 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     });
   }, []);
 
-  // Render a specific page
-  const renderPage = useCallback(async (pageNum) => {
-    if (!pdfDocRef.current || !canvasRef.current || pageRendering) return;
+  // Render page to canvas and cache it
+  const renderPageToCache = useCallback(async (pageNum) => {
+    if (!pdfDocRef.current || pageCacheRef.current[pageNum]) return;
     
     try {
-      setPageRendering(true);
       const page = await pdfDocRef.current.getPage(pageNum);
-      const canvas = canvasRef.current;
-      const context = canvas.getContext('2d');
+      
+      // Create temporary canvas for this page
+      const tempCanvas = document.createElement('canvas');
+      const context = tempCanvas.getContext('2d');
       
       // Get viewport
       const viewport = page.getViewport({ scale: 1 });
       
-      // Scale to fit mobile screen width with padding
+      // Scale to fit mobile screen width
       const containerWidth = window.innerWidth - 32;
       const scale = containerWidth / viewport.width;
-      const scaledViewport = page.getViewport({ scale: scale * 2.2 }); // 2.2x for crisp display
+      const scaledViewport = page.getViewport({ scale: scale * 2.2 });
       
       // Set canvas size
-      canvas.width = scaledViewport.width;
-      canvas.height = scaledViewport.height;
+      tempCanvas.width = scaledViewport.width;
+      tempCanvas.height = scaledViewport.height;
       
       // Render
       await page.render({
@@ -159,29 +164,88 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         viewport: scaledViewport
       }).promise;
       
-      setPageRendering(false);
+      // Cache as data URL
+      pageCacheRef.current[pageNum] = tempCanvas.toDataURL('image/webp', 0.92);
+      
     } catch (err) {
-      console.error('Render error:', err);
+      console.error(`Error caching page ${pageNum}:`, err);
+    }
+  }, []);
+
+  // Display cached page on main canvas
+  const displayCachedPage = useCallback(async (pageNum) => {
+    if (!canvasRef.current) return;
+    
+    setPageRendering(true);
+    
+    // If not cached, render it now
+    if (!pageCacheRef.current[pageNum]) {
+      await renderPageToCache(pageNum);
+    }
+    
+    // Display from cache
+    const cachedImage = pageCacheRef.current[pageNum];
+    if (cachedImage && canvasRef.current) {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          setPageRendering(false);
+        }
+      };
+      img.src = cachedImage;
+    } else {
       setPageRendering(false);
     }
-  }, [pageRendering]);
+  }, [renderPageToCache]);
+
+  // Preload pages in background
+  const preloadPages = useCallback(async (startPage, count) => {
+    if (preloadingRef.current || !pdfDocRef.current) return;
+    
+    preloadingRef.current = true;
+    
+    const endPage = Math.min(startPage + count, totalPages);
+    
+    for (let i = startPage; i <= endPage; i++) {
+      if (!pageCacheRef.current[i]) {
+        await renderPageToCache(i);
+        // Small delay between pages to not block UI
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    preloadingRef.current = false;
+  }, [totalPages, renderPageToCache]);
 
   // Navigation
   const goToPrev = useCallback(() => {
     if (currentPage > 1) {
       const newPage = currentPage - 1;
       setCurrentPage(newPage);
-      renderPage(newPage);
+      displayCachedPage(newPage);
+      
+      // Preload previous pages if needed
+      if (newPage > 1) {
+        setTimeout(() => preloadPages(Math.max(1, newPage - 3), 3), 200);
+      }
     }
-  }, [currentPage, renderPage]);
+  }, [currentPage, displayCachedPage, preloadPages]);
 
   const goToNext = useCallback(() => {
     if (currentPage < totalPages) {
       const newPage = currentPage + 1;
       setCurrentPage(newPage);
-      renderPage(newPage);
+      displayCachedPage(newPage);
+      
+      // Preload next pages in background
+      setTimeout(() => preloadPages(newPage + 1, 3), 200);
     }
-  }, [currentPage, totalPages, renderPage]);
+  }, [currentPage, totalPages, displayCachedPage, preloadPages]);
 
   // Initialize
   useEffect(() => {
@@ -197,17 +261,21 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           const url = guideData.file_url;
           setPdfUrl(url);
           
-          // Load PDF.js for mobile
           if (isMobile) {
             await loadPdfJs();
             const pdf = await window.pdfjsLib.getDocument(url).promise;
             pdfDocRef.current = pdf;
             setTotalPages(pdf.numPages);
-            // Render first page after a short delay to ensure canvas is ready
-            setTimeout(() => renderPage(1), 100);
+            
+            // Display first page immediately
+            await displayCachedPage(1);
+            setLoading(false);
+            
+            // Preload next pages in background
+            setTimeout(() => preloadPages(2, 5), 500);
+          } else {
+            setLoading(false);
           }
-          
-          setLoading(false);
           return;
         }
 
@@ -254,21 +322,26 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         if (!mounted) return;
         setPdfUrl(finalPdfUrl);
         
-        // Load PDF.js for mobile
         if (isMobile) {
           await loadPdfJs();
           const pdf = await window.pdfjsLib.getDocument(finalPdfUrl).promise;
           pdfDocRef.current = pdf;
           setTotalPages(pdf.numPages);
-          setTimeout(() => renderPage(1), 100);
+          
+          // Display first page immediately
+          await displayCachedPage(1);
+          setLoading(false);
+          
+          // Preload next pages in background
+          setTimeout(() => preloadPages(2, 5), 500);
+        } else {
+          setLoading(false);
         }
         
         // Heartbeat
         heartbeatRef.current = setInterval(() => {
           updateHeartbeat(sessionIdRef.current);
         }, 30000);
-
-        setLoading(false);
 
       } catch (err) {
         console.error("Init error:", err);
@@ -286,7 +359,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       if (sessionIdRef.current) closeSession(sessionIdRef.current);
     };
-  }, [guideId, user, guideData, isInfluencer, isMobile, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordSession, updateHeartbeat, closeSession, loadPdfJs, renderPage]);
+  }, [guideId, user, guideData, isInfluencer, isMobile, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordSession, updateHeartbeat, closeSession, loadPdfJs, displayCachedPage, preloadPages]);
 
   // Security
   useEffect(() => {
@@ -329,6 +402,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       <div className="viewer-loading">
         <div className="loading-spinner"></div>
         <div className="loading-text">Loading guide...</div>
+        <div className="loading-subtext">Preparing first page</div>
       </div>
     );
   }
@@ -344,7 +418,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     );
   }
 
-  // MOBILE: Canvas page-by-page viewer with navigation
+  // MOBILE: Canvas page-by-page viewer with lazy loading
   if (isMobile) {
     return (
       <div className="secure-viewer-mobile secure-pdf-viewer">
@@ -361,6 +435,11 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
         <div className="pdf-canvas-container">
           <canvas ref={canvasRef} className="pdf-canvas" />
+          {pageRendering && (
+            <div className="page-loading-overlay">
+              <div className="loading-spinner-small"></div>
+            </div>
+          )}
         </div>
 
         <div className="viewer-controls">
