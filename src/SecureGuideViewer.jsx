@@ -145,11 +145,22 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       const viewport = page.getViewport({ scale: 1 });
       const containerWidth = window.innerWidth - 32;
       const baseScale = containerWidth / viewport.width;
-      const scale = baseScale * 2.0; // 2.0x DPI
+      
+      // Display size (1x)
+      const displayWidth = viewport.width * baseScale;
+      const displayHeight = viewport.height * baseScale;
+      
+      // Render size (2x for crisp display)
+      const scale = baseScale * 2.0;
       const scaledViewport = page.getViewport({ scale });
       
+      // Set canvas internal size to 2x
       canvas.width = scaledViewport.width;
       canvas.height = scaledViewport.height;
+      
+      // Set canvas CSS display size to 1x (so it appears correct size but crisp)
+      canvas.style.width = displayWidth + 'px';
+      canvas.style.height = displayHeight + 'px';
       
       await page.render({
         canvasContext: context,
