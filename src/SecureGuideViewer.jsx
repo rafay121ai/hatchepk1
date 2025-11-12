@@ -131,7 +131,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     });
   }, []);
 
-  // Render page to canvas
+  // Render page to canvas (optimized for landscape viewing)
   const renderPage = useCallback(async (pageNum) => {
     if (!pdfDocRef.current || !canvasRef.current) return;
     
@@ -141,10 +141,11 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       const canvas = canvasRef.current;
       const context = canvas.getContext('2d');
       
-      // Calculate scale
+      // Calculate scale - 2.0x DPI for crisp display
       const viewport = page.getViewport({ scale: 1 });
-      const containerWidth = Math.min(window.innerWidth - 32, 800);
-      const scale = (containerWidth / viewport.width) * 1.5;
+      const containerWidth = window.innerWidth - 32;
+      const baseScale = containerWidth / viewport.width;
+      const scale = baseScale * 2.0; // 2.0x DPI
       const scaledViewport = page.getViewport({ scale });
       
       canvas.width = scaledViewport.width;
