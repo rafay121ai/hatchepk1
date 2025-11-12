@@ -14,9 +14,9 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [rendering, setRendering] = useState(false);
-  const [loadingProgress, setLoadingProgress] = useState(0);
   const canvasContainerRef = useRef(null);
   const renderTaskRef = useRef(null);
+  const initRef = useRef(false);
 
   // Detect mobile device
   useEffect(() => {
@@ -24,7 +24,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       const mobile = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
                      window.innerWidth <= 768;
       setIsMobile(mobile);
-      console.log('Mobile detection:', mobile, 'UserAgent:', navigator.userAgent, 'Width:', window.innerWidth);
     };
     
     checkMobile();
@@ -39,12 +38,11 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         language: navigator.language,
         platform: navigator.platform,
         screen: `${window.screen.width}x${window.screen.height}`,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        colorDepth: window.screen.colorDepth
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
       };
       return btoa(JSON.stringify(fingerprint)).substring(0, 100);
     } catch (err) {
-      return `fallback_${Date.now()}_${Math.random()}`;
+      return `fallback_${Date.now()}`;
     }
   }, []);
 
@@ -200,194 +198,121 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     }
   }, []);
 
-  // Render page with proper scaling - DEFINED FIRST
+  // Render page - SIMPLE & FAST
   const renderPage = useCallback(async (pdf, pageNum) => {
-    if (!pdf || rendering) {
-      console.log('Skipping render - pdf:', !!pdf, 'rendering:', rendering);
-      return;
-    }
+    if (!pdf || rendering) return;
     
-    // Cancel any existing render task
     if (renderTaskRef.current) {
       try {
         renderTaskRef.current.cancel();
       } catch (e) {
-        console.log('Cancel render task error:', e);
+        // Ignore
       }
       renderTaskRef.current = null;
     }
     
     setRendering(true);
-    console.log('Rendering page:', pageNum);
     
     try {
       const page = await pdf.getPage(pageNum);
       const container = canvasContainerRef.current;
       
       if (!container) {
-        console.error('Canvas container not found');
         setRendering(false);
         return;
       }
 
-      // Get viewport and calculate scale
       const viewport = page.getViewport({ scale: 1 });
-      console.log('Original viewport:', viewport.width, 'x', viewport.height);
       
-      // Calculate scale to fit container with padding
+      // Simple mobile scaling
       const containerWidth = container.clientWidth - 32;
-      const containerHeight = container.clientHeight - 32;
-      
-      const scaleX = containerWidth / viewport.width;
-      const scaleY = containerHeight / viewport.height;
-      const scale = Math.min(scaleX, scaleY, 3.0);
-      
-      console.log('Calculated scale:', scale, 'Container:', containerWidth, 'x', containerHeight);
-      
+      const scale = containerWidth / viewport.width;
       const scaledViewport = page.getViewport({ scale });
 
-      // Use device pixel ratio for crisp rendering, but cap it
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      console.log('Device pixel ratio:', dpr);
+      // Low DPI for faster rendering on mobile
+      const dpr = isMobile ? 1.5 : 2;
 
       const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d', { 
-        alpha: false,
-        willReadFrequently: false
-      });
+      const context = canvas.getContext('2d', { alpha: false });
       
       canvas.width = Math.floor(scaledViewport.width * dpr);
       canvas.height = Math.floor(scaledViewport.height * dpr);
       
       canvas.style.width = `${Math.floor(scaledViewport.width)}px`;
       canvas.style.height = `${Math.floor(scaledViewport.height)}px`;
-      canvas.style.display = 'block';
-      canvas.style.margin = '0 auto';
-      canvas.style.maxWidth = '100%';
-      canvas.style.height = 'auto';
 
-      // Clear container and add canvas
       container.innerHTML = '';
       container.appendChild(canvas);
 
-      console.log('Canvas size:', canvas.width, 'x', canvas.height, 'Style:', canvas.style.width, 'x', canvas.style.height);
-
-      // Render
       const renderTask = page.render({
         canvasContext: context,
         viewport: scaledViewport,
-        transform: [dpr, 0, 0, dpr, 0, 0],
-        intent: 'display'
+        transform: [dpr, 0, 0, dpr, 0, 0]
       });
       
       renderTaskRef.current = renderTask;
-      
       await renderTask.promise;
       renderTaskRef.current = null;
       
-      console.log('Page rendered successfully');
       setCurrentPage(pageNum);
       setRendering(false);
       
     } catch (err) {
-      if (err.name === 'RenderingCancelledException') {
-        console.log('Rendering cancelled');
-      } else {
+      if (err.name !== 'RenderingCancelledException') {
         console.error('Error rendering page:', err);
       }
       setRendering(false);
     }
-  }, [rendering]);
+  }, [rendering, isMobile]);
 
-  // Pre-load PDF.js library
-  const preloadPdfJs = useCallback(async () => {
-    if (window.pdfjsLib) {
-      console.log('PDF.js already loaded');
-      return;
-    }
-    
-    console.log('Loading PDF.js library...');
-    setLoadingProgress(10);
+  // Load PDF.js dynamically
+  const loadPdfJs = useCallback(async () => {
+    if (window.pdfjsLib) return;
     
     return new Promise((resolve, reject) => {
       const script = document.createElement('script');
       script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-      script.async = false;
       script.onload = () => {
-        console.log('PDF.js loaded successfully');
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
           'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        setLoadingProgress(30);
         resolve();
       };
-      script.onerror = (err) => {
-        console.error('Failed to load PDF.js:', err);
-        reject(new Error('Failed to load PDF library'));
-      };
+      script.onerror = reject;
       document.head.appendChild(script);
     });
   }, []);
 
-  // Load PDF with PDF.js
-  const loadPdfWithPdfJs = useCallback(async (url) => {
+  // Load PDF document
+  const loadPdf = useCallback(async (url) => {
     try {
-      console.log('Loading PDF from URL:', url);
-      setLoadingProgress(40);
-      
-      if (!window.pdfjsLib) {
-        throw new Error('PDF.js not loaded');
-      }
+      if (!window.pdfjsLib) throw new Error('PDF.js not loaded');
 
-      const loadingTask = window.pdfjsLib.getDocument({
-        url: url,
-        cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
-        cMapPacked: true,
-        disableAutoFetch: false,
-        disableStream: false,
-        withCredentials: false
-      });
-      
-      loadingTask.onProgress = (progress) => {
-        if (progress.total > 0) {
-          const percent = Math.min(90, 40 + (progress.loaded / progress.total) * 50);
-          setLoadingProgress(percent);
-          console.log(`Loading progress: ${percent}%`);
-        }
-      };
-      
-      const pdf = await loadingTask.promise;
-      console.log('PDF loaded successfully. Pages:', pdf.numPages);
+      const pdf = await window.pdfjsLib.getDocument({ url }).promise;
       setPdfDoc(pdf);
       setTotalPages(pdf.numPages);
       
-      setLoadingProgress(95);
-      
       // Render first page
       await renderPage(pdf, 1);
-      
-      setLoadingProgress(100);
     } catch (err) {
       console.error('Error loading PDF:', err);
-      setError(`Failed to load PDF: ${err.message}`);
+      setError('Failed to load PDF document');
     }
   }, [renderPage]);
 
   // Navigation
   const goToPreviousPage = useCallback(() => {
     if (currentPage > 1 && pdfDoc && !rendering) {
-      console.log('Going to previous page');
       renderPage(pdfDoc, currentPage - 1);
     }
   }, [currentPage, pdfDoc, rendering, renderPage]);
 
   const goToNextPage = useCallback(() => {
     if (currentPage < totalPages && pdfDoc && !rendering) {
-      console.log('Going to next page');
       renderPage(pdfDoc, currentPage + 1);
     }
   }, [currentPage, totalPages, pdfDoc, rendering, renderPage]);
 
-  // Keyboard navigation
+  // Keyboard & swipe navigation
   useEffect(() => {
     if (!pdfDoc || !isMobile) return;
 
@@ -401,34 +326,19 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       }
     };
 
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [pdfDoc, isMobile, goToPreviousPage, goToNextPage]);
-
-  // Touch swipe support
-  useEffect(() => {
-    if (!pdfDoc || !isMobile) return;
-
     const container = canvasContainerRef.current;
     if (!container) return;
 
     let touchStartX = 0;
-    let touchStartY = 0;
 
     const handleTouchStart = (e) => {
       touchStartX = e.touches[0].clientX;
-      touchStartY = e.touches[0].clientY;
     };
 
     const handleTouchEnd = (e) => {
-      const touchEndX = e.changedTouches[0].clientX;
-      const touchEndY = e.changedTouches[0].clientY;
+      const deltaX = e.changedTouches[0].clientX - touchStartX;
       
-      const deltaX = touchEndX - touchStartX;
-      const deltaY = touchEndY - touchStartY;
-      
-      // Only trigger if horizontal swipe is dominant
-      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+      if (Math.abs(deltaX) > 50) {
         if (deltaX > 0) {
           goToPreviousPage();
         } else {
@@ -437,49 +347,40 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       }
     };
 
+    window.addEventListener('keydown', handleKeyPress);
     container.addEventListener('touchstart', handleTouchStart, { passive: true });
     container.addEventListener('touchend', handleTouchEnd, { passive: true });
 
     return () => {
-      container.removeEventListener('touchstart', handleTouchStart);
-      container.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('keydown', handleKeyPress);
+      if (container) {
+        container.removeEventListener('touchstart', handleTouchStart);
+        container.removeEventListener('touchend', handleTouchEnd);
+      }
     };
   }, [pdfDoc, isMobile, goToPreviousPage, goToNextPage]);
 
-  // Main initialization
+  // Main initialization - PREVENT REPEATED CALLS
   useEffect(() => {
+    if (initRef.current) return; // Prevent duplicate initialization
+    initRef.current = true;
+
     const initializeViewer = async () => {
       try {
-        console.log('=== Initializing Viewer ===');
-        console.log('Mode:', isInfluencer ? 'Influencer' : 'Purchase');
-        console.log('Is Mobile:', isMobile);
-        console.log('Guide ID:', guideId);
-        console.log('Guide Data:', guideData);
-        
         setLoading(true);
         setError(null);
-        setLoadingProgress(0);
 
         // Influencer mode
         if (isInfluencer) {
-          console.log('Influencer mode activated');
-          
           if (!guideData || !guideData.file_url) {
             throw new Error("Guide data not provided");
           }
           
-          const url = guideData.file_url;
-          console.log('Using file URL:', url);
-          setPdfUrl(url);
-          setLoadingProgress(20);
+          setPdfUrl(guideData.file_url);
           
           if (isMobile) {
-            console.log('Loading PDF.js for mobile...');
-            await preloadPdfJs();
-            await loadPdfWithPdfJs(url);
-          } else {
-            console.log('Using iframe for desktop');
-            setLoadingProgress(100);
+            await loadPdfJs();
+            await loadPdf(guideData.file_url);
           }
           
           setLoading(false);
@@ -487,29 +388,23 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         }
 
         // Regular purchase mode
-        console.log('Purchase mode - verifying access');
-        
         if (!user || !user.id || !user.email) {
           throw new Error("User not authenticated");
         }
 
-        setLoadingProgress(5);
         deviceIdRef.current = generateDeviceFingerprint();
-        sessionIdRef.current = crypto.randomUUID ? crypto.randomUUID() : `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        sessionIdRef.current = crypto.randomUUID ? crypto.randomUUID() : `session_${Date.now()}`;
 
-        setLoadingProgress(10);
         const hasAccess = await verifyPurchaseAccess(guideId, user);
         if (!hasAccess) {
           throw new Error("You have not purchased this guide.");
         }
 
-        setLoadingProgress(15);
         const canAccess = await checkConcurrentSessions(guideId, user, deviceIdRef.current);
         if (!canAccess) {
-          throw new Error("Maximum device limit reached (2 devices). Please close this guide on another device.");
+          throw new Error("Maximum device limit reached. Please close this guide on another device.");
         }
 
-        setLoadingProgress(20);
         const { data: guide, error: guideError } = await supabase
           .from("guides")
           .select("*")
@@ -521,7 +416,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         }
 
         await recordAccessSession(guideId, user, deviceIdRef.current, sessionIdRef.current);
-        setLoadingProgress(25);
 
         let finalPdfUrl;
         
@@ -532,8 +426,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           
           if (filePath.includes('/storage/v1/object/public/guides/')) {
             filePath = filePath.split('/storage/v1/object/public/guides/')[1];
-          } else if (filePath.includes('/storage/v1/object/sign/guides/')) {
-            filePath = filePath.split('/storage/v1/object/sign/guides/')[1].split('?')[0];
           } else if (filePath.includes('guides/')) {
             const parts = filePath.split('guides/');
             filePath = parts[parts.length - 1].split('?')[0];
@@ -541,9 +433,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
           const { data: signed, error: signErr } = await supabase.storage
             .from("guides")
-            .createSignedUrl(filePath, 3600, {
-              download: false
-            });
+            .createSignedUrl(filePath, 3600, { download: false });
 
           if (signErr) {
             throw new Error(`Failed to create signed URL: ${signErr.message}`);
@@ -552,17 +442,11 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           finalPdfUrl = signed.signedUrl;
         }
 
-        console.log('Final PDF URL:', finalPdfUrl);
         setPdfUrl(finalPdfUrl);
-        setLoadingProgress(30);
         
         if (isMobile) {
-          console.log('Loading PDF.js for mobile...');
-          await preloadPdfJs();
-          await loadPdfWithPdfJs(finalPdfUrl);
-        } else {
-          console.log('Using iframe for desktop');
-          setLoadingProgress(100);
+          await loadPdfJs();
+          await loadPdf(finalPdfUrl);
         }
         
         heartbeatRef.current = setInterval(() => {
@@ -570,7 +454,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         }, 30000);
 
         setLoading(false);
-        console.log('=== Viewer Initialized Successfully ===');
 
       } catch (err) {
         console.error("Initialization error:", err);
@@ -582,7 +465,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     initializeViewer();
 
     return () => {
-      console.log('Cleaning up viewer...');
       if (heartbeatRef.current) {
         clearInterval(heartbeatRef.current);
       }
@@ -593,11 +475,12 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         try {
           renderTaskRef.current.cancel();
         } catch (e) {
-          console.log('Cleanup cancel error:', e);
+          // Ignore
         }
       }
     };
-  }, [guideId, user, isMobile, isInfluencer, guideData, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordAccessSession, updateSessionHeartbeat, closeSession, preloadPdfJs, loadPdfWithPdfJs]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - only run once!
 
   // Security protections
   useEffect(() => {
@@ -614,14 +497,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         return true;
       }
       
-      if ((e.ctrlKey || e.metaKey) && [83, 80, 67, 65, 86, 88, 90].includes(e.keyCode)) {
-        e.preventDefault();
-        return false;
-      }
-      if (e.keyCode === 123 || 
-          ((e.ctrlKey || e.metaKey) && e.shiftKey && e.keyCode === 73) || 
-          ((e.ctrlKey || e.metaKey) && e.keyCode === 85) ||
-          e.keyCode === 44) {
+      if ((e.ctrlKey || e.metaKey) && [83, 80, 67, 65].includes(e.keyCode)) {
         e.preventDefault();
         return false;
       }
@@ -629,8 +505,8 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
     const blockSelection = (e) => {
       if (e.target.tagName === 'CANVAS') {
-      e.preventDefault();
-      return false;
+        e.preventDefault();
+        return false;
       }
     };
 
@@ -638,21 +514,11 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     style.textContent = `
       @media print {
         body * { display: none !important; }
-        body::after {
-          content: "Printing is disabled for this document.";
-          display: block !important;
-          text-align: center;
-          margin-top: 20px;
-          font-size: 18px;
-        }
       }
       .secure-pdf-viewer canvas,
       .secure-pdf-viewer iframe {
         user-select: none !important;
         -webkit-user-select: none !important;
-        -moz-user-select: none !important;
-        -ms-user-select: none !important;
-        -webkit-touch-callout: none !important;
       }
     `;
     document.head.appendChild(style);
@@ -660,24 +526,18 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     document.addEventListener('contextmenu', blockRightClick);
     document.addEventListener('keydown', blockKeyboardShortcuts);
     document.addEventListener('selectstart', blockSelection);
-    document.addEventListener('dragstart', blockSelection);
     document.addEventListener('copy', blockSelection);
 
-    const preventPrint = (e) => {
+    window.addEventListener('beforeprint', (e) => {
       e.preventDefault();
       alert('Printing is disabled for this document.');
-      return false;
-    };
-
-    window.addEventListener('beforeprint', preventPrint);
+    });
 
     return () => {
       document.removeEventListener('contextmenu', blockRightClick);
       document.removeEventListener('keydown', blockKeyboardShortcuts);
       document.removeEventListener('selectstart', blockSelection);
-      document.removeEventListener('dragstart', blockSelection);
       document.removeEventListener('copy', blockSelection);
-      window.removeEventListener('beforeprint', preventPrint);
       if (style.parentNode) {
         style.parentNode.removeChild(style);
       }
@@ -688,17 +548,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     return (
       <div className="viewer-loading">
         <div className="loading-spinner"></div>
-        <div className="loading-text">Loading secure viewer...</div>
-        <div className="loading-subtext">
-          {loadingProgress < 20 ? 'Verifying purchase...' :
-           loadingProgress < 40 ? 'Initializing PDF engine...' :
-           loadingProgress < 70 ? 'Loading document...' :
-           'Almost ready...'}
-        </div>
-        <div className="loading-progress-bar">
-          <div className="loading-progress-fill" style={{ width: `${loadingProgress}%` }}></div>
-        </div>
-        <div className="loading-debug">Mobile: {isMobile ? 'Yes' : 'No'} | Progress: {loadingProgress}%</div>
+        <div className="loading-text">Loading guide...</div>
       </div>
     );
   }
@@ -709,17 +559,15 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         <div className="error-icon">⚠️</div>
         <div className="error-title">Access Denied</div>
         <div className="error-message">{error}</div>
-        <button onClick={onClose} className="error-close-btn">
-          Close
-        </button>
+        <button onClick={onClose} className="error-close-btn">Close</button>
       </div>
     );
   }
 
-  // Mobile: Page-by-page canvas rendering
+  // Mobile: Canvas rendering with landscape support
   if (isMobile && pdfDoc) {
     return (
-      <div className="secure-viewer-mobile secure-pdf-viewer">
+      <div className="secure-viewer-mobile">
         <div className="viewer-header">
           <div className="header-info">
             <span className="header-icon">🔒</span>
@@ -728,7 +576,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
               <div className="header-subtitle">Page {currentPage} of {totalPages}</div>
             </div>
           </div>
-          <button onClick={onClose} className="close-btn" aria-label="Close viewer">✕</button>
+          <button onClick={onClose} className="close-btn">✕</button>
         </div>
 
         <div ref={canvasContainerRef} className="pdf-canvas-container" />
@@ -737,8 +585,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           <button
             onClick={goToPreviousPage}
             disabled={currentPage === 1 || rendering}
-            className="nav-btn nav-btn-prev"
-            aria-label="Previous page"
+            className="nav-btn"
           >
             ← Prev
           </button>
@@ -748,43 +595,10 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           <button
             onClick={goToNextPage}
             disabled={currentPage === totalPages || rendering}
-            className="nav-btn nav-btn-next"
-            aria-label="Next page"
+            className="nav-btn"
           >
             Next →
           </button>
-        </div>
-        
-        <div className="viewer-hint">
-          Swipe or use arrow keys to navigate
-        </div>
-      </div>
-    );
-  }
-
-  // Mobile but PDF.js failed - fallback to iframe
-  if (isMobile && !pdfDoc && pdfUrl) {
-    console.log('Mobile fallback to iframe');
-    return (
-      <div className="secure-viewer-mobile secure-pdf-viewer">
-        <div className="viewer-header">
-          <div className="header-info">
-            <span className="header-icon">🔒</span>
-            <div>
-              <div className="header-title">Secure Viewer</div>
-              <div className="header-subtitle">Protected content</div>
-            </div>
-          </div>
-          <button onClick={onClose} className="close-btn" aria-label="Close viewer">✕</button>
-        </div>
-        
-        <div className="pdf-iframe-container">
-          <iframe 
-            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
-            className="pdf-iframe"
-            title="Secure PDF Viewer"
-            allow="fullscreen"
-          />
         </div>
       </div>
     );
@@ -792,7 +606,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
   // Desktop: iframe rendering
   return (
-    <div className="secure-viewer-desktop secure-pdf-viewer">
+    <div className="secure-viewer-desktop">
       <div className="viewer-header">
         <div className="header-info">
           <span className="header-icon">🔒</span>
@@ -801,7 +615,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
             <div className="header-subtitle">Protected content</div>
           </div>
         </div>
-        <button onClick={onClose} className="close-btn" aria-label="Close viewer">✕</button>
+        <button onClick={onClose} className="close-btn">✕</button>
       </div>
       
       <div className="pdf-iframe-container">
