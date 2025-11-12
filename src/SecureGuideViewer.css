@@ -124,11 +124,19 @@
   object-fit: contain;
 }
 
-/* Optimize for landscape viewing */
-@media (orientation: landscape) and (max-width: 926px) {
+/* Rotate PDF 90 degrees on mobile for vertical display */
+@media (max-width: 768px) {
   .pdf-canvas {
-    max-height: calc(100vh - 120px);
+    transform: rotate(90deg);
+    transform-origin: center center;
+    max-width: none;
+    max-height: 90vw;
     width: auto;
+    height: auto;
+  }
+  
+  .pdf-canvas-container {
+    overflow: hidden;
   }
 }
 
