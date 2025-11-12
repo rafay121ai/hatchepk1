@@ -15,15 +15,18 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const [totalPages, setTotalPages] = useState(0);
   const [rendering, setRendering] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
+  const [pdfJsLoaded, setPdfJsLoaded] = useState(false);
   const canvasContainerRef = useRef(null);
   const renderTaskRef = useRef(null);
+  const pageCanvasesRef = useRef([]);
 
-  // Detect mobile device with better detection
+  // Detect mobile device
   useEffect(() => {
     const checkMobile = () => {
       const mobile = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
                      window.innerWidth <= 768;
       setIsMobile(mobile);
+      console.log('Mobile detection:', mobile, 'UserAgent:', navigator.userAgent, 'Width:', window.innerWidth);
     };
     
     checkMobile();
@@ -199,67 +202,158 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     }
   }, []);
 
-  // Optimized rendering with better quality and performance
+  // Pre-load PDF.js library
+  const preloadPdfJs = useCallback(async () => {
+    if (window.pdfjsLib) {
+      console.log('PDF.js already loaded');
+      setPdfJsLoaded(true);
+      return;
+    }
+    
+    console.log('Loading PDF.js library...');
+    setLoadingProgress(10);
+    
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.async = false;
+      script.onload = () => {
+        console.log('PDF.js loaded successfully');
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        setLoadingProgress(30);
+        setPdfJsLoaded(true);
+        resolve();
+      };
+      script.onerror = (err) => {
+        console.error('Failed to load PDF.js:', err);
+        reject(new Error('Failed to load PDF library'));
+      };
+      document.head.appendChild(script);
+    });
+  }, []);
+
+  // Load PDF with PDF.js
+  const loadPdfWithPdfJs = useCallback(async (url) => {
+    try {
+      console.log('Loading PDF from URL:', url);
+      setLoadingProgress(40);
+      
+      if (!window.pdfjsLib) {
+        throw new Error('PDF.js not loaded');
+      }
+
+      const loadingTask = window.pdfjsLib.getDocument({
+        url: url,
+        cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+        cMapPacked: true,
+        disableAutoFetch: false,
+        disableStream: false,
+        withCredentials: false
+      });
+      
+      loadingTask.onProgress = (progress) => {
+        if (progress.total > 0) {
+          const percent = Math.min(90, 40 + (progress.loaded / progress.total) * 50);
+          setLoadingProgress(percent);
+          console.log(`Loading progress: ${percent}%`);
+        }
+      };
+      
+      const pdf = await loadingTask.promise;
+      console.log('PDF loaded successfully. Pages:', pdf.numPages);
+      setPdfDoc(pdf);
+      setTotalPages(pdf.numPages);
+      
+      setLoadingProgress(95);
+      
+      // Render first page
+      await renderPage(pdf, 1);
+      
+      setLoadingProgress(100);
+    } catch (err) {
+      console.error('Error loading PDF:', err);
+      setError(`Failed to load PDF: ${err.message}`);
+    }
+  }, []);
+
+  // Render page with proper scaling
   const renderPage = useCallback(async (pdf, pageNum) => {
-    if (rendering || !pdf) return;
+    if (!pdf || rendering) {
+      console.log('Skipping render - pdf:', !!pdf, 'rendering:', rendering);
+      return;
+    }
     
     // Cancel any existing render task
     if (renderTaskRef.current) {
-      renderTaskRef.current.cancel();
+      try {
+        renderTaskRef.current.cancel();
+      } catch (e) {
+        console.log('Cancel render task error:', e);
+      }
       renderTaskRef.current = null;
     }
     
     setRendering(true);
+    console.log('Rendering page:', pageNum);
     
     try {
       const page = await pdf.getPage(pageNum);
       const container = canvasContainerRef.current;
+      
       if (!container) {
+        console.error('Canvas container not found');
         setRendering(false);
         return;
       }
 
-      // Get natural viewport
+      // Get viewport and calculate scale
       const viewport = page.getViewport({ scale: 1 });
+      console.log('Original viewport:', viewport.width, 'x', viewport.height);
       
-      // Calculate optimal scale
+      // Calculate scale to fit container with padding
       const containerWidth = container.clientWidth - 32;
       const containerHeight = container.clientHeight - 32;
       
       const scaleX = containerWidth / viewport.width;
       const scaleY = containerHeight / viewport.height;
-      const scale = Math.min(scaleX, scaleY, 2.5);
+      const scale = Math.min(scaleX, scaleY, 3.0);
+      
+      console.log('Calculated scale:', scale, 'Container:', containerWidth, 'x', containerHeight);
       
       const scaledViewport = page.getViewport({ scale });
 
-      // Use device pixel ratio for crisp rendering
-      const outputScale = window.devicePixelRatio || 1;
-      const adjustedOutputScale = Math.min(outputScale, 2);
+      // Use device pixel ratio for crisp rendering, but cap it
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      console.log('Device pixel ratio:', dpr);
 
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d', { 
         alpha: false,
-        desynchronized: true 
+        willReadFrequently: false
       });
       
-      canvas.width = Math.floor(scaledViewport.width * adjustedOutputScale);
-      canvas.height = Math.floor(scaledViewport.height * adjustedOutputScale);
+      canvas.width = Math.floor(scaledViewport.width * dpr);
+      canvas.height = Math.floor(scaledViewport.height * dpr);
       
-      canvas.style.width = `${scaledViewport.width}px`;
-      canvas.style.height = `${scaledViewport.height}px`;
+      canvas.style.width = `${Math.floor(scaledViewport.width)}px`;
+      canvas.style.height = `${Math.floor(scaledViewport.height)}px`;
       canvas.style.display = 'block';
       canvas.style.margin = '0 auto';
-      canvas.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
+      canvas.style.maxWidth = '100%';
+      canvas.style.height = 'auto';
 
-      // Clear container and show canvas immediately
+      // Clear container and add canvas
       container.innerHTML = '';
       container.appendChild(canvas);
 
-      // Render with high quality
+      console.log('Canvas size:', canvas.width, 'x', canvas.height, 'Style:', canvas.style.width, 'x', canvas.style.height);
+
+      // Render
       const renderTask = page.render({
         canvasContext: context,
         viewport: scaledViewport,
-        transform: [adjustedOutputScale, 0, 0, adjustedOutputScale, 0, 0],
+        transform: [dpr, 0, 0, dpr, 0, 0],
         intent: 'display'
       });
       
@@ -268,6 +362,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       await renderTask.promise;
       renderTaskRef.current = null;
       
+      console.log('Page rendered successfully');
       setCurrentPage(pageNum);
       setRendering(false);
       
@@ -281,79 +376,24 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     }
   }, [rendering]);
 
-  // Pre-load PDF.js library with progress tracking
-  const preloadPdfJs = useCallback(async () => {
-    if (window.pdfjsLib) return;
-    
-    setLoadingProgress(10);
-    
-    await new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-      script.onload = () => {
-        setLoadingProgress(30);
-        resolve();
-      };
-      script.onerror = reject;
-      document.head.appendChild(script);
-    });
-    
-    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
-      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  }, []);
-
-  // Load PDF with PDF.js - optimized for all pages
-  const loadPdfWithPdfJs = useCallback(async (url) => {
-    try {
-      setLoadingProgress(40);
-      
-      const loadingTask = window.pdfjsLib.getDocument({
-        url: url,
-        cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
-        cMapPacked: true,
-        disableAutoFetch: false,
-        disableStream: false
-      });
-      
-      loadingTask.onProgress = (progress) => {
-        if (progress.total > 0) {
-          const percent = Math.min(90, 40 + (progress.loaded / progress.total) * 50);
-          setLoadingProgress(percent);
-        }
-      };
-      
-      const pdf = await loadingTask.promise;
-      setPdfDoc(pdf);
-      setTotalPages(pdf.numPages);
-      
-      setLoadingProgress(95);
-      
-      // Render first page
-      await renderPage(pdf, 1);
-      
-      setLoadingProgress(100);
-    } catch (err) {
-      console.error('Error loading PDF:', err);
-      setError('Failed to load PDF document. Please try again.');
-    }
-  }, [renderPage]);
-
-  // Navigation with keyboard support
+  // Navigation
   const goToPreviousPage = useCallback(() => {
     if (currentPage > 1 && pdfDoc && !rendering) {
+      console.log('Going to previous page');
       renderPage(pdfDoc, currentPage - 1);
     }
   }, [currentPage, pdfDoc, rendering, renderPage]);
 
   const goToNextPage = useCallback(() => {
     if (currentPage < totalPages && pdfDoc && !rendering) {
+      console.log('Going to next page');
       renderPage(pdfDoc, currentPage + 1);
     }
   }, [currentPage, totalPages, pdfDoc, rendering, renderPage]);
 
   // Keyboard navigation
   useEffect(() => {
-    if (!pdfDoc) return;
+    if (!pdfDoc || !isMobile) return;
 
     const handleKeyPress = (e) => {
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
@@ -367,28 +407,82 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [pdfDoc, goToPreviousPage, goToNextPage]);
+  }, [pdfDoc, isMobile, goToPreviousPage, goToNextPage]);
 
+  // Touch swipe support
+  useEffect(() => {
+    if (!pdfDoc || !isMobile) return;
+
+    const container = canvasContainerRef.current;
+    if (!container) return;
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+
+    const handleTouchStart = (e) => {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    };
+
+    const handleTouchEnd = (e) => {
+      const touchEndX = e.changedTouches[0].clientX;
+      const touchEndY = e.changedTouches[0].clientY;
+      
+      const deltaX = touchEndX - touchStartX;
+      const deltaY = touchEndY - touchStartY;
+      
+      // Only trigger if horizontal swipe is dominant
+      if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+        if (deltaX > 0) {
+          goToPreviousPage();
+        } else {
+          goToNextPage();
+        }
+      }
+    };
+
+    container.addEventListener('touchstart', handleTouchStart, { passive: true });
+    container.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [pdfDoc, isMobile, goToPreviousPage, goToNextPage]);
+
+  // Main initialization
   useEffect(() => {
     const initializeViewer = async () => {
       try {
+        console.log('=== Initializing Viewer ===');
+        console.log('Mode:', isInfluencer ? 'Influencer' : 'Purchase');
+        console.log('Is Mobile:', isMobile);
+        console.log('Guide ID:', guideId);
+        console.log('Guide Data:', guideData);
+        
         setLoading(true);
         setError(null);
         setLoadingProgress(0);
 
-        // Influencer mode - instant display
+        // Influencer mode
         if (isInfluencer) {
+          console.log('Influencer mode activated');
+          
           if (!guideData || !guideData.file_url) {
             throw new Error("Guide data not provided");
           }
           
-          setPdfUrl(guideData.file_url);
+          const url = guideData.file_url;
+          console.log('Using file URL:', url);
+          setPdfUrl(url);
           setLoadingProgress(20);
           
           if (isMobile) {
+            console.log('Loading PDF.js for mobile...');
             await preloadPdfJs();
-            await loadPdfWithPdfJs(guideData.file_url);
+            await loadPdfWithPdfJs(url);
           } else {
+            console.log('Using iframe for desktop');
             setLoadingProgress(100);
           }
           
@@ -397,6 +491,8 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         }
 
         // Regular purchase mode
+        console.log('Purchase mode - verifying access');
+        
         if (!user || !user.id || !user.email) {
           throw new Error("User not authenticated");
         }
@@ -460,13 +556,16 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           finalPdfUrl = signed.signedUrl;
         }
 
+        console.log('Final PDF URL:', finalPdfUrl);
         setPdfUrl(finalPdfUrl);
         setLoadingProgress(30);
         
         if (isMobile) {
+          console.log('Loading PDF.js for mobile...');
           await preloadPdfJs();
           await loadPdfWithPdfJs(finalPdfUrl);
         } else {
+          console.log('Using iframe for desktop');
           setLoadingProgress(100);
         }
         
@@ -475,6 +574,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         }, 30000);
 
         setLoading(false);
+        console.log('=== Viewer Initialized Successfully ===');
 
       } catch (err) {
         console.error("Initialization error:", err);
@@ -486,6 +586,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     initializeViewer();
 
     return () => {
+      console.log('Cleaning up viewer...');
       if (heartbeatRef.current) {
         clearInterval(heartbeatRef.current);
       }
@@ -493,10 +594,14 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         closeSession(sessionIdRef.current);
       }
       if (renderTaskRef.current) {
-        renderTaskRef.current.cancel();
+        try {
+          renderTaskRef.current.cancel();
+        } catch (e) {
+          console.log('Cleanup cancel error:', e);
+        }
       }
     };
-  }, [guideId, user, isMobile, isInfluencer, guideData, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordAccessSession, updateSessionHeartbeat, closeSession, preloadPdfJs, loadPdfWithPdfJs]);
+  }, [guideId, user, isMobile, isInfluencer, guideData]);
 
   // Security protections
   useEffect(() => {
@@ -597,6 +702,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         <div className="loading-progress-bar">
           <div className="loading-progress-fill" style={{ width: `${loadingProgress}%` }}></div>
         </div>
+        <div className="loading-debug">Mobile: {isMobile ? 'Yes' : 'No'} | Progress: {loadingProgress}%</div>
       </div>
     );
   }
@@ -614,7 +720,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     );
   }
 
-  // Mobile and Tablet: Page-by-page canvas rendering
+  // Mobile: Page-by-page canvas rendering
   if (isMobile && pdfDoc) {
     return (
       <div className="secure-viewer-mobile secure-pdf-viewer">
@@ -654,13 +760,41 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         </div>
         
         <div className="viewer-hint">
-          Use arrow keys or swipe to navigate
+          Swipe or use arrow keys to navigate
         </div>
       </div>
     );
   }
 
-  // Desktop: iframe rendering for full document view
+  // Mobile but PDF.js failed - fallback to iframe
+  if (isMobile && !pdfDoc && pdfUrl) {
+    console.log('Mobile fallback to iframe');
+    return (
+      <div className="secure-viewer-mobile secure-pdf-viewer">
+        <div className="viewer-header">
+          <div className="header-info">
+            <span className="header-icon">🔒</span>
+            <div>
+              <div className="header-title">Secure Viewer</div>
+              <div className="header-subtitle">Protected content</div>
+            </div>
+          </div>
+          <button onClick={onClose} className="close-btn" aria-label="Close viewer">✕</button>
+        </div>
+        
+        <div className="pdf-iframe-container">
+          <iframe 
+            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+            className="pdf-iframe"
+            title="Secure PDF Viewer"
+            allow="fullscreen"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop: iframe rendering
   return (
     <div className="secure-viewer-desktop secure-pdf-viewer">
       <div className="viewer-header">

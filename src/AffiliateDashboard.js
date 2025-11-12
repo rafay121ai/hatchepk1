@@ -21,7 +21,7 @@ function AffiliateDashboard() {
         if (user?.email) {
           const { data: affiliate, error: affiliateError } = await supabase
             .from('affiliates')
-            .select('ref_id, status, tier, tier_name, commission, name')
+            .select('ref_id, referral_url, status, tier, tier_name, commission, name')
             .eq('email', user.email)
             .eq('status', 'approved')
             .maybeSingle();
@@ -120,8 +120,17 @@ function AffiliateDashboard() {
             <p className="dashboard-subtitle">Welcome back, {affiliateData?.name || user?.email}!</p>
           </div>
           <div className="referral-badge">
-            <span className="badge-label">Your Referral ID</span>
-            <span className="badge-value">{affiliateRefId}</span>
+            <span className="badge-label">Your Referral Link</span>
+            <span className="badge-value">{affiliateData?.referral_url || `https://hatchepk.com?ref=${affiliateRefId}`}</span>
+            <button 
+              className="copy-btn"
+              onClick={() => {
+                navigator.clipboard.writeText(affiliateData?.referral_url || `https://hatchepk.com?ref=${affiliateRefId}`);
+                alert('Referral link copied to clipboard!');
+              }}
+            >
+              📋 Copy Link
+            </button>
           </div>
         </div>
 
