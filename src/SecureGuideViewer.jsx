@@ -9,16 +9,22 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const deviceIdRef = useRef(null);
   const sessionIdRef = useRef(null);
   const heartbeatRef = useRef(null);
+  const [isMobile] = useState(() => {
+    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768;
+  });
+  const [pdfDoc, setPdfDoc] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [rendering, setRendering] = useState(false);
+  const canvasRef = useRef(null);
   const initRef = useRef(false);
 
   const generateDeviceFingerprint = useCallback(() => {
     try {
-      const fp = {
+      return btoa(JSON.stringify({
         ua: navigator.userAgent,
-        lang: navigator.language,
         screen: `${window.screen.width}x${window.screen.height}`
-      };
-      return btoa(JSON.stringify(fp)).substring(0, 100);
+      })).substring(0, 100);
     } catch {
       return `fallback_${Date.now()}`;
     }
@@ -74,17 +80,15 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         .eq('customer_email', usr.email)
         .eq('order_status', 'completed');
 
-      if (orders && orders.length > 0) {
+      if (orders?.length > 0) {
         const hasOrder = orders.some(order => 
           (order.product_name || '').toLowerCase().includes(guide.title.toLowerCase())
         );
-
         if (hasOrder) {
           await ensurePurchaseRecord(gId, usr);
           return true;
         }
       }
-
       return false;
     } catch (err) {
       console.error('Verify access error:', err);
@@ -95,28 +99,17 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const checkConcurrentSessions = useCallback(async (gId, usr, deviceId) => {
     try {
       const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-      
-      await supabase
-        .from('active_sessions')
-        .delete()
-        .eq('user_id', usr.id)
-        .eq('guide_id', gId)
-        .lt('last_heartbeat', twoMinutesAgo);
+      await supabase.from('active_sessions').delete()
+        .eq('user_id', usr.id).eq('guide_id', gId).lt('last_heartbeat', twoMinutesAgo);
       
       const { data: activeSessions } = await supabase
-        .from('active_sessions')
-        .select('device_id')
-        .eq('user_id', usr.id)
-        .eq('guide_id', gId)
-        .gte('last_heartbeat', twoMinutesAgo);
+        .from('active_sessions').select('device_id')
+        .eq('user_id', usr.id).eq('guide_id', gId).gte('last_heartbeat', twoMinutesAgo);
 
       const uniqueDevices = new Set();
       activeSessions?.forEach(session => {
-        if (session.device_id !== deviceId) {
-          uniqueDevices.add(session.device_id);
-        }
+        if (session.device_id !== deviceId) uniqueDevices.add(session.device_id);
       });
-
       return uniqueDevices.size < 2;
     } catch {
       return true;
@@ -127,12 +120,8 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     try {
       const ipAddress = await getClientIP();
       await supabase.from('active_sessions').upsert({
-        user_id: usr.id,
-        guide_id: gId,
-        device_id: deviceId,
-        session_id: sessionId,
-        ip_address: ipAddress,
-        last_heartbeat: new Date().toISOString(),
+        user_id: usr.id, guide_id: gId, device_id: deviceId, session_id: sessionId,
+        ip_address: ipAddress, last_heartbeat: new Date().toISOString(),
         started_at: new Date().toISOString()
       }, { onConflict: 'session_id' });
     } catch (err) {
@@ -142,8 +131,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
   const updateSessionHeartbeat = useCallback(async (sessionId) => {
     try {
-      await supabase
-        .from('active_sessions')
+      await supabase.from('active_sessions')
         .update({ last_heartbeat: new Date().toISOString() })
         .eq('session_id', sessionId);
     } catch (err) {
@@ -159,64 +147,139 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     }
   }, []);
 
-  // Main initialization - ONLY ONCE
+  // Load PDF.js and document
+  const loadPdfJs = useCallback(async () => {
+    if (window.pdfjsLib) return;
+    
+    await new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.onload = () => {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        resolve();
+      };
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }, []);
+
+  const loadPdf = useCallback(async (url) => {
+    try {
+      if (!window.pdfjsLib) await loadPdfJs();
+      
+      const pdf = await window.pdfjsLib.getDocument(url).promise;
+      setPdfDoc(pdf);
+      setTotalPages(pdf.numPages);
+      return pdf;
+    } catch (err) {
+      console.error('Load PDF error:', err);
+      throw err;
+    }
+  }, [loadPdfJs]);
+
+  // Render ONLY current page (on demand)
+  const renderPage = useCallback(async (pdf, pageNum) => {
+    if (rendering || !pdf) return;
+    
+    setRendering(true);
+    
+    try {
+      const page = await pdf.getPage(pageNum);
+      const viewport = page.getViewport({ scale: 1 });
+      
+      const containerWidth = Math.min(window.innerWidth - 32, 800);
+      const scale = containerWidth / viewport.width;
+      const scaledViewport = page.getViewport({ scale });
+
+      const dpr = 1.5; // Lower DPI for speed
+
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      
+      const context = canvas.getContext('2d', { alpha: false });
+      
+      canvas.width = Math.floor(scaledViewport.width * dpr);
+      canvas.height = Math.floor(scaledViewport.height * dpr);
+      canvas.style.width = `${Math.floor(scaledViewport.width)}px`;
+      canvas.style.height = `${Math.floor(scaledViewport.height)}px`;
+
+      await page.render({
+        canvasContext: context,
+        viewport: scaledViewport,
+        transform: [dpr, 0, 0, dpr, 0, 0]
+      }).promise;
+      
+      setCurrentPage(pageNum);
+      setRendering(false);
+    } catch (err) {
+      console.error('Render error:', err);
+      setRendering(false);
+    }
+  }, [rendering]);
+
+  const goToPrev = () => {
+    if (currentPage > 1 && pdfDoc && !rendering) {
+      renderPage(pdfDoc, currentPage - 1);
+    }
+  };
+
+  const goToNext = () => {
+    if (currentPage < totalPages && pdfDoc && !rendering) {
+      renderPage(pdfDoc, currentPage + 1);
+    }
+  };
+
+  // Initialize ONCE
   useEffect(() => {
     if (initRef.current) return;
     initRef.current = true;
 
-    const initializeViewer = async () => {
+    const init = async () => {
       try {
         setLoading(true);
-        setError(null);
 
-        // Influencer mode - INSTANT
+        // Influencer mode
         if (isInfluencer) {
-          if (!guideData || !guideData.file_url) {
-            throw new Error("Guide data not provided");
-          }
+          if (!guideData?.file_url) throw new Error("Guide data missing");
           
           setPdfUrl(guideData.file_url);
+          
+          if (isMobile) {
+            const pdf = await loadPdf(guideData.file_url);
+            await renderPage(pdf, 1);
+          }
+          
           setLoading(false);
           return;
         }
 
-        // Regular purchase mode
-        if (!user || !user.id) {
-          throw new Error("User not authenticated");
-        }
+        // Purchase mode
+        if (!user?.id) throw new Error("Not authenticated");
 
         deviceIdRef.current = generateDeviceFingerprint();
         sessionIdRef.current = crypto.randomUUID ? crypto.randomUUID() : `session_${Date.now()}`;
 
-        const hasAccess = await verifyPurchaseAccess(guideId, user);
-        if (!hasAccess) {
+        if (!await verifyPurchaseAccess(guideId, user)) {
           throw new Error("You have not purchased this guide.");
         }
 
-        const canAccess = await checkConcurrentSessions(guideId, user, deviceIdRef.current);
-        if (!canAccess) {
-          throw new Error("Maximum device limit reached. Please close the guide on another device.");
+        if (!await checkConcurrentSessions(guideId, user, deviceIdRef.current)) {
+          throw new Error("Maximum device limit reached.");
         }
 
         const { data: guide, error: guideError } = await supabase
-          .from("guides")
-          .select("*")
-          .eq("id", guideId)
-          .single();
+          .from("guides").select("*").eq("id", guideId).single();
 
-        if (guideError || !guide) {
-          throw new Error("Guide not found");
-        }
+        if (guideError || !guide) throw new Error("Guide not found");
 
         await recordAccessSession(guideId, user, deviceIdRef.current, sessionIdRef.current);
 
         let finalPdfUrl;
-        
-        if (guide.file_url && guide.file_url.includes("token=")) {
+        if (guide.file_url?.includes("token=")) {
           finalPdfUrl = guide.file_url;
         } else {
           let filePath = guide.file_url;
-          
           if (filePath.includes('/storage/v1/object/public/guides/')) {
             filePath = filePath.split('/storage/v1/object/public/guides/')[1];
           } else if (filePath.includes('guides/')) {
@@ -224,15 +287,18 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           }
 
           const { data: signed, error: signErr } = await supabase.storage
-            .from("guides")
-            .createSignedUrl(filePath, 3600, { download: false });
+            .from("guides").createSignedUrl(filePath, 3600, { download: false });
 
           if (signErr) throw new Error("Failed to create signed URL");
-
           finalPdfUrl = signed.signedUrl;
         }
 
         setPdfUrl(finalPdfUrl);
+        
+        if (isMobile) {
+          const pdf = await loadPdf(finalPdfUrl);
+          await renderPage(pdf, 1);
+        }
         
         heartbeatRef.current = setInterval(() => {
           updateSessionHeartbeat(sessionIdRef.current);
@@ -247,7 +313,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       }
     };
 
-    initializeViewer();
+    init();
 
     return () => {
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
@@ -256,39 +322,34 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Security protections
+  // Security
   useEffect(() => {
     if (!pdfUrl) return;
 
-    const blockRightClick = (e) => { e.preventDefault(); };
+    const block = (e) => { e.preventDefault(); };
     const blockKeys = (e) => {
       if ((e.ctrlKey || e.metaKey) && [83, 80, 67, 65].includes(e.keyCode)) {
         e.preventDefault();
       }
     };
-    const blockSelection = (e) => { e.preventDefault(); };
 
     const style = document.createElement('style');
     style.textContent = `
       @media print { body * { display: none !important; } }
-      .secure-pdf-viewer iframe {
-        user-select: none !important;
-        -webkit-user-select: none !important;
-        -webkit-touch-callout: none !important;
-      }
+      .secure-pdf-viewer * { user-select: none !important; -webkit-user-select: none !important; }
     `;
     document.head.appendChild(style);
 
-    document.addEventListener('contextmenu', blockRightClick);
+    document.addEventListener('contextmenu', block);
     document.addEventListener('keydown', blockKeys);
-    document.addEventListener('selectstart', blockSelection);
-    document.addEventListener('copy', blockSelection);
+    document.addEventListener('selectstart', block);
+    document.addEventListener('copy', block);
 
     return () => {
-      document.removeEventListener('contextmenu', blockRightClick);
+      document.removeEventListener('contextmenu', block);
       document.removeEventListener('keydown', blockKeys);
-      document.removeEventListener('selectstart', blockSelection);
-      document.removeEventListener('copy', blockSelection);
+      document.removeEventListener('selectstart', block);
+      document.removeEventListener('copy', block);
       if (style.parentNode) style.parentNode.removeChild(style);
     };
   }, [pdfUrl]);
@@ -313,9 +374,49 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     );
   }
 
-  // BOTH Mobile & Desktop: Use iframe (INSTANT loading, browser lazy loads pages)
+  // Mobile: Simple canvas page-by-page
+  if (isMobile && pdfDoc) {
+    return (
+      <div className="secure-viewer-mobile secure-pdf-viewer">
+        <div className="viewer-header">
+          <div className="header-info">
+            <span className="header-icon">🔒</span>
+            <div>
+              <div className="header-title">Secure Viewer</div>
+              <div className="header-subtitle">Page {currentPage} of {totalPages}</div>
+            </div>
+          </div>
+          <button onClick={onClose} className="close-btn">✕</button>
+        </div>
+
+        <div className="pdf-canvas-container">
+          <canvas ref={canvasRef} className="pdf-canvas" />
+        </div>
+
+        <div className="viewer-controls">
+          <button
+            onClick={goToPrev}
+            disabled={currentPage === 1 || rendering}
+            className="nav-btn"
+          >
+            ← Prev
+          </button>
+          <span className="page-indicator">{currentPage} / {totalPages}</span>
+          <button
+            onClick={goToNext}
+            disabled={currentPage === totalPages || rendering}
+            className="nav-btn"
+          >
+            Next →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop OR Mobile fallback: iframe
   return (
-    <div className="secure-viewer secure-pdf-viewer">
+    <div className="secure-viewer-desktop secure-pdf-viewer">
       <div className="viewer-header">
         <div className="header-info">
           <span className="header-icon">🔒</span>
