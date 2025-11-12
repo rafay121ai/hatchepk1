@@ -9,18 +9,16 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const deviceIdRef = useRef(null);
   const sessionIdRef = useRef(null);
   const heartbeatRef = useRef(null);
-  const [isMobile, setIsMobile] = useState(false);
   const [totalPages, setTotalPages] = useState(0);
   const [loadedPages, setLoadedPages] = useState(0);
   const canvasContainerRef = useRef(null);
   const initRef = useRef(false);
-
-  // Detect mobile
-  useEffect(() => {
-    const mobile = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-                   window.innerWidth <= 768;
-    setIsMobile(mobile);
-  }, []);
+  
+  // Detect mobile SYNCHRONOUSLY (before useEffect runs)
+  const isMobile = useRef(
+    /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+    window.innerWidth <= 768
+  ).current;
 
   const generateDeviceFingerprint = useCallback(() => {
     try {
@@ -459,8 +457,36 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     );
   }
 
-  // Mobile: Scrollable canvas pages (ALL pages loaded)
+  // Mobile: Scrollable canvas pages OR iframe fallback
   if (isMobile) {
+    // If canvas failed to load, fallback to iframe
+    if (totalPages === 0 && pdfUrl && !loading) {
+      console.log('📱 Canvas failed, using iframe fallback');
+      return (
+        <div className="secure-viewer-mobile secure-pdf-viewer">
+          <div className="viewer-header">
+            <div className="header-info">
+              <span className="header-icon">🔒</span>
+              <div>
+                <div className="header-title">Secure Viewer</div>
+                <div className="header-subtitle">Mobile view</div>
+              </div>
+            </div>
+            <button onClick={onClose} className="close-btn">✕</button>
+          </div>
+
+          <div className="pdf-iframe-container">
+            <iframe 
+              src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+              className="pdf-iframe"
+              title="Secure PDF Viewer"
+            />
+          </div>
+        </div>
+      );
+    }
+    
+    // Canvas rendering
     return (
       <div className="secure-viewer-mobile secure-pdf-viewer">
         <div className="viewer-header">
@@ -468,13 +494,21 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
             <span className="header-icon">🔒</span>
             <div>
               <div className="header-title">Secure Viewer</div>
-              <div className="header-subtitle">{loadedPages} of {totalPages} pages loaded</div>
+              <div className="header-subtitle">
+                {loadedPages > 0 ? `${loadedPages} of ${totalPages} pages` : 'Loading...'}
+              </div>
             </div>
           </div>
           <button onClick={onClose} className="close-btn">✕</button>
         </div>
 
-        <div ref={canvasContainerRef} className="pdf-canvas-container" />
+        <div ref={canvasContainerRef} className="pdf-canvas-container">
+          {totalPages === 0 && !loading && (
+            <div style={{ color: '#fff', textAlign: 'center', padding: '20px' }}>
+              Loading pages...
+            </div>
+          )}
+        </div>
       </div>
     );
   }
