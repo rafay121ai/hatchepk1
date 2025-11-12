@@ -15,10 +15,8 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const [totalPages, setTotalPages] = useState(0);
   const [rendering, setRendering] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
-  const [pdfJsLoaded, setPdfJsLoaded] = useState(false);
   const canvasContainerRef = useRef(null);
   const renderTaskRef = useRef(null);
-  const pageCanvasesRef = useRef([]);
 
   // Detect mobile device
   useEffect(() => {
@@ -275,7 +273,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       console.error('Error loading PDF:', err);
       setError(`Failed to load PDF: ${err.message}`);
     }
-  }, []);
+  }, [renderPage]);
 
   // Render page with proper scaling
   const renderPage = useCallback(async (pdf, pageNum) => {
@@ -601,7 +599,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         }
       }
     };
-  }, [guideId, user, isMobile, isInfluencer, guideData]);
+  }, [guideId, user, isMobile, isInfluencer, guideData, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordAccessSession, updateSessionHeartbeat, closeSession, preloadPdfJs, loadPdfWithPdfJs]);
 
   // Security protections
   useEffect(() => {
