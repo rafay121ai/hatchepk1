@@ -1,12 +1,6 @@
-/* ===== SECURE VIEWER - CLEAN & EFFICIENT ===== */
+/* ===== SECURE VIEWER - IMAGE-BASED MOBILE ===== */
 
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-/* Loading State */
+/* Loading */
 .viewer-loading {
   position: fixed;
   inset: 0;
@@ -14,7 +8,7 @@
   justify-content: center;
   align-items: center;
   flex-direction: column;
-  gap: 20px;
+  gap: 15px;
   background: rgba(0, 0, 0, 0.95);
   color: #fff;
   z-index: 9999;
@@ -38,7 +32,12 @@
   font-weight: 600;
 }
 
-/* Error State */
+.loading-subtext {
+  font-size: 13px;
+  color: #888;
+}
+
+/* Error */
 .viewer-error {
   position: fixed;
   inset: 0;
@@ -67,14 +66,11 @@
   cursor: pointer;
   font-weight: 600;
   min-height: 44px;
-  font-size: 16px;
 }
 
-.error-close-btn:hover {
-  background: #b91c1c;
-}
+.error-close-btn:hover { background: #b91c1c; }
 
-/* Main Viewers */
+/* Viewers */
 .secure-viewer-mobile,
 .secure-viewer-desktop {
   position: fixed;
@@ -83,7 +79,6 @@
   z-index: 9999;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 /* Header */
@@ -96,33 +91,12 @@
   align-items: center;
   color: white;
   flex-shrink: 0;
-  min-height: 56px;
 }
 
-.header-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex: 1;
-  min-width: 0;
-}
-
-.header-icon {
-  font-size: 20px;
-  flex-shrink: 0;
-}
-
-.header-title {
-  font-weight: 700;
-  font-size: 14px;
-  white-space: nowrap;
-}
-
-.header-subtitle {
-  font-size: 11px;
-  color: #888;
-  margin-top: 2px;
-}
+.header-info { display: flex; align-items: center; gap: 10px; flex: 1; }
+.header-icon { font-size: 20px; }
+.header-title { font-weight: 700; font-size: 14px; }
+.header-subtitle { font-size: 11px; color: #888; margin-top: 2px; }
 
 .close-btn {
   background: #dc2626;
@@ -134,44 +108,56 @@
   font-weight: 600;
   font-size: 12px;
   min-height: 44px;
-  min-width: 60px;
-  flex-shrink: 0;
 }
 
-.close-btn:hover {
-  background: #b91c1c;
-}
+.close-btn:hover { background: #b91c1c; }
 
-/* Mobile Canvas Container */
-.pdf-canvas-container {
+/* Mobile Image Scroll Container */
+.pdf-scroll-container {
   flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
   background: #e5e5e5;
-  padding: 16px;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
-  min-height: 0;
+  padding: 16px;
 }
 
-.pdf-canvas {
+.pdf-page-image {
   display: block;
   max-width: 100%;
   max-height: 100%;
   width: auto;
   height: auto;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
 }
 
-/* Desktop iframe Container */
+.page-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  color: #666;
+}
+
+.loading-spinner-small {
+  width: 30px;
+  height: 30px;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top-color: #73160f;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Desktop iframe */
 .pdf-iframe-container {
   flex: 1;
   display: flex;
   background: #36454F;
   padding: 20px;
   overflow: hidden;
-  min-height: 0;
 }
 
 .pdf-iframe {
@@ -181,7 +167,7 @@
   background: #fff;
 }
 
-/* Navigation Controls (Mobile) */
+/* Navigation */
 .viewer-controls {
   padding: 14px 16px;
   background: #1a1a1a;
@@ -191,7 +177,6 @@
   align-items: center;
   gap: 12px;
   flex-shrink: 0;
-  min-height: 64px;
 }
 
 .nav-btn {
@@ -203,7 +188,6 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
   flex: 1;
   max-width: 100px;
   min-height: 44px;
@@ -211,11 +195,6 @@
 
 .nav-btn:hover:not(:disabled) {
   background: #8b1a13;
-  transform: translateY(-1px);
-}
-
-.nav-btn:active:not(:disabled) {
-  transform: translateY(0);
 }
 
 .nav-btn:disabled {
@@ -231,106 +210,40 @@
   background: rgba(255, 255, 255, 0.1);
   padding: 8px 14px;
   border-radius: 12px;
-  flex-shrink: 0;
-  min-width: 70px;
   text-align: center;
 }
 
-/* Mobile Optimizations */
+/* Mobile Responsive */
 @media (max-width: 768px) {
-  .viewer-header {
-    padding: 10px 14px;
-    min-height: 54px;
-  }
-
+  .viewer-header { padding: 10px 14px; }
   .header-title { font-size: 13px; }
-  .header-subtitle { font-size: 10px; }
+  .close-btn { padding: 7px 14px; font-size: 11px; }
   
-  .close-btn {
-    padding: 7px 14px;
-    font-size: 11px;
-    min-width: 55px;
-  }
-
-  .viewer-controls {
-    padding: 12px 14px;
-    min-height: 60px;
-  }
-
-  .nav-btn {
-    padding: 9px 16px;
-    font-size: 13px;
-    max-width: 90px;
-  }
-
-  .page-indicator {
-    font-size: 13px;
-    padding: 7px 12px;
-    min-width: 65px;
-  }
-
-  .pdf-canvas-container {
-    padding: 12px;
-  }
+  .viewer-controls { padding: 12px 14px; }
+  .nav-btn { padding: 9px 16px; font-size: 13px; max-width: 85px; }
+  .page-indicator { font-size: 13px; padding: 7px 12px; }
   
-  .pdf-iframe-container {
-    padding: 0;
-  }
+  .pdf-scroll-container { padding: 12px; }
+  .pdf-iframe-container { padding: 0; }
 }
 
-/* Very Small Screens */
 @media (max-width: 375px) {
-  .header-title { font-size: 12px; }
-  
-  .nav-btn {
-    padding: 8px 12px;
-    font-size: 12px;
-    max-width: 75px;
-  }
-  
-  .page-indicator {
-    font-size: 12px;
-    padding: 6px 10px;
-    min-width: 60px;
-  }
-  
-  .close-btn {
-    padding: 6px 12px;
-    font-size: 10px;
-    min-width: 50px;
-  }
+  .nav-btn { padding: 8px 12px; font-size: 12px; max-width: 75px; }
+  .page-indicator { font-size: 12px; padding: 6px 10px; }
 }
 
-/* Landscape Mobile */
+/* Landscape */
 @media (max-width: 896px) and (orientation: landscape) {
-  .viewer-header {
-    padding: 8px 14px;
-    min-height: 48px;
-  }
-  
-  .viewer-controls {
-    padding: 8px 14px;
-    min-height: 52px;
-  }
-  
-  .pdf-canvas-container {
-    padding: 8px;
-  }
+  .viewer-header { padding: 8px 14px; }
+  .viewer-controls { padding: 8px 14px; }
+  .pdf-scroll-container { padding: 8px; }
 }
 
 /* Accessibility */
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
+  * { animation-duration: 0.01ms !important; }
 }
 
-/* Touch Targets */
 @media (pointer: coarse) {
-  .nav-btn,
-  .close-btn {
-    min-height: 44px;
-    min-width: 44px;
-  }
+  .nav-btn, .close-btn { min-height: 44px; min-width: 44px; }
 }
