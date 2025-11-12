@@ -159,21 +159,30 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       
       setRendering(false);
       
-      // PASS 2: Upgrade to 2.0x quality in background (after 100ms delay)
+      // PASS 2: Upgrade to 2.0x quality in background
       setTimeout(async () => {
+        if (!pdfDocRef.current || !canvasRef.current) return;
+        
         try {
-          const crispViewport = page.getViewport({ scale: baseScale * 2.0 });
-          canvas.width = crispViewport.width;
-          canvas.height = crispViewport.height;
+          // Re-get the page to ensure fresh reference
+          const crispPage = await pdfDocRef.current.getPage(pageNum);
+          const upgradeCanvas = canvasRef.current;
+          const upgradeContext = upgradeCanvas.getContext('2d');
           
-          await page.render({
-            canvasContext: context,
+          const crispViewport = crispPage.getViewport({ scale: baseScale * 2.0 });
+          upgradeCanvas.width = crispViewport.width;
+          upgradeCanvas.height = crispViewport.height;
+          
+          await crispPage.render({
+            canvasContext: upgradeContext,
             viewport: crispViewport
           }).promise;
+          
+          console.log(`✨ Page ${pageNum} upgraded to 2.0x`);
         } catch (err) {
           console.error('Quality upgrade error:', err);
         }
-      }, 100);
+      }, 150);
       
     } catch (err) {
       console.error('Render error:', err);

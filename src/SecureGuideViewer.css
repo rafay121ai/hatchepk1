@@ -107,9 +107,9 @@
   flex: 1;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-end;
   background: #36454F;
-  padding: 16px;
+  padding: 8px 16px;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -128,7 +128,7 @@
 /* Navigation hint animation */
 .navigation-hint {
   position: absolute;
-  bottom: 80px;
+  bottom: 20px;
   right: 20px;
   background: rgba(0, 0, 0, 0.85);
   color: white;
@@ -234,7 +234,12 @@
   .viewer-header { padding: 10px 14px; }
   .header-title { font-size: 13px; }
   .close-btn { padding: 7px 14px; font-size: 11px; }
-  .pdf-canvas-container { padding: 12px; }
+  
+  .pdf-canvas-container { 
+    padding: 4px 12px 4px 12px;
+    align-items: flex-end;
+  }
+  
   .viewer-controls { padding: 10px 14px; }
-  .nav-btn { padding: 9px 16px; font-size: 13px; }
+  .nav-btn { padding: 9px 16px; font-size: 13px; min-height: 44px; }
 }
