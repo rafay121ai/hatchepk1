@@ -132,7 +132,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     });
   }, []);
 
-  // Render page to canvas (1.8x DPI - balance of quality and speed)
+  // Progressive render: Fast preview (1.5x) then crisp upgrade (2.0x)
   const renderPage = useCallback(async (pageNum) => {
     if (!pdfDocRef.current || !canvasRef.current) return;
     
@@ -144,23 +144,37 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       
       // Get base viewport
       const viewport = page.getViewport({ scale: 1 });
-      
-      // For mobile, fit to width with 1.8x scale (good quality, faster than 2.0x)
       const containerWidth = window.innerWidth - 32;
       const baseScale = containerWidth / viewport.width;
-      const scaledViewport = page.getViewport({ scale: baseScale * 1.8 });
       
-      // Set canvas size
-      canvas.width = scaledViewport.width;
-      canvas.height = scaledViewport.height;
+      // PASS 1: Quick render at 1.5x (FAST - shows immediately)
+      const quickViewport = page.getViewport({ scale: baseScale * 1.5 });
+      canvas.width = quickViewport.width;
+      canvas.height = quickViewport.height;
       
-      // Render at 1.8x, let CSS handle display scaling
       await page.render({
         canvasContext: context,
-        viewport: scaledViewport
+        viewport: quickViewport
       }).promise;
       
       setRendering(false);
+      
+      // PASS 2: Upgrade to 2.0x quality in background (after 100ms delay)
+      setTimeout(async () => {
+        try {
+          const crispViewport = page.getViewport({ scale: baseScale * 2.0 });
+          canvas.width = crispViewport.width;
+          canvas.height = crispViewport.height;
+          
+          await page.render({
+            canvasContext: context,
+            viewport: crispViewport
+          }).promise;
+        } catch (err) {
+          console.error('Quality upgrade error:', err);
+        }
+      }, 100);
+      
     } catch (err) {
       console.error('Render error:', err);
       setRendering(false);
