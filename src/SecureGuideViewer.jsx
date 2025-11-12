@@ -199,8 +199,90 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     }
   }, []);
 
+  // Optimized rendering with better quality and performance
+  const renderPage = useCallback(async (pdf, pageNum) => {
+    if (rendering || !pdf) return;
+    
+    // Cancel any existing render task
+    if (renderTaskRef.current) {
+      renderTaskRef.current.cancel();
+      renderTaskRef.current = null;
+    }
+    
+    setRendering(true);
+    
+    try {
+      const page = await pdf.getPage(pageNum);
+      const container = canvasContainerRef.current;
+      if (!container) {
+        setRendering(false);
+        return;
+      }
+
+      // Get natural viewport
+      const viewport = page.getViewport({ scale: 1 });
+      
+      // Calculate optimal scale
+      const containerWidth = container.clientWidth - 32;
+      const containerHeight = container.clientHeight - 32;
+      
+      const scaleX = containerWidth / viewport.width;
+      const scaleY = containerHeight / viewport.height;
+      const scale = Math.min(scaleX, scaleY, 2.5);
+      
+      const scaledViewport = page.getViewport({ scale });
+
+      // Use device pixel ratio for crisp rendering
+      const outputScale = window.devicePixelRatio || 1;
+      const adjustedOutputScale = Math.min(outputScale, 2);
+
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d', { 
+        alpha: false,
+        desynchronized: true 
+      });
+      
+      canvas.width = Math.floor(scaledViewport.width * adjustedOutputScale);
+      canvas.height = Math.floor(scaledViewport.height * adjustedOutputScale);
+      
+      canvas.style.width = `${scaledViewport.width}px`;
+      canvas.style.height = `${scaledViewport.height}px`;
+      canvas.style.display = 'block';
+      canvas.style.margin = '0 auto';
+      canvas.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
+
+      // Clear container and show canvas immediately
+      container.innerHTML = '';
+      container.appendChild(canvas);
+
+      // Render with high quality
+      const renderTask = page.render({
+        canvasContext: context,
+        viewport: scaledViewport,
+        transform: [adjustedOutputScale, 0, 0, adjustedOutputScale, 0, 0],
+        intent: 'display'
+      });
+      
+      renderTaskRef.current = renderTask;
+      
+      await renderTask.promise;
+      renderTaskRef.current = null;
+      
+      setCurrentPage(pageNum);
+      setRendering(false);
+      
+    } catch (err) {
+      if (err.name === 'RenderingCancelledException') {
+        console.log('Rendering cancelled');
+      } else {
+        console.error('Error rendering page:', err);
+      }
+      setRendering(false);
+    }
+  }, [rendering]);
+
   // Pre-load PDF.js library with progress tracking
-  const preloadPdfJs = async () => {
+  const preloadPdfJs = useCallback(async () => {
     if (window.pdfjsLib) return;
     
     setLoadingProgress(10);
@@ -218,10 +300,10 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     
     window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-  };
+  }, []);
 
   // Load PDF with PDF.js - optimized for all pages
-  const loadPdfWithPdfJs = async (url) => {
+  const loadPdfWithPdfJs = useCallback(async (url) => {
     try {
       setLoadingProgress(40);
       
@@ -254,7 +336,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       console.error('Error loading PDF:', err);
       setError('Failed to load PDF document. Please try again.');
     }
-  };
+  }, [renderPage]);
 
   // Optimized rendering with better quality and performance
   const renderPage = async (pdf, pageNum) => {
@@ -343,13 +425,13 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     if (currentPage > 1 && pdfDoc && !rendering) {
       renderPage(pdfDoc, currentPage - 1);
     }
-  }, [currentPage, pdfDoc, rendering]);
+  }, [currentPage, pdfDoc, rendering, renderPage]);
 
   const goToNextPage = useCallback(() => {
     if (currentPage < totalPages && pdfDoc && !rendering) {
       renderPage(pdfDoc, currentPage + 1);
     }
-  }, [currentPage, totalPages, pdfDoc, rendering]);
+  }, [currentPage, totalPages, pdfDoc, rendering, renderPage]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -496,7 +578,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         renderTaskRef.current.cancel();
       }
     };
-  }, [guideId, user, isMobile, isInfluencer, guideData, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordAccessSession, updateSessionHeartbeat, closeSession]);
+  }, [guideId, user, isMobile, isInfluencer, guideData, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordAccessSession, updateSessionHeartbeat, closeSession, preloadPdfJs, loadPdfWithPdfJs]);
 
   // Security protections
   useEffect(() => {
