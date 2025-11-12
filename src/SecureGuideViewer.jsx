@@ -132,7 +132,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     });
   }, []);
 
-  // Render page to canvas (2.0x DPI)
+  // Render page to canvas (1.8x DPI - balance of quality and speed)
   const renderPage = useCallback(async (pageNum) => {
     if (!pdfDocRef.current || !canvasRef.current) return;
     
@@ -145,16 +145,16 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       // Get base viewport
       const viewport = page.getViewport({ scale: 1 });
       
-      // For mobile, fit to width with 2.0x scale for crisp rendering
+      // For mobile, fit to width with 1.8x scale (good quality, faster than 2.0x)
       const containerWidth = window.innerWidth - 32;
       const baseScale = containerWidth / viewport.width;
-      const scaledViewport = page.getViewport({ scale: baseScale * 2.0 });
+      const scaledViewport = page.getViewport({ scale: baseScale * 1.8 });
       
       // Set canvas size
       canvas.width = scaledViewport.width;
       canvas.height = scaledViewport.height;
       
-      // Render at 2x, let CSS handle display scaling
+      // Render at 1.8x, let CSS handle display scaling
       await page.render({
         canvasContext: context,
         viewport: scaledViewport
