@@ -10,38 +10,27 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const sessionIdRef = useRef(null);
   const heartbeatRef = useRef(null);
   const [isMobile, setIsMobile] = useState(false);
-  const [pdfDoc, setPdfDoc] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const [rendering, setRendering] = useState(false);
+  const [loadedPages, setLoadedPages] = useState(0);
   const canvasContainerRef = useRef(null);
-  const renderTaskRef = useRef(null);
   const initRef = useRef(false);
 
-  // Detect mobile device
+  // Detect mobile
   useEffect(() => {
-    const checkMobile = () => {
-      const mobile = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
-                     window.innerWidth <= 768;
-      setIsMobile(mobile);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    const mobile = /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+                   window.innerWidth <= 768;
+    setIsMobile(mobile);
   }, []);
 
   const generateDeviceFingerprint = useCallback(() => {
     try {
-      const fingerprint = {
-        userAgent: navigator.userAgent,
-        language: navigator.language,
-        platform: navigator.platform,
-        screen: `${window.screen.width}x${window.screen.height}`,
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+      const fp = {
+        ua: navigator.userAgent,
+        lang: navigator.language,
+        screen: `${window.screen.width}x${window.screen.height}`
       };
-      return btoa(JSON.stringify(fingerprint)).substring(0, 100);
-    } catch (err) {
+      return btoa(JSON.stringify(fp)).substring(0, 100);
+    } catch {
       return `fallback_${Date.now()}`;
     }
   }, []);
@@ -59,20 +48,15 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const ensurePurchaseRecord = useCallback(async (gId, usr) => {
     try {
       const ipAddress = await getClientIP();
-      await supabase
-        .from('purchases')
-        .upsert({
-          user_id: usr.id,
-          guide_id: gId,
-          device_id: deviceIdRef.current,
-          ip_address: ipAddress,
-          purchased_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id,guide_id',
-          ignoreDuplicates: false
-        });
+      await supabase.from('purchases').upsert({
+        user_id: usr.id,
+        guide_id: gId,
+        device_id: deviceIdRef.current,
+        ip_address: ipAddress,
+        purchased_at: new Date().toISOString()
+      }, { onConflict: 'user_id,guide_id' });
     } catch (err) {
-      console.error('Error in ensurePurchaseRecord:', err);
+      console.error('Purchase record error:', err);
     }
   }, [getClientIP]);
 
@@ -102,11 +86,9 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         .eq('order_status', 'completed');
 
       if (orders && orders.length > 0) {
-        const hasOrder = orders.some(order => {
-          const productName = order.product_name || '';
-          return productName.toLowerCase().includes(guide.title.toLowerCase()) ||
-                 guide.title.toLowerCase().includes(productName.toLowerCase());
-        });
+        const hasOrder = orders.some(order => 
+          (order.product_name || '').toLowerCase().includes(guide.title.toLowerCase())
+        );
 
         if (hasOrder) {
           await ensurePurchaseRecord(gId, usr);
@@ -116,7 +98,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
       return false;
     } catch (err) {
-      console.error('Error in verifyPurchaseAccess:', err);
+      console.error('Verify access error:', err);
       return false;
     }
   }, [ensurePurchaseRecord]);
@@ -147,8 +129,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       });
 
       return uniqueDevices.size < 2;
-    } catch (err) {
-      console.error('Error in checkConcurrentSessions:', err);
+    } catch {
       return true;
     }
   }, []);
@@ -156,23 +137,17 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const recordAccessSession = useCallback(async (gId, usr, deviceId, sessionId) => {
     try {
       const ipAddress = await getClientIP();
-      
-      await supabase
-        .from('active_sessions')
-        .upsert({
-          user_id: usr.id,
-          guide_id: gId,
-          device_id: deviceId,
-          session_id: sessionId,
-          ip_address: ipAddress,
-          last_heartbeat: new Date().toISOString(),
-          started_at: new Date().toISOString()
-        }, {
-          onConflict: 'session_id',
-          ignoreDuplicates: false
-        });
+      await supabase.from('active_sessions').upsert({
+        user_id: usr.id,
+        guide_id: gId,
+        device_id: deviceId,
+        session_id: sessionId,
+        ip_address: ipAddress,
+        last_heartbeat: new Date().toISOString(),
+        started_at: new Date().toISOString()
+      }, { onConflict: 'session_id' });
     } catch (err) {
-      console.error('Error in recordAccessSession:', err);
+      console.error('Record session error:', err);
     }
   }, [getClientIP]);
 
@@ -189,81 +164,11 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
   const closeSession = useCallback(async (sessionId) => {
     try {
-      await supabase
-        .from('active_sessions')
-        .delete()
-        .eq('session_id', sessionId);
+      await supabase.from('active_sessions').delete().eq('session_id', sessionId);
     } catch (err) {
-      console.error('Error closing session:', err);
+      console.error('Close session error:', err);
     }
   }, []);
-
-  // Render page - SIMPLE & FAST
-  const renderPage = useCallback(async (pdf, pageNum) => {
-    if (!pdf || rendering) return;
-    
-    if (renderTaskRef.current) {
-      try {
-        renderTaskRef.current.cancel();
-      } catch (e) {
-        // Ignore
-      }
-      renderTaskRef.current = null;
-    }
-    
-    setRendering(true);
-    
-    try {
-      const page = await pdf.getPage(pageNum);
-      const container = canvasContainerRef.current;
-      
-      if (!container) {
-        setRendering(false);
-        return;
-      }
-
-      const viewport = page.getViewport({ scale: 1 });
-      
-      // Simple mobile scaling
-      const containerWidth = container.clientWidth - 32;
-      const scale = containerWidth / viewport.width;
-      const scaledViewport = page.getViewport({ scale });
-
-      // Low DPI for faster rendering on mobile
-      const dpr = isMobile ? 1.5 : 2;
-
-      const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d', { alpha: false });
-      
-      canvas.width = Math.floor(scaledViewport.width * dpr);
-      canvas.height = Math.floor(scaledViewport.height * dpr);
-      
-      canvas.style.width = `${Math.floor(scaledViewport.width)}px`;
-      canvas.style.height = `${Math.floor(scaledViewport.height)}px`;
-
-      container.innerHTML = '';
-      container.appendChild(canvas);
-
-      const renderTask = page.render({
-        canvasContext: context,
-        viewport: scaledViewport,
-        transform: [dpr, 0, 0, dpr, 0, 0]
-      });
-      
-      renderTaskRef.current = renderTask;
-      await renderTask.promise;
-      renderTaskRef.current = null;
-      
-      setCurrentPage(pageNum);
-      setRendering(false);
-      
-    } catch (err) {
-      if (err.name !== 'RenderingCancelledException') {
-        console.error('Error rendering page:', err);
-      }
-      setRendering(false);
-    }
-  }, [rendering, isMobile]);
 
   // Load PDF.js dynamically
   const loadPdfJs = useCallback(async () => {
@@ -282,87 +187,77 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     });
   }, []);
 
-  // Load PDF document
-  const loadPdf = useCallback(async (url) => {
+  // Load ALL pages progressively
+  const loadAllPages = useCallback(async (url) => {
     try {
       if (!window.pdfjsLib) throw new Error('PDF.js not loaded');
 
       const pdf = await window.pdfjsLib.getDocument({ url }).promise;
-      setPdfDoc(pdf);
       setTotalPages(pdf.numPages);
       
-      // Render first page
-      await renderPage(pdf, 1);
-    } catch (err) {
-      console.error('Error loading PDF:', err);
-      setError('Failed to load PDF document');
-    }
-  }, [renderPage]);
+      const container = canvasContainerRef.current;
+      if (!container) return;
 
-  // Navigation
-  const goToPreviousPage = useCallback(() => {
-    if (currentPage > 1 && pdfDoc && !rendering) {
-      renderPage(pdfDoc, currentPage - 1);
-    }
-  }, [currentPage, pdfDoc, rendering, renderPage]);
+      // Render all pages progressively
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        // Small delay to prevent blocking
+        if (pageNum > 1) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1 });
+        
+        // Scale to fit container
+        const containerWidth = Math.min(window.innerWidth - 32, 800);
+        const scale = containerWidth / viewport.width;
+        const scaledViewport = page.getViewport({ scale });
 
-  const goToNextPage = useCallback(() => {
-    if (currentPage < totalPages && pdfDoc && !rendering) {
-      renderPage(pdfDoc, currentPage + 1);
-    }
-  }, [currentPage, totalPages, pdfDoc, rendering, renderPage]);
+        // Lower DPI for mobile = faster
+        const dpr = isMobile ? 1.3 : 2;
 
-  // Keyboard & swipe navigation
-  useEffect(() => {
-    if (!pdfDoc || !isMobile) return;
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d', { alpha: false });
+        
+        canvas.width = Math.floor(scaledViewport.width * dpr);
+        canvas.height = Math.floor(scaledViewport.height * dpr);
+        canvas.style.width = `${Math.floor(scaledViewport.width)}px`;
+        canvas.style.height = `${Math.floor(scaledViewport.height)}px`;
+        canvas.className = 'pdf-page';
+        canvas.dataset.pageNum = pageNum;
 
-    const handleKeyPress = (e) => {
-      if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
-        e.preventDefault();
-        goToPreviousPage();
-      } else if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') {
-        e.preventDefault();
-        goToNextPage();
-      }
-    };
+        // Append immediately (progressive display)
+        container.appendChild(canvas);
 
-    const container = canvasContainerRef.current;
-    if (!container) return;
-
-    let touchStartX = 0;
-
-    const handleTouchStart = (e) => {
-      touchStartX = e.touches[0].clientX;
-    };
-
-    const handleTouchEnd = (e) => {
-      const deltaX = e.changedTouches[0].clientX - touchStartX;
-      
-      if (Math.abs(deltaX) > 50) {
-        if (deltaX > 0) {
-          goToPreviousPage();
+        // Render in background using requestIdleCallback
+        if (window.requestIdleCallback) {
+          window.requestIdleCallback(() => {
+            page.render({
+              canvasContext: context,
+              viewport: scaledViewport,
+              transform: [dpr, 0, 0, dpr, 0, 0]
+            }).promise.then(() => {
+              setLoadedPages(pageNum);
+            });
+          });
         } else {
-          goToNextPage();
+          await page.render({
+            canvasContext: context,
+            viewport: scaledViewport,
+            transform: [dpr, 0, 0, dpr, 0, 0]
+          }).promise;
+          setLoadedPages(pageNum);
         }
       }
-    };
+    } catch (err) {
+      console.error('Error loading pages:', err);
+      setError('Failed to load PDF');
+    }
+  }, [isMobile]);
 
-    window.addEventListener('keydown', handleKeyPress);
-    container.addEventListener('touchstart', handleTouchStart, { passive: true });
-    container.addEventListener('touchend', handleTouchEnd, { passive: true });
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyPress);
-      if (container) {
-        container.removeEventListener('touchstart', handleTouchStart);
-        container.removeEventListener('touchend', handleTouchEnd);
-      }
-    };
-  }, [pdfDoc, isMobile, goToPreviousPage, goToNextPage]);
-
-  // Main initialization - PREVENT REPEATED CALLS
+  // Main initialization - ONLY ONCE
   useEffect(() => {
-    if (initRef.current) return; // Prevent duplicate initialization
+    if (initRef.current) return;
     initRef.current = true;
 
     const initializeViewer = async () => {
@@ -380,7 +275,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           
           if (isMobile) {
             await loadPdfJs();
-            await loadPdf(guideData.file_url);
+            await loadAllPages(guideData.file_url);
           }
           
           setLoading(false);
@@ -388,7 +283,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         }
 
         // Regular purchase mode
-        if (!user || !user.id || !user.email) {
+        if (!user || !user.id) {
           throw new Error("User not authenticated");
         }
 
@@ -402,7 +297,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
         const canAccess = await checkConcurrentSessions(guideId, user, deviceIdRef.current);
         if (!canAccess) {
-          throw new Error("Maximum device limit reached. Please close this guide on another device.");
+          throw new Error("Maximum device limit reached.");
         }
 
         const { data: guide, error: guideError } = await supabase
@@ -427,17 +322,14 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           if (filePath.includes('/storage/v1/object/public/guides/')) {
             filePath = filePath.split('/storage/v1/object/public/guides/')[1];
           } else if (filePath.includes('guides/')) {
-            const parts = filePath.split('guides/');
-            filePath = parts[parts.length - 1].split('?')[0];
+            filePath = filePath.split('guides/').pop().split('?')[0];
           }
 
           const { data: signed, error: signErr } = await supabase.storage
             .from("guides")
             .createSignedUrl(filePath, 3600, { download: false });
 
-          if (signErr) {
-            throw new Error(`Failed to create signed URL: ${signErr.message}`);
-          }
+          if (signErr) throw new Error("Failed to create signed URL");
 
           finalPdfUrl = signed.signedUrl;
         }
@@ -446,7 +338,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         
         if (isMobile) {
           await loadPdfJs();
-          await loadPdf(finalPdfUrl);
+          await loadAllPages(finalPdfUrl);
         }
         
         heartbeatRef.current = setInterval(() => {
@@ -456,7 +348,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         setLoading(false);
 
       } catch (err) {
-        console.error("Initialization error:", err);
+        console.error("Init error:", err);
         setError(err.message);
         setLoading(false);
       }
@@ -465,82 +357,47 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     initializeViewer();
 
     return () => {
-      if (heartbeatRef.current) {
-        clearInterval(heartbeatRef.current);
-      }
-      if (sessionIdRef.current) {
-        closeSession(sessionIdRef.current);
-      }
-      if (renderTaskRef.current) {
-        try {
-          renderTaskRef.current.cancel();
-        } catch (e) {
-          // Ignore
-        }
-      }
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+      if (sessionIdRef.current) closeSession(sessionIdRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty deps - only run once!
+  }, []);
 
   // Security protections
   useEffect(() => {
     if (!pdfUrl) return;
 
-    const blockRightClick = (e) => {
-      e.preventDefault();
-      return false;
-    };
-    
-    const blockKeyboardShortcuts = (e) => {
-      // Allow arrow keys for navigation
-      if ([37, 38, 39, 40, 32].includes(e.keyCode)) {
-        return true;
-      }
-      
+    const blockRightClick = (e) => { e.preventDefault(); };
+    const blockKeys = (e) => {
+      if ([37, 38, 39, 40, 32].includes(e.keyCode)) return true;
       if ((e.ctrlKey || e.metaKey) && [83, 80, 67, 65].includes(e.keyCode)) {
         e.preventDefault();
-        return false;
       }
     };
-
-    const blockSelection = (e) => {
-      if (e.target.tagName === 'CANVAS') {
-        e.preventDefault();
-        return false;
-      }
-    };
+    const blockSelection = (e) => { e.preventDefault(); };
 
     const style = document.createElement('style');
     style.textContent = `
-      @media print {
-        body * { display: none !important; }
-      }
-      .secure-pdf-viewer canvas,
-      .secure-pdf-viewer iframe {
+      @media print { body * { display: none !important; } }
+      .secure-pdf-viewer * {
         user-select: none !important;
         -webkit-user-select: none !important;
+        -webkit-touch-callout: none !important;
       }
     `;
     document.head.appendChild(style);
 
     document.addEventListener('contextmenu', blockRightClick);
-    document.addEventListener('keydown', blockKeyboardShortcuts);
+    document.addEventListener('keydown', blockKeys);
     document.addEventListener('selectstart', blockSelection);
     document.addEventListener('copy', blockSelection);
 
-    window.addEventListener('beforeprint', (e) => {
-      e.preventDefault();
-      alert('Printing is disabled for this document.');
-    });
-
     return () => {
       document.removeEventListener('contextmenu', blockRightClick);
-      document.removeEventListener('keydown', blockKeyboardShortcuts);
+      document.removeEventListener('keydown', blockKeys);
       document.removeEventListener('selectstart', blockSelection);
       document.removeEventListener('copy', blockSelection);
-      if (style.parentNode) {
-        style.parentNode.removeChild(style);
-      }
+      if (style.parentNode) style.parentNode.removeChild(style);
     };
   }, [pdfUrl]);
 
@@ -549,6 +406,9 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       <div className="viewer-loading">
         <div className="loading-spinner"></div>
         <div className="loading-text">Loading guide...</div>
+        {loadedPages > 0 && (
+          <div className="loading-subtext">Loaded {loadedPages} of {totalPages} pages</div>
+        )}
       </div>
     );
   }
@@ -564,49 +424,29 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     );
   }
 
-  // Mobile: Canvas rendering with landscape support
-  if (isMobile && pdfDoc) {
+  // Mobile: Scrollable canvas pages (ALL pages loaded)
+  if (isMobile) {
     return (
-      <div className="secure-viewer-mobile">
+      <div className="secure-viewer-mobile secure-pdf-viewer">
         <div className="viewer-header">
           <div className="header-info">
             <span className="header-icon">🔒</span>
             <div>
               <div className="header-title">Secure Viewer</div>
-              <div className="header-subtitle">Page {currentPage} of {totalPages}</div>
+              <div className="header-subtitle">{loadedPages} of {totalPages} pages loaded</div>
             </div>
           </div>
           <button onClick={onClose} className="close-btn">✕</button>
         </div>
 
         <div ref={canvasContainerRef} className="pdf-canvas-container" />
-
-        <div className="viewer-controls">
-          <button
-            onClick={goToPreviousPage}
-            disabled={currentPage === 1 || rendering}
-            className="nav-btn"
-          >
-            ← Prev
-          </button>
-          <span className="page-indicator">
-            {currentPage} / {totalPages}
-          </span>
-          <button
-            onClick={goToNextPage}
-            disabled={currentPage === totalPages || rendering}
-            className="nav-btn"
-          >
-            Next →
-          </button>
-        </div>
       </div>
     );
   }
 
-  // Desktop: iframe rendering
+  // Desktop: iframe
   return (
-    <div className="secure-viewer-desktop">
+    <div className="secure-viewer-desktop secure-pdf-viewer">
       <div className="viewer-header">
         <div className="header-info">
           <span className="header-icon">🔒</span>
@@ -624,10 +464,9 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
             src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
             className="pdf-iframe"
             title="Secure PDF Viewer"
-            allow="fullscreen"
           />
         ) : (
-          <div className="loading-text">Loading PDF...</div>
+          <div className="loading-text">Loading...</div>
         )}
       </div>
     </div>

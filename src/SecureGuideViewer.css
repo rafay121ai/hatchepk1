@@ -1,18 +1,15 @@
-/* ===== SECURE GUIDE VIEWER - OPTIMIZED FOR MOBILE ===== */
+/* ===== SECURE VIEWER - MOBILE OPTIMIZED ===== */
 
-/* Loading State - Simplified */
+/* Loading */
 .viewer-loading {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   display: flex;
   justify-content: center;
   align-items: center;
   flex-direction: column;
   gap: 20px;
-  background-color: rgba(0, 0, 0, 0.95);
+  background: rgba(0, 0, 0, 0.95);
   color: #fff;
   z-index: 9999;
 }
@@ -21,7 +18,7 @@
   width: 50px;
   height: 50px;
   border: 4px solid rgba(255, 255, 255, 0.2);
-  border-top: 4px solid #fff;
+  border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -35,19 +32,21 @@
   font-weight: 600;
 }
 
-/* Error State - Simplified */
+.loading-subtext {
+  font-size: 14px;
+  color: #888;
+}
+
+/* Error */
 .viewer-error {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   display: flex;
   justify-content: center;
   align-items: center;
   flex-direction: column;
   gap: 20px;
-  background-color: rgba(0, 0, 0, 0.95);
+  background: rgba(0, 0, 0, 0.95);
   color: #fff;
   padding: 20px;
   text-align: center;
@@ -60,13 +59,12 @@
 
 .error-title {
   font-size: 24px;
-  font-weight: bold;
+  font-weight: 700;
 }
 
 .error-message {
   color: #ff6b6b;
   max-width: 400px;
-  font-size: 16px;
 }
 
 .error-close-btn {
@@ -76,22 +74,14 @@
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 16px;
   font-weight: 600;
 }
 
-.error-close-btn:hover {
-  background: #b91c1c;
-}
-
-/* Mobile Viewer - Optimized */
+/* Mobile Viewer */
 .secure-viewer-mobile {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #2b2b2b;
+  inset: 0;
+  background: #2b2b2b;
   z-index: 9999;
   display: flex;
   flex-direction: column;
@@ -103,17 +93,14 @@
 /* Desktop Viewer */
 .secure-viewer-desktop {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #000;
+  inset: 0;
+  background: #000;
   z-index: 9999;
   display: flex;
   flex-direction: column;
 }
 
-/* Header - Simplified */
+/* Header */
 .viewer-header {
   padding: 12px 16px;
   background: #1a1a1a;
@@ -156,140 +143,75 @@
   font-size: 12px;
 }
 
-.close-btn:hover {
-  background: #b91c1c;
-}
-
-/* PDF Canvas Container (Mobile) - Landscape Support */
+/* PDF Canvas Container - ALL PAGES SCROLLABLE */
 .pdf-canvas-container {
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  background-color: #e5e5e5;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #e5e5e5;
   padding: 16px;
+  -webkit-overflow-scrolling: touch;
+  /* Performance optimizations */
+  contain: layout paint;
+  will-change: transform;
 }
 
-.pdf-canvas-container canvas {
-  max-width: 100%;
-  height: auto;
+.pdf-canvas-container .pdf-page {
   display: block;
-  margin: 0 auto;
+  margin: 0 auto 16px auto;
+  background: white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Landscape mode for mobile phones */
+.pdf-canvas-container .pdf-page:last-child {
+  margin-bottom: 0;
+}
+
+/* Landscape mode for portrait phones */
 @media (max-width: 768px) and (orientation: portrait) {
-  .pdf-canvas-container canvas {
-    transform: rotate(90deg);
-    transform-origin: center center;
-    max-width: 100vh;
-    max-height: 100vw;
+  .pdf-canvas-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
   }
   
-  .pdf-canvas-container {
-    width: 100%;
-    height: 100%;
+  .pdf-canvas-container .pdf-page {
+    transform: rotate(90deg) scale(0.85);
+    transform-origin: center center;
+    margin: 0;
+    position: absolute;
+  }
+  
+  /* Hide all pages except current during scroll */
+  .pdf-canvas-container .pdf-page:not(:first-child) {
+    display: none;
   }
 }
 
-/* PDF iframe Container (Desktop) */
+/* iframe Container (Desktop) */
 .pdf-iframe-container {
   flex: 1;
-  position: relative;
-  overflow: hidden;
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: #36454F;
+  background: #36454F;
   padding: 20px;
+  overflow: hidden;
 }
 
 .pdf-iframe {
   width: 100%;
   height: 100%;
-  max-width: 100%;
-  max-height: 100%;
   border: none;
-  background-color: #fff;
+  background: #fff;
 }
 
-/* Navigation Controls (Mobile) - Simplified */
-.viewer-controls {
-  padding: 12px 16px;
-  background: #1a1a1a;
-  border-top: 1px solid #333;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-}
-
-.nav-btn {
-  padding: 10px 20px;
-  background: #73160f;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  flex: 1;
-  max-width: 100px;
-}
-
-.nav-btn:hover:not(:disabled) {
-  background: #8b1a13;
-}
-
-.nav-btn:disabled {
-  background: #333;
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.page-indicator {
-  color: white;
-  font-size: 14px;
-  font-weight: 600;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 6px 12px;
-  border-radius: 12px;
-}
-
-/* Mobile Responsive - Remove heavy effects */
+/* Mobile optimizations - remove heavy effects */
 @media (max-width: 768px) {
-  .viewer-header {
-    padding: 10px 12px;
-  }
-
-  .header-title {
-    font-size: 13px;
-  }
-
-  .header-subtitle {
-    font-size: 10px;
-  }
-
-  .close-btn {
-    padding: 6px 12px;
-    font-size: 11px;
-  }
-
-  .nav-btn {
-    padding: 8px 12px;
-    font-size: 13px;
-  }
-
-  .page-indicator {
-    font-size: 13px;
-    padding: 5px 10px;
-  }
-  
-  /* Remove heavy styles on mobile */
-  .pdf-iframe-container,
-  .pdf-canvas-container {
+  .viewer-header,
+  .pdf-canvas-container,
+  .pdf-iframe-container {
     box-shadow: none;
   }
   
@@ -298,39 +220,34 @@
     height: 40px;
     border-width: 3px;
   }
+  
+  .loading-text {
+    font-size: 16px;
+  }
 }
 
-/* Extra small screens */
+/* Very small screens */
 @media (max-width: 480px) {
-  .nav-btn {
+  .header-title {
     font-size: 12px;
-    padding: 8px 10px;
-    max-width: 80px;
   }
   
-  .page-indicator {
-    font-size: 12px;
+  .close-btn {
+    padding: 6px 12px;
+    font-size: 11px;
   }
 }
 
-/* Landscape orientation - optimize */
+/* Landscape phones - no rotation needed */
 @media (max-width: 768px) and (orientation: landscape) {
-  .viewer-header {
-    padding: 6px 12px;
-  }
-  
-  .viewer-controls {
-    padding: 6px 12px;
-  }
-  
-  .pdf-canvas-container canvas {
+  .pdf-canvas-container .pdf-page {
     transform: none;
-    max-width: 100%;
-    max-height: calc(100vh - 80px);
+    position: static;
+    display: block;
   }
 }
 
-/* Reduce motion */
+/* Performance: Reduce motion */
 @media (prefers-reduced-motion: reduce) {
   * {
     animation-duration: 0.01ms !important;
