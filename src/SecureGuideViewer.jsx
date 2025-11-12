@@ -16,6 +16,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [rendering, setRendering] = useState(false);
+  const [showHint, setShowHint] = useState(false);
   const pdfDocRef = useRef(null);
   const canvasRef = useRef(null);
 
@@ -131,7 +132,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     });
   }, []);
 
-  // Render page to canvas (optimized for landscape viewing)
+  // Render page to canvas (2.0x DPI)
   const renderPage = useCallback(async (pageNum) => {
     if (!pdfDocRef.current || !canvasRef.current) return;
     
@@ -141,27 +142,19 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       const canvas = canvasRef.current;
       const context = canvas.getContext('2d');
       
-      // Calculate scale - 2.0x DPI for crisp display
+      // Get base viewport
       const viewport = page.getViewport({ scale: 1 });
+      
+      // For mobile, fit to width with 2.0x scale for crisp rendering
       const containerWidth = window.innerWidth - 32;
       const baseScale = containerWidth / viewport.width;
+      const scaledViewport = page.getViewport({ scale: baseScale * 2.0 });
       
-      // Display size (1x)
-      const displayWidth = viewport.width * baseScale;
-      const displayHeight = viewport.height * baseScale;
-      
-      // Render size (2x for crisp display)
-      const scale = baseScale * 2.0;
-      const scaledViewport = page.getViewport({ scale });
-      
-      // Set canvas internal size to 2x
+      // Set canvas size
       canvas.width = scaledViewport.width;
       canvas.height = scaledViewport.height;
       
-      // Set canvas CSS display size to 1x (so it appears correct size but crisp)
-      canvas.style.width = displayWidth + 'px';
-      canvas.style.height = displayHeight + 'px';
-      
+      // Render at 2x, let CSS handle display scaling
       await page.render({
         canvasContext: context,
         viewport: scaledViewport
@@ -211,6 +204,10 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
             pdfDocRef.current = pdf;
             setTotalPages(pdf.numPages);
             await renderPage(1);
+            
+            // Show hint after guide loads
+            setShowHint(true);
+            setTimeout(() => setShowHint(false), 3000);
           }
           
           setLoading(false);
@@ -266,6 +263,10 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           pdfDocRef.current = pdf;
           setTotalPages(pdf.numPages);
           await renderPage(1);
+          
+          // Show hint after guide loads
+          setShowHint(true);
+          setTimeout(() => setShowHint(false), 3000);
         }
         
         setLoading(false);
@@ -354,6 +355,11 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
         <div className="pdf-canvas-container">
           <canvas ref={canvasRef} className="pdf-canvas" />
+          {showHint && (
+            <div className="navigation-hint">
+              <span>👉 Press Next</span>
+            </div>
+          )}
         </div>
 
         <div className="viewer-controls">
