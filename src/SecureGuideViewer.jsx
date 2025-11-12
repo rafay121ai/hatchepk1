@@ -1,674 +1,543 @@
-/* ===== SECURE GUIDE VIEWER - MOBILE OPTIMIZED ===== */
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { supabase } from './supabaseClient';
+import './SecureGuideViewer.css';
 
-/* Reset and base styles */
-* {
-  box-sizing: border-box;
-}
-
-/* Loading State */
-.viewer-loading {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  gap: 20px;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  color: #fff;
-  z-index: 9999;
-  padding: 20px;
-}
-
-.loading-spinner {
-  width: 60px;
-  height: 60px;
-  border: 5px solid rgba(255, 255, 255, 0.1);
-  border-top: 5px solid #fff;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.loading-text {
-  font-size: 20px;
-  font-weight: 600;
-  color: #fff;
-  margin-top: 10px;
-  text-align: center;
-}
-
-.loading-subtext {
-  font-size: 14px;
-  color: #a0a0a0;
-  margin-top: 5px;
-  text-align: center;
-}
-
-.loading-progress-bar {
-  width: 300px;
-  max-width: 90%;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
-  overflow: hidden;
-  margin-top: 20px;
-}
-
-.loading-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
-  border-radius: 3px;
-  transition: width 0.3s ease;
-}
-
-.loading-debug {
-  font-size: 11px;
-  color: #666;
-  margin-top: 10px;
-  font-family: monospace;
-}
-
-/* Error State */
-.viewer-error {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  gap: 20px;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  color: #fff;
-  padding: 20px;
-  text-align: center;
-  z-index: 9999;
-}
-
-.error-icon {
-  font-size: 64px;
-  animation: shake 0.5s ease;
-}
-
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-10px); }
-  75% { transform: translateX(10px); }
-}
-
-.error-title {
-  font-size: 28px;
-  font-weight: bold;
-  margin-bottom: 10px;
-}
-
-.error-message {
-  color: #ff6b6b;
-  max-width: 500px;
-  font-size: 16px;
-  line-height: 1.6;
-}
-
-.error-close-btn {
-  margin-top: 20px;
-  padding: 14px 32px;
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 600;
-  transition: transform 0.2s, box-shadow 0.2s;
-  min-height: 44px;
-}
-
-.error-close-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(220, 38, 38, 0.3);
-}
-
-.error-close-btn:active {
-  transform: translateY(0);
-}
-
-/* Mobile Viewer */
-.secure-viewer-mobile {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #2b2b2b;
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  user-select: none;
-  -webkit-user-select: none;
-  -webkit-touch-callout: none;
-  overflow: hidden;
-}
-
-/* Desktop Viewer */
-.secure-viewer-desktop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* Header */
-.viewer-header {
-  padding: 14px 20px;
-  background: linear-gradient(to bottom, #1f1f1f, #121212);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: white;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
-  flex-shrink: 0;
-  backdrop-filter: blur(10px);
-  min-height: 60px;
-}
-
-.header-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 1;
-  min-width: 0;
-}
-
-.header-icon {
-  font-size: 24px;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
-  flex-shrink: 0;
-}
-
-.header-title {
-  font-weight: 700;
-  font-size: 16px;
-  letter-spacing: 0.3px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.header-subtitle {
-  font-size: 12px;
-  color: #a0a0a0;
-  margin-top: 2px;
-  white-space: nowrap;
-}
-
-.close-btn {
-  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-  color: white;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  font-size: 14px;
-  transition: transform 0.2s, box-shadow 0.2s;
-  min-width: 70px;
-  min-height: 44px;
-  flex-shrink: 0;
-}
-
-.close-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(220, 38, 38, 0.4);
-}
-
-.close-btn:active {
-  transform: translateY(0);
-}
-
-/* PDF Canvas Container (Mobile) - Scrollable with all pages */
-.pdf-canvas-container-scroll {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  background: linear-gradient(135deg, #e8e8e8 0%, #d0d0d0 100%);
-  padding: 16px;
-  -webkit-overflow-scrolling: touch;
-  position: relative;
-  min-height: 0;
-}
-
-.pdf-canvas-container-scroll .pdf-page {
-  display: block;
-  margin: 0 auto 16px auto;
-  border-radius: 4px;
-  background: white;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  max-width: 100%;
-}
-
-.pdf-canvas-container-scroll .pdf-page:last-child {
-  margin-bottom: 0;
-}
-
-/* Legacy container (if needed) */
-.pdf-canvas-container {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: auto;
-  background: linear-gradient(135deg, #e8e8e8 0%, #d0d0d0 100%);
-  padding: 16px;
-  -webkit-overflow-scrolling: touch;
-  position: relative;
-  min-height: 0;
-}
-
-.pdf-canvas-container canvas {
-  border-radius: 4px;
-  background: white;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  max-width: 100%;
-  height: auto !important;
-  display: block;
-  margin: 0 auto;
-}
-
-/* PDF iframe Container (Desktop) */
-.pdf-iframe-container {
-  flex: 1;
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
-  padding: 24px;
-  min-height: 0;
-}
-
-.pdf-iframe {
-  width: 100%;
-  height: 100%;
-  max-width: 100%;
-  max-height: 100%;
-  border: none;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-  background-color: #fff;
-  border-radius: 8px;
-}
-
-/* Navigation Controls (Mobile) */
-.viewer-controls {
-  padding: 16px 20px;
-  background: linear-gradient(to top, #1f1f1f, #1a1a1a);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
-  min-height: 70px;
-}
-
-.nav-btn {
-  padding: 12px 20px;
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  flex: 1;
-  max-width: 110px;
-  box-shadow: 0 4px 8px rgba(79, 70, 229, 0.3);
-  min-height: 44px;
-  white-space: nowrap;
-}
-
-.nav-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(79, 70, 229, 0.4);
-}
-
-.nav-btn:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.nav-btn:disabled {
-  background: linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%);
-  cursor: not-allowed;
-  opacity: 0.5;
-  box-shadow: none;
-}
-
-.page-indicator {
-  color: white;
-  font-size: 16px;
-  font-weight: 700;
-  min-width: 80px;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 10px 16px;
-  border-radius: 20px;
-  backdrop-filter: blur(10px);
-  white-space: nowrap;
-}
-
-.viewer-hint {
-  text-align: center;
-  padding: 10px 16px;
-  background: rgba(0, 0, 0, 0.3);
-  color: #a0a0a0;
-  font-size: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
-  flex-shrink: 0;
-}
-
-/* Tablet Specific (768px - 1024px) */
-@media (min-width: 768px) and (max-width: 1024px) {
-  .viewer-header {
-    padding: 18px 32px;
-  }
+export default function SecureGuideViewer({ guideId, user, onClose, guideData, isInfluencer = false }) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [pdfUrl, setPdfUrl] = useState(null);
+  const deviceIdRef = useRef(null);
+  const sessionIdRef = useRef(null);
+  const heartbeatRef = useRef(null);
+  const [totalPages, setTotalPages] = useState(0);
+  const [loadedPages, setLoadedPages] = useState(0);
+  const canvasContainerRef = useRef(null);
+  const initRef = useRef(false);
   
-  .header-title {
-    font-size: 18px;
-  }
-  
-  .close-btn {
-    padding: 12px 24px;
-    font-size: 15px;
-  }
-  
-  .pdf-canvas-container {
-    padding: 24px;
-  }
-  
-  .nav-btn {
-    padding: 14px 28px;
-    font-size: 15px;
-    max-width: 140px;
-  }
-  
-  .page-indicator {
-    font-size: 17px;
-    padding: 12px 20px;
-  }
-}
+  // Detect mobile SYNCHRONOUSLY (before useEffect runs)
+  const isMobile = useRef(
+    /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+    window.innerWidth <= 768
+  ).current;
 
-/* Large Desktop (1440px+) */
-@media (min-width: 1440px) {
-  .pdf-iframe-container {
-    padding: 40px;
-  }
-  
-  .viewer-header {
-    padding: 20px 40px;
-  }
-  
-  .header-title {
-    font-size: 18px;
-  }
-}
+  const generateDeviceFingerprint = useCallback(() => {
+    try {
+      const fp = {
+        ua: navigator.userAgent,
+        lang: navigator.language,
+        screen: `${window.screen.width}x${window.screen.height}`
+      };
+      return btoa(JSON.stringify(fp)).substring(0, 100);
+    } catch {
+      return `fallback_${Date.now()}`;
+    }
+  }, []);
 
-/* Mobile Responsive (< 768px) */
-@media (max-width: 767px) {
-  .viewer-header {
-    padding: 12px 16px;
-    min-height: 56px;
+  const getClientIP = useCallback(async () => {
+    try {
+      const response = await fetch('https://api.ipify.org?format=json', { timeout: 3000 });
+      const data = await response.json();
+      return data.ip;
+    } catch {
+      return 'unknown';
+    }
+  }, []);
+
+  const ensurePurchaseRecord = useCallback(async (gId, usr) => {
+    try {
+      const ipAddress = await getClientIP();
+      await supabase.from('purchases').upsert({
+        user_id: usr.id,
+        guide_id: gId,
+        device_id: deviceIdRef.current,
+        ip_address: ipAddress,
+        purchased_at: new Date().toISOString()
+      }, { onConflict: 'user_id,guide_id' });
+    } catch (err) {
+      console.error('Purchase record error:', err);
+    }
+  }, [getClientIP]);
+
+  const verifyPurchaseAccess = useCallback(async (gId, usr) => {
+    try {
+      const { data: purchase } = await supabase
+        .from('purchases')
+        .select('*')
+        .eq('user_id', usr.id)
+        .eq('guide_id', gId)
+        .maybeSingle();
+
+      if (purchase) return true;
+
+      const { data: guide } = await supabase
+        .from('guides')
+        .select('title')
+        .eq('id', gId)
+        .maybeSingle();
+      
+      if (!guide) return false;
+      
+      const { data: orders } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('customer_email', usr.email)
+        .eq('order_status', 'completed');
+
+      if (orders && orders.length > 0) {
+        const hasOrder = orders.some(order => 
+          (order.product_name || '').toLowerCase().includes(guide.title.toLowerCase())
+        );
+
+        if (hasOrder) {
+          await ensurePurchaseRecord(gId, usr);
+          return true;
+        }
+      }
+
+      return false;
+    } catch (err) {
+      console.error('Verify access error:', err);
+      return false;
+    }
+  }, [ensurePurchaseRecord]);
+
+  const checkConcurrentSessions = useCallback(async (gId, usr, deviceId) => {
+    try {
+      const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+      
+      await supabase
+        .from('active_sessions')
+        .delete()
+        .eq('user_id', usr.id)
+        .eq('guide_id', gId)
+        .lt('last_heartbeat', twoMinutesAgo);
+      
+      const { data: activeSessions } = await supabase
+        .from('active_sessions')
+        .select('device_id')
+        .eq('user_id', usr.id)
+        .eq('guide_id', gId)
+        .gte('last_heartbeat', twoMinutesAgo);
+
+      const uniqueDevices = new Set();
+      activeSessions?.forEach(session => {
+        if (session.device_id !== deviceId) {
+          uniqueDevices.add(session.device_id);
+        }
+      });
+
+      return uniqueDevices.size < 2;
+    } catch {
+      return true;
+    }
+  }, []);
+
+  const recordAccessSession = useCallback(async (gId, usr, deviceId, sessionId) => {
+    try {
+      const ipAddress = await getClientIP();
+      await supabase.from('active_sessions').upsert({
+        user_id: usr.id,
+        guide_id: gId,
+        device_id: deviceId,
+        session_id: sessionId,
+        ip_address: ipAddress,
+        last_heartbeat: new Date().toISOString(),
+        started_at: new Date().toISOString()
+      }, { onConflict: 'session_id' });
+    } catch (err) {
+      console.error('Record session error:', err);
+    }
+  }, [getClientIP]);
+
+  const updateSessionHeartbeat = useCallback(async (sessionId) => {
+    try {
+      await supabase
+        .from('active_sessions')
+        .update({ last_heartbeat: new Date().toISOString() })
+        .eq('session_id', sessionId);
+    } catch (err) {
+      console.error('Heartbeat error:', err);
+    }
+  }, []);
+
+  const closeSession = useCallback(async (sessionId) => {
+    try {
+      await supabase.from('active_sessions').delete().eq('session_id', sessionId);
+    } catch (err) {
+      console.error('Close session error:', err);
+    }
+  }, []);
+
+  // Load PDF.js dynamically
+  const loadPdfJs = useCallback(async () => {
+    if (window.pdfjsLib) return;
+    
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.onload = () => {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        resolve();
+      };
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }, []);
+
+  // Load ALL pages progressively
+  const loadAllPages = useCallback(async (url) => {
+    try {
+      console.log('📄 Starting to load all pages from:', url);
+      
+      if (!window.pdfjsLib) {
+        console.error('❌ PDF.js not loaded!');
+        throw new Error('PDF.js not loaded');
+      }
+
+      console.log('📥 Fetching PDF document...');
+      const loadingTask = window.pdfjsLib.getDocument(url);
+      const pdf = await loadingTask.promise;
+      
+      console.log(`✅ PDF loaded with ${pdf.numPages} pages`);
+      setTotalPages(pdf.numPages);
+      
+      const container = canvasContainerRef.current;
+      if (!container) {
+        console.error('❌ Container not found!');
+        return;
+      }
+
+      console.log('📱 Container found, starting progressive render...');
+
+      // Render all pages progressively
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        console.log(`Rendering page ${pageNum}/${pdf.numPages}...`);
+        
+        // Small delay to prevent blocking (except first page)
+        if (pageNum > 1) {
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        
+        const page = await pdf.getPage(pageNum);
+        const viewport = page.getViewport({ scale: 1 });
+        
+        // Scale to fit container
+        const containerWidth = Math.min(window.innerWidth - 32, 800);
+        const scale = containerWidth / viewport.width;
+        const scaledViewport = page.getViewport({ scale });
+
+        // Lower DPI for mobile = faster
+        const dpr = isMobile ? 1.3 : 2;
+
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d', { alpha: false });
+        
+        canvas.width = Math.floor(scaledViewport.width * dpr);
+        canvas.height = Math.floor(scaledViewport.height * dpr);
+        canvas.style.width = `${Math.floor(scaledViewport.width)}px`;
+        canvas.style.height = `${Math.floor(scaledViewport.height)}px`;
+        canvas.className = 'pdf-page';
+        canvas.dataset.pageNum = pageNum;
+
+        // Append immediately (progressive display)
+        container.appendChild(canvas);
+        console.log(`✅ Page ${pageNum} canvas created`);
+
+        // Render
+        try {
+          await page.render({
+            canvasContext: context,
+            viewport: scaledViewport,
+            transform: [dpr, 0, 0, dpr, 0, 0]
+          }).promise;
+          
+          setLoadedPages(pageNum);
+          console.log(`✅ Page ${pageNum} rendered`);
+          
+          // Hide loading after first page
+          if (pageNum === 1) {
+            setLoading(false);
+            console.log('🎉 First page ready - hiding loader');
+          }
+        } catch (renderErr) {
+          console.error(`Error rendering page ${pageNum}:`, renderErr);
+        }
+      }
+      
+      console.log('🎉 All pages loaded successfully!');
+    } catch (err) {
+      console.error('❌ Error loading pages:', err);
+      setError(`Failed to load PDF: ${err.message}`);
+      setLoading(false);
+    }
+  }, [isMobile]);
+
+  // Main initialization - ONLY ONCE
+  useEffect(() => {
+    if (initRef.current) return;
+    initRef.current = true;
+
+    const initializeViewer = async () => {
+      try {
+        console.log('🚀 Starting initialization');
+        console.log('isMobile:', isMobile);
+        console.log('isInfluencer:', isInfluencer);
+        
+        setLoading(true);
+        setError(null);
+
+        // Influencer mode
+        if (isInfluencer) {
+          console.log('Influencer mode');
+          if (!guideData || !guideData.file_url) {
+            throw new Error("Guide data not provided");
+          }
+          
+          console.log('PDF URL:', guideData.file_url);
+          setPdfUrl(guideData.file_url);
+          
+          if (isMobile) {
+            console.log('📱 Loading for mobile...');
+            await loadPdfJs();
+            console.log('✅ PDF.js loaded');
+            await loadAllPages(guideData.file_url);
+            console.log('✅ All pages loaded');
+          }
+          
+          setLoading(false);
+          console.log('✅ Viewer ready');
+          return;
+        }
+
+        // Regular purchase mode
+        if (!user || !user.id) {
+          throw new Error("User not authenticated");
+        }
+
+        deviceIdRef.current = generateDeviceFingerprint();
+        sessionIdRef.current = crypto.randomUUID ? crypto.randomUUID() : `session_${Date.now()}`;
+
+        const hasAccess = await verifyPurchaseAccess(guideId, user);
+        if (!hasAccess) {
+          throw new Error("You have not purchased this guide.");
+        }
+
+        const canAccess = await checkConcurrentSessions(guideId, user, deviceIdRef.current);
+        if (!canAccess) {
+          throw new Error("Maximum device limit reached.");
+        }
+
+        const { data: guide, error: guideError } = await supabase
+          .from("guides")
+          .select("*")
+          .eq("id", guideId)
+          .single();
+
+        if (guideError || !guide) {
+          throw new Error("Guide not found");
+        }
+
+        await recordAccessSession(guideId, user, deviceIdRef.current, sessionIdRef.current);
+
+        let finalPdfUrl;
+        
+        if (guide.file_url && guide.file_url.includes("token=")) {
+          finalPdfUrl = guide.file_url;
+        } else {
+          let filePath = guide.file_url;
+          
+          if (filePath.includes('/storage/v1/object/public/guides/')) {
+            filePath = filePath.split('/storage/v1/object/public/guides/')[1];
+          } else if (filePath.includes('guides/')) {
+            filePath = filePath.split('guides/').pop().split('?')[0];
+          }
+
+          const { data: signed, error: signErr } = await supabase.storage
+            .from("guides")
+            .createSignedUrl(filePath, 3600, { download: false });
+
+          if (signErr) throw new Error("Failed to create signed URL");
+
+          finalPdfUrl = signed.signedUrl;
+        }
+
+        console.log('Final PDF URL:', finalPdfUrl);
+        setPdfUrl(finalPdfUrl);
+        
+        if (isMobile) {
+          console.log('📱 Loading for mobile...');
+          await loadPdfJs();
+          console.log('✅ PDF.js loaded');
+          await loadAllPages(finalPdfUrl);
+          console.log('✅ All pages loaded');
+        }
+        
+        heartbeatRef.current = setInterval(() => {
+          updateSessionHeartbeat(sessionIdRef.current);
+        }, 30000);
+
+        setLoading(false);
+        console.log('✅ Viewer ready');
+
+      } catch (err) {
+        console.error("Init error:", err);
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+
+    initializeViewer();
+
+    return () => {
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+      if (sessionIdRef.current) closeSession(sessionIdRef.current);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Security protections
+  useEffect(() => {
+    if (!pdfUrl) return;
+
+    const blockRightClick = (e) => { e.preventDefault(); };
+    const blockKeys = (e) => {
+      if ([37, 38, 39, 40, 32].includes(e.keyCode)) return true;
+      if ((e.ctrlKey || e.metaKey) && [83, 80, 67, 65].includes(e.keyCode)) {
+        e.preventDefault();
+      }
+    };
+    const blockSelection = (e) => { e.preventDefault(); };
+
+    const style = document.createElement('style');
+    style.textContent = `
+      @media print { body * { display: none !important; } }
+      .secure-pdf-viewer * {
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        -webkit-touch-callout: none !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    document.addEventListener('contextmenu', blockRightClick);
+    document.addEventListener('keydown', blockKeys);
+    document.addEventListener('selectstart', blockSelection);
+    document.addEventListener('copy', blockSelection);
+
+    return () => {
+      document.removeEventListener('contextmenu', blockRightClick);
+      document.removeEventListener('keydown', blockKeys);
+      document.removeEventListener('selectstart', blockSelection);
+      document.removeEventListener('copy', blockSelection);
+      if (style.parentNode) style.parentNode.removeChild(style);
+    };
+  }, [pdfUrl]);
+
+  if (loading) {
+    return (
+      <div className="viewer-loading">
+        <div className="loading-spinner"></div>
+        <div className="loading-text">Loading guide...</div>
+        {loadedPages > 0 && (
+          <div className="loading-subtext">Loaded {loadedPages} of {totalPages} pages</div>
+        )}
+      </div>
+    );
   }
 
-  .header-title {
-    font-size: 14px;
-  }
-  
-  .header-subtitle {
-    font-size: 11px;
-  }
-  
-  .header-icon {
-    font-size: 20px;
-  }
-
-  .close-btn {
-    padding: 8px 16px;
-    font-size: 13px;
-    min-width: 60px;
+  if (error) {
+    return (
+      <div className="viewer-error">
+        <div className="error-icon">⚠️</div>
+        <div className="error-title">Access Denied</div>
+        <div className="error-message">{error}</div>
+        <button onClick={onClose} className="error-close-btn">Close</button>
+      </div>
+    );
   }
 
-  .nav-btn {
-    padding: 10px 16px;
-    font-size: 13px;
-    max-width: 100px;
-    flex: 1;
+  // Mobile: Scrollable canvas pages OR iframe fallback
+  if (isMobile) {
+    // If canvas failed to load, fallback to iframe
+    if (totalPages === 0 && pdfUrl && !loading) {
+      console.log('📱 Canvas failed, using iframe fallback');
+      return (
+        <div className="secure-viewer-mobile secure-pdf-viewer">
+          <div className="viewer-header">
+            <div className="header-info">
+              <span className="header-icon">🔒</span>
+              <div>
+                <div className="header-title">Secure Viewer</div>
+                <div className="header-subtitle">Mobile view</div>
+              </div>
+            </div>
+            <button onClick={onClose} className="close-btn">✕</button>
+          </div>
+
+          <div className="pdf-iframe-container">
+            <iframe 
+              src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+              className="pdf-iframe"
+              title="Secure PDF Viewer"
+            />
+          </div>
+        </div>
+      );
+    }
+    
+    // Canvas rendering
+    return (
+      <div className="secure-viewer-mobile secure-pdf-viewer">
+        <div className="viewer-header">
+          <div className="header-info">
+            <span className="header-icon">🔒</span>
+            <div>
+              <div className="header-title">Secure Viewer</div>
+              <div className="header-subtitle">
+                {loadedPages > 0 ? `${loadedPages} of ${totalPages} pages` : 'Loading...'}
+              </div>
+            </div>
+          </div>
+          <button onClick={onClose} className="close-btn">✕</button>
+        </div>
+
+        <div ref={canvasContainerRef} className="pdf-canvas-container">
+          {totalPages === 0 && !loading && (
+            <div style={{ color: '#fff', textAlign: 'center', padding: '20px' }}>
+              Loading pages...
+            </div>
+          )}
+        </div>
+      </div>
+    );
   }
 
-  .page-indicator {
-    font-size: 14px;
-    padding: 8px 12px;
-    min-width: 70px;
-    flex-shrink: 0;
-  }
-
-  .pdf-canvas-container {
-    padding: 12px;
-  }
-  
-  .viewer-controls {
-    padding: 12px 16px;
-    gap: 10px;
-    min-height: 64px;
-  }
-  
-  .viewer-hint {
-    font-size: 11px;
-    padding: 8px 12px;
-  }
-  
-  .loading-progress-bar {
-    width: 250px;
-  }
-  
-  .loading-text {
-    font-size: 18px;
-  }
-  
-  .loading-subtext {
-    font-size: 13px;
-  }
-}
-
-/* Extra small screens (< 380px) */
-@media (max-width: 379px) {
-  .header-title {
-    font-size: 13px;
-  }
-  
-  .header-info {
-    gap: 8px;
-  }
-  
-  .nav-btn {
-    padding: 8px 12px;
-    font-size: 12px;
-    max-width: 85px;
-  }
-  
-  .page-indicator {
-    font-size: 13px;
-    padding: 6px 10px;
-    min-width: 60px;
-  }
-  
-  .close-btn {
-    padding: 6px 12px;
-    font-size: 12px;
-    min-width: 50px;
-  }
-  
-  .viewer-controls {
-    gap: 8px;
-    padding: 10px 12px;
-  }
-  
-  .pdf-canvas-container {
-    padding: 8px;
-  }
-}
-
-/* iPhone SE and similar small devices */
-@media (max-width: 375px) and (max-height: 667px) {
-  .viewer-header {
-    padding: 10px 12px;
-    min-height: 52px;
-  }
-  
-  .header-icon {
-    font-size: 18px;
-  }
-  
-  .viewer-controls {
-    padding: 10px 12px;
-    min-height: 60px;
-  }
-  
-  .viewer-hint {
-    font-size: 10px;
-    padding: 6px 8px;
-  }
-}
-
-/* Landscape orientation for mobile */
-@media (max-width: 896px) and (orientation: landscape) {
-  .viewer-header {
-    padding: 8px 16px;
-    min-height: 48px;
-  }
-  
-  .header-title {
-    font-size: 13px;
-  }
-  
-  .header-subtitle {
-    font-size: 10px;
-  }
-  
-  .viewer-controls {
-    padding: 8px 16px;
-    min-height: 56px;
-  }
-  
-  .viewer-hint {
-    display: none;
-  }
-  
-  .pdf-canvas-container {
-    padding: 8px;
-  }
-  
-  .nav-btn {
-    padding: 8px 14px;
-    font-size: 12px;
-  }
-  
-  .page-indicator {
-    padding: 6px 10px;
-    font-size: 13px;
-  }
-}
-
-/* Print blocking */
-@media print {
-  body * { 
-    display: none !important; 
-  }
-  body::after {
-    content: "Printing is disabled for this document.";
-    display: block !important;
-    text-align: center;
-    margin-top: 20px;
-    font-size: 18px;
-    color: #000;
-  }
-}
-
-/* High DPI displays */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-  .pdf-canvas-container canvas {
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
-  }
-}
-
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/* Touch-friendly tap targets */
-@media (pointer: coarse) {
-  .nav-btn,
-  .close-btn {
-    min-height: 44px;
-    min-width: 44px;
-  }
-  
-  .page-indicator {
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-}
-
-/* Fix for iOS Safari viewport */
-@supports (-webkit-touch-callout: none) {
-  .secure-viewer-mobile,
-  .secure-viewer-desktop {
-    height: -webkit-fill-available;
-  }
-  
-  .pdf-canvas-container {
-    -webkit-overflow-scrolling: touch;
-  }
-}
-
-/* Android Chrome specific fixes */
-@media (max-width: 767px) {
-  .secure-viewer-mobile {
-    min-height: 100vh;
-    min-height: -webkit-fill-available;
-  }
-}
-
-/* Ensure canvas sizing on mobile */
-@media (max-width: 767px) {
-  .pdf-canvas-container canvas {
-    max-width: calc(100vw - 32px) !important;
-    width: auto !important;
-    height: auto !important;
-  }
+  // Desktop: iframe
+  return (
+    <div className="secure-viewer-desktop secure-pdf-viewer">
+      <div className="viewer-header">
+        <div className="header-info">
+          <span className="header-icon">🔒</span>
+          <div>
+            <div className="header-title">Secure PDF Viewer</div>
+            <div className="header-subtitle">Protected content</div>
+          </div>
+        </div>
+        <button onClick={onClose} className="close-btn">✕</button>
+      </div>
+      
+      <div className="pdf-iframe-container">
+        {pdfUrl ? (
+          <iframe 
+            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+            className="pdf-iframe"
+            title="Secure PDF Viewer"
+          />
+        ) : (
+          <div className="loading-text">Loading...</div>
+        )}
+      </div>
+    </div>
+  );
 }
