@@ -107,9 +107,9 @@
   flex: 1;
   display: flex;
   justify-content: center;
-  align-items: flex-end;
+  align-items: center;
   background: #36454F;
-  padding: 8px 16px;
+  padding: 10px;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -236,8 +236,7 @@
   .close-btn { padding: 7px 14px; font-size: 11px; }
   
   .pdf-canvas-container { 
-    padding: 4px 12px 4px 12px;
-    align-items: flex-end;
+    padding: 10px;
   }
   
   .viewer-controls { padding: 10px 14px; }
