@@ -19,9 +19,10 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const pdfDocRef = useRef(null);
   const canvasRef = useRef(null);
   
-  // Cache for rendered pages (store as data URLs)
+  // Cache for rendered pages (store as object URLs from blobs)
   const pageCacheRef = useRef({});
   const preloadingRef = useRef(false);
+  const pdfjsLibRef = useRef(null);
 
   const generateDeviceFingerprint = useCallback(() => {
     try {
@@ -115,44 +116,39 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     } catch {}
   }, []);
 
-  // Load PDF.js for mobile
-  const loadPdfJs = useCallback(() => {
-    return new Promise((resolve, reject) => {
-      if (window.pdfjsLib) {
-        resolve();
-        return;
-      }
-      
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-      script.onload = () => {
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
-          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        resolve();
-      };
-      script.onerror = reject;
-      document.head.appendChild(script);
-    });
+  // Load PDF.js dynamically with worker (FIX #1)
+  const loadPdfJs = useCallback(async () => {
+    if (pdfjsLibRef.current) return pdfjsLibRef.current;
+    
+    try {
+      const pdfjs = await import('pdfjs-dist/build/pdf');
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+      pdfjsLibRef.current = pdfjs;
+      return pdfjs;
+    } catch (err) {
+      console.error('Failed to load PDF.js:', err);
+      throw new Error('Failed to load PDF library');
+    }
   }, []);
 
-  // Render page to canvas and cache it
+  // Render page to cache using toBlob (FIX #4)
   const renderPageToCache = useCallback(async (pageNum) => {
     if (!pdfDocRef.current || pageCacheRef.current[pageNum]) return;
     
     try {
       const page = await pdfDocRef.current.getPage(pageNum);
       
-      // Create temporary canvas for this page
+      // Create temporary canvas
       const tempCanvas = document.createElement('canvas');
-      const context = tempCanvas.getContext('2d');
+      const context = tempCanvas.getContext('2d', { alpha: false });
       
-      // Get viewport
+      // Get viewport with CLAMPED scale (FIX #3)
       const viewport = page.getViewport({ scale: 1 });
-      
-      // Scale to fit mobile screen width
       const containerWidth = window.innerWidth - 32;
-      const scale = containerWidth / viewport.width;
-      const scaledViewport = page.getViewport({ scale: scale * 2.2 });
+      const baseScale = containerWidth / viewport.width;
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5); // Cap at 1.5x
+      const scale = Math.min(baseScale * dpr, 1.5); // Max 1.5x total
+      const scaledViewport = page.getViewport({ scale });
       
       // Set canvas size
       tempCanvas.width = scaledViewport.width;
@@ -164,62 +160,125 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         viewport: scaledViewport
       }).promise;
       
-      // Cache as data URL
-      pageCacheRef.current[pageNum] = tempCanvas.toDataURL('image/webp', 0.92);
+      // Cache as blob URL (async, faster) (FIX #4)
+      return new Promise((resolve) => {
+        tempCanvas.toBlob((blob) => {
+          if (blob) {
+            pageCacheRef.current[pageNum] = URL.createObjectURL(blob);
+          }
+          resolve();
+        }, 'image/webp', 0.8);
+      });
       
     } catch (err) {
       console.error(`Error caching page ${pageNum}:`, err);
     }
   }, []);
 
-  // Display cached page on main canvas
+  // Display page directly on canvas (FIX #2 - no double rendering for first page)
+  const renderPageDirect = useCallback(async (pageNum) => {
+    if (!pdfDocRef.current || !canvasRef.current) return;
+    
+    try {
+      setPageRendering(true);
+      const page = await pdfDocRef.current.getPage(pageNum);
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d', { alpha: false });
+      
+      // Get viewport with CLAMPED scale (FIX #3)
+      const viewport = page.getViewport({ scale: 1 });
+      const containerWidth = window.innerWidth - 32;
+      const baseScale = containerWidth / viewport.width;
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      const scale = Math.min(baseScale * dpr, 1.5);
+      const scaledViewport = page.getViewport({ scale });
+      
+      canvas.width = scaledViewport.width;
+      canvas.height = scaledViewport.height;
+      
+      await page.render({
+        canvasContext: context,
+        viewport: scaledViewport
+      }).promise;
+      
+      setPageRendering(false);
+    } catch (err) {
+      console.error('Render error:', err);
+      setPageRendering(false);
+    }
+  }, []);
+
+  // Display cached page
   const displayCachedPage = useCallback(async (pageNum) => {
     if (!canvasRef.current) return;
     
     setPageRendering(true);
     
-    // If not cached, render it now
+    // If not cached, render directly
     if (!pageCacheRef.current[pageNum]) {
-      await renderPageToCache(pageNum);
+      await renderPageDirect(pageNum);
+      return;
     }
     
     // Display from cache
-    const cachedImage = pageCacheRef.current[pageNum];
-    if (cachedImage && canvasRef.current) {
+    const cachedUrl = pageCacheRef.current[pageNum];
+    if (cachedUrl) {
       const img = new Image();
       img.onload = () => {
         const canvas = canvasRef.current;
         if (canvas) {
-          const ctx = canvas.getContext('2d');
+          const ctx = canvas.getContext('2d', { alpha: false });
           canvas.width = img.width;
           canvas.height = img.height;
           ctx.drawImage(img, 0, 0);
           setPageRendering(false);
         }
       };
-      img.src = cachedImage;
+      img.onerror = () => {
+        setPageRendering(false);
+        renderPageDirect(pageNum);
+      };
+      img.src = cachedUrl;
     } else {
       setPageRendering(false);
     }
-  }, [renderPageToCache]);
+  }, [renderPageDirect]);
 
-  // Preload pages in background
-  const preloadPages = useCallback(async (startPage, count) => {
+  // Preload pages using requestIdleCallback (FIX #5)
+  const preloadPages = useCallback((startPage, count) => {
     if (preloadingRef.current || !pdfDocRef.current) return;
     
     preloadingRef.current = true;
-    
     const endPage = Math.min(startPage + count, totalPages);
     
-    for (let i = startPage; i <= endPage; i++) {
-      if (!pageCacheRef.current[i]) {
-        await renderPageToCache(i);
-        // Small delay between pages to not block UI
-        await new Promise(resolve => setTimeout(resolve, 100));
-      }
-    }
+    let currentIdx = startPage;
     
-    preloadingRef.current = false;
+    const preloadNext = () => {
+      if (currentIdx > endPage) {
+        preloadingRef.current = false;
+        return;
+      }
+      
+      const pageNum = currentIdx;
+      currentIdx++;
+      
+      if (!pageCacheRef.current[pageNum]) {
+        // Use requestIdleCallback for true background work (FIX #5)
+        if (window.requestIdleCallback) {
+          window.requestIdleCallback(() => {
+            renderPageToCache(pageNum).then(preloadNext);
+          });
+        } else {
+          setTimeout(() => {
+            renderPageToCache(pageNum).then(preloadNext);
+          }, 100);
+        }
+      } else {
+        preloadNext();
+      }
+    };
+    
+    preloadNext();
   }, [totalPages, renderPageToCache]);
 
   // Navigation
@@ -229,9 +288,9 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       setCurrentPage(newPage);
       displayCachedPage(newPage);
       
-      // Preload previous pages if needed
+      // Preload previous pages
       if (newPage > 1) {
-        setTimeout(() => preloadPages(Math.max(1, newPage - 3), 3), 200);
+        preloadPages(Math.max(1, newPage - 3), 3);
       }
     }
   }, [currentPage, displayCachedPage, preloadPages]);
@@ -242,8 +301,8 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       setCurrentPage(newPage);
       displayCachedPage(newPage);
       
-      // Preload next pages in background
-      setTimeout(() => preloadPages(newPage + 1, 3), 200);
+      // Preload next pages
+      preloadPages(newPage + 1, 3);
     }
   }, [currentPage, totalPages, displayCachedPage, preloadPages]);
 
@@ -262,17 +321,25 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           setPdfUrl(url);
           
           if (isMobile) {
-            await loadPdfJs();
-            const pdf = await window.pdfjsLib.getDocument(url).promise;
+            const pdfjs = await loadPdfJs();
+            
+            // Load PDF with RANGE REQUESTS (FIX #6)
+            const pdf = await pdfjs.getDocument({
+              url,
+              rangeChunkSize: 65536, // 64 KB chunks
+              disableAutoFetch: true,
+              disableStream: false
+            }).promise;
+            
             pdfDocRef.current = pdf;
             setTotalPages(pdf.numPages);
             
-            // Display first page immediately
-            await displayCachedPage(1);
+            // Render first page DIRECTLY (no caching overhead) (FIX #2)
+            await renderPageDirect(1);
             setLoading(false);
             
-            // Preload next pages in background
-            setTimeout(() => preloadPages(2, 5), 500);
+            // Preload next pages in background (FIX #5)
+            setTimeout(() => preloadPages(2, 5), 300);
           } else {
             setLoading(false);
           }
@@ -323,17 +390,25 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         setPdfUrl(finalPdfUrl);
         
         if (isMobile) {
-          await loadPdfJs();
-          const pdf = await window.pdfjsLib.getDocument(finalPdfUrl).promise;
+          const pdfjs = await loadPdfJs();
+          
+          // Load PDF with RANGE REQUESTS (FIX #6)
+          const pdf = await pdfjs.getDocument({
+            url: finalPdfUrl,
+            rangeChunkSize: 65536,
+            disableAutoFetch: true,
+            disableStream: false
+          }).promise;
+          
           pdfDocRef.current = pdf;
           setTotalPages(pdf.numPages);
           
-          // Display first page immediately
-          await displayCachedPage(1);
+          // Render first page DIRECTLY (FIX #2)
+          await renderPageDirect(1);
           setLoading(false);
           
-          // Preload next pages in background
-          setTimeout(() => preloadPages(2, 5), 500);
+          // Preload background (FIX #5)
+          setTimeout(() => preloadPages(2, 5), 300);
         } else {
           setLoading(false);
         }
@@ -358,8 +433,14 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       mounted = false;
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       if (sessionIdRef.current) closeSession(sessionIdRef.current);
+      
+      // Cleanup blob URLs
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      Object.values(pageCacheRef.current).forEach(url => {
+        if (url) URL.revokeObjectURL(url);
+      });
     };
-  }, [guideId, user, guideData, isInfluencer, isMobile, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordSession, updateHeartbeat, closeSession, loadPdfJs, displayCachedPage, preloadPages]);
+  }, [guideId, user, guideData, isInfluencer, isMobile, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordSession, updateHeartbeat, closeSession, loadPdfJs, renderPageDirect, preloadPages]);
 
   // Security
   useEffect(() => {
@@ -402,7 +483,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       <div className="viewer-loading">
         <div className="loading-spinner"></div>
         <div className="loading-text">Loading guide...</div>
-        <div className="loading-subtext">Preparing first page</div>
       </div>
     );
   }
@@ -418,7 +498,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     );
   }
 
-  // MOBILE: Canvas page-by-page viewer with lazy loading
+  // MOBILE: Canvas page-by-page viewer
   if (isMobile) {
     return (
       <div className="secure-viewer-mobile secure-pdf-viewer">

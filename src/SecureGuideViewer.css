@@ -1,4 +1,4 @@
-/* ===== SECURE VIEWER ===== */
+/* ===== SECURE VIEWER - OPTIMIZED (FIX #7) ===== */
 
 /* Loading */
 .viewer-loading {
@@ -9,7 +9,7 @@
   align-items: center;
   flex-direction: column;
   gap: 15px;
-  background: rgba(0, 0, 0, 0.95);
+  background: #000;
   color: #fff;
   z-index: 9999;
 }
@@ -41,11 +41,6 @@
   font-weight: 600;
 }
 
-.loading-subtext {
-  font-size: 14px;
-  color: #aaa;
-}
-
 /* Error */
 .viewer-error {
   position: fixed;
@@ -55,7 +50,7 @@
   align-items: center;
   flex-direction: column;
   gap: 20px;
-  background: rgba(0, 0, 0, 0.95);
+  background: #000;
   color: #fff;
   padding: 20px;
   text-align: center;
@@ -121,7 +116,7 @@
 
 .close-btn:hover { background: #b91c1c; }
 
-/* MOBILE: Canvas viewer */
+/* MOBILE: Canvas viewer (FIX #7 - contain for performance) */
 .pdf-canvas-container {
   flex: 1;
   display: flex;
@@ -132,13 +127,14 @@
   overflow: auto;
   -webkit-overflow-scrolling: touch;
   position: relative;
+  contain: layout paint; /* FIX #7 - reduce composite layers */
 }
 
 .pdf-canvas {
   max-width: 100%;
   height: auto;
   display: block;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); /* Simplified shadow */
 }
 
 .page-loading-overlay {
@@ -146,12 +142,13 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.8); /* Solid instead of gradient */
   padding: 20px;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
+  will-change: opacity; /* Optimize for fade */
 }
 
 /* Controls */
@@ -178,10 +175,10 @@
   min-height: 44px;
   flex: 1;
   max-width: 120px;
-  transition: background 0.2s;
+  transition: background 0.15s ease; /* Faster transition */
 }
 
-.nav-btn:hover:not(:disabled) { background: #2d3748; }
+.nav-btn:active { background: #2d3748; } /* Touch feedback */
 .nav-btn:disabled {
   opacity: 0.4;
   cursor: not-allowed;
@@ -201,6 +198,7 @@
   background: #36454F;
   padding: 0;
   overflow: hidden;
+  contain: layout paint;
 }
 
 .pdf-iframe {
