@@ -200,80 +200,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     }
   }, []);
 
-  // Pre-load PDF.js library
-  const preloadPdfJs = useCallback(async () => {
-    if (window.pdfjsLib) {
-      console.log('PDF.js already loaded');
-      return;
-    }
-    
-    console.log('Loading PDF.js library...');
-    setLoadingProgress(10);
-    
-    return new Promise((resolve, reject) => {
-      const script = document.createElement('script');
-      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-      script.async = false;
-      script.onload = () => {
-        console.log('PDF.js loaded successfully');
-        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
-          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        setLoadingProgress(30);
-        resolve();
-      };
-      script.onerror = (err) => {
-        console.error('Failed to load PDF.js:', err);
-        reject(new Error('Failed to load PDF library'));
-      };
-      document.head.appendChild(script);
-    });
-  }, []);
-
-  // Load PDF with PDF.js
-  const loadPdfWithPdfJs = useCallback(async (url) => {
-    try {
-      console.log('Loading PDF from URL:', url);
-      setLoadingProgress(40);
-      
-      if (!window.pdfjsLib) {
-        throw new Error('PDF.js not loaded');
-      }
-
-      const loadingTask = window.pdfjsLib.getDocument({
-        url: url,
-        cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
-        cMapPacked: true,
-        disableAutoFetch: false,
-        disableStream: false,
-        withCredentials: false
-      });
-      
-      loadingTask.onProgress = (progress) => {
-        if (progress.total > 0) {
-          const percent = Math.min(90, 40 + (progress.loaded / progress.total) * 50);
-          setLoadingProgress(percent);
-          console.log(`Loading progress: ${percent}%`);
-        }
-      };
-      
-      const pdf = await loadingTask.promise;
-      console.log('PDF loaded successfully. Pages:', pdf.numPages);
-      setPdfDoc(pdf);
-      setTotalPages(pdf.numPages);
-      
-      setLoadingProgress(95);
-      
-      // Render first page
-      await renderPage(pdf, 1);
-      
-      setLoadingProgress(100);
-    } catch (err) {
-      console.error('Error loading PDF:', err);
-      setError(`Failed to load PDF: ${err.message}`);
-    }
-  }, [renderPage]);
-
-  // Render page with proper scaling
+  // Render page with proper scaling - DEFINED FIRST
   const renderPage = useCallback(async (pdf, pageNum) => {
     if (!pdf || rendering) {
       console.log('Skipping render - pdf:', !!pdf, 'rendering:', rendering);
@@ -371,6 +298,79 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       setRendering(false);
     }
   }, [rendering]);
+
+  // Pre-load PDF.js library
+  const preloadPdfJs = useCallback(async () => {
+    if (window.pdfjsLib) {
+      console.log('PDF.js already loaded');
+      return;
+    }
+    
+    console.log('Loading PDF.js library...');
+    setLoadingProgress(10);
+    
+    return new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.async = false;
+      script.onload = () => {
+        console.log('PDF.js loaded successfully');
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        setLoadingProgress(30);
+        resolve();
+      };
+      script.onerror = (err) => {
+        console.error('Failed to load PDF.js:', err);
+        reject(new Error('Failed to load PDF library'));
+      };
+      document.head.appendChild(script);
+    });
+  }, []);
+
+  // Load PDF with PDF.js
+  const loadPdfWithPdfJs = useCallback(async (url) => {
+    try {
+      console.log('Loading PDF from URL:', url);
+      setLoadingProgress(40);
+      
+      if (!window.pdfjsLib) {
+        throw new Error('PDF.js not loaded');
+      }
+
+      const loadingTask = window.pdfjsLib.getDocument({
+        url: url,
+        cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+        cMapPacked: true,
+        disableAutoFetch: false,
+        disableStream: false,
+        withCredentials: false
+      });
+      
+      loadingTask.onProgress = (progress) => {
+        if (progress.total > 0) {
+          const percent = Math.min(90, 40 + (progress.loaded / progress.total) * 50);
+          setLoadingProgress(percent);
+          console.log(`Loading progress: ${percent}%`);
+        }
+      };
+      
+      const pdf = await loadingTask.promise;
+      console.log('PDF loaded successfully. Pages:', pdf.numPages);
+      setPdfDoc(pdf);
+      setTotalPages(pdf.numPages);
+      
+      setLoadingProgress(95);
+      
+      // Render first page
+      await renderPage(pdf, 1);
+      
+      setLoadingProgress(100);
+    } catch (err) {
+      console.error('Error loading PDF:', err);
+      setError(`Failed to load PDF: ${err.message}`);
+    }
+  }, [renderPage]);
 
   // Navigation
   const goToPreviousPage = useCallback(() => {
