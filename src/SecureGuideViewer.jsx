@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from './supabaseClient';
+import './SecureGuideViewer.css';
 
 export default function SecureGuideViewer({ guideId, user, onClose, guideData, isInfluencer = false }) {
   const [loading, setLoading] = useState(true);
@@ -21,7 +22,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       const mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
                      window.innerWidth <= 768;
       setIsMobile(mobile);
-      console.log('Is mobile device:', mobile);
     };
     
     checkMobile();
@@ -29,7 +29,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Helper functions defined with useCallback
   const generateDeviceFingerprint = useCallback(() => {
     try {
       const fingerprint = {
@@ -59,8 +58,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const ensurePurchaseRecord = useCallback(async (gId, usr) => {
     try {
       const ipAddress = await getClientIP();
-
-      const { error: insertError } = await supabase
+      await supabase
         .from('purchases')
         .upsert({
           user_id: usr.id,
@@ -72,10 +70,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           onConflict: 'user_id,guide_id',
           ignoreDuplicates: false
         });
-
-      if (insertError && !insertError.message.includes('duplicate')) {
-        console.error('Error creating purchase record:', insertError);
-      }
     } catch (err) {
       console.error('Error in ensurePurchaseRecord:', err);
     }
@@ -83,67 +77,42 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
   const verifyPurchaseAccess = useCallback(async (gId, usr) => {
     try {
-      console.log("Checking purchases table...");
-      const { data: purchase, error: purchaseError } = await supabase
+      const { data: purchase } = await supabase
         .from('purchases')
         .select('*')
         .eq('user_id', usr.id)
         .eq('guide_id', gId)
         .maybeSingle();
 
-      if (purchaseError) {
-        console.error('Purchase check error:', purchaseError);
-      }
+      if (purchase) return true;
 
-      if (purchase) {
-        console.log('✓ Found in purchases table');
-        return true;
-      }
-
-      console.log("Checking orders table...");
-      
-      const { data: guide, error: guideError } = await supabase
+      const { data: guide } = await supabase
         .from('guides')
         .select('title')
         .eq('id', gId)
         .maybeSingle();
       
-      if (guideError) {
-        console.error('Guide fetch error:', guideError);
-        return false;
-      }
+      if (!guide) return false;
       
-      const guideTitle = guide?.title || '';
-      console.log('Guide title:', guideTitle);
-      
-      const { data: orders, error: orderError } = await supabase
+      const { data: orders } = await supabase
         .from('orders')
         .select('*')
         .eq('customer_email', usr.email)
         .eq('order_status', 'completed');
 
-      if (orderError) {
-        console.error('Orders check error:', orderError);
-        return false;
-      }
-
       if (orders && orders.length > 0) {
         const hasOrder = orders.some(order => {
           const productName = order.product_name || '';
-          const matches = productName.toLowerCase().includes(guideTitle.toLowerCase()) ||
-                         guideTitle.toLowerCase().includes(productName.toLowerCase());
-          console.log(`Order ${order.id}: "${productName}" vs Guide "${guideTitle}" - Match: ${matches}`);
-          return matches;
+          return productName.toLowerCase().includes(guide.title.toLowerCase()) ||
+                 guide.title.toLowerCase().includes(productName.toLowerCase());
         });
 
         if (hasOrder) {
-          console.log('✓ Found in orders, creating purchase record');
           await ensurePurchaseRecord(gId, usr);
           return true;
         }
       }
 
-      console.log('✗ No purchase found');
       return false;
     } catch (err) {
       console.error('Error in verifyPurchaseAccess:', err);
@@ -153,39 +122,22 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
   const checkConcurrentSessions = useCallback(async (gId, usr, deviceId) => {
     try {
-      // CONCURRENT SESSION LIMITING (max 2 devices at the same time)
-      // Sessions expire after 2 minutes of inactivity
-      
       const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
       
-      // FIRST: Clean up old sessions (>2 minutes inactive)
-      const { error: deleteError } = await supabase
+      await supabase
         .from('active_sessions')
         .delete()
         .eq('user_id', usr.id)
         .eq('guide_id', gId)
         .lt('last_heartbeat', twoMinutesAgo);
       
-      if (deleteError) {
-        console.error('⚠️ Cleanup error (non-critical):', deleteError);
-      } else {
-        console.log('✓ Cleaned up inactive sessions (>2 min)');
-      }
-      
-      // NOW: Check ACTIVE sessions only (recent heartbeats)
-      const { data: activeSessions, error: sessionError } = await supabase
+      const { data: activeSessions } = await supabase
         .from('active_sessions')
-        .select('device_id, session_id, last_heartbeat')
+        .select('device_id')
         .eq('user_id', usr.id)
         .eq('guide_id', gId)
         .gte('last_heartbeat', twoMinutesAgo);
 
-      if (sessionError) {
-        console.error('Session check error (allowing access):', sessionError);
-        return true;
-      }
-
-      // Count unique active devices (excluding current device)
       const uniqueDevices = new Set();
       activeSessions?.forEach(session => {
         if (session.device_id !== deviceId) {
@@ -193,18 +145,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         }
       });
 
-      const activeDeviceCount = uniqueDevices.size;
-      console.log(`📱 Active devices (excluding this one): ${activeDeviceCount}/2`);
-
-      // Allow if less than 2 OTHER devices are active
-      if (activeDeviceCount >= 2) {
-        console.log(`❌ Too many concurrent sessions: ${activeDeviceCount} other devices active`);
-        return false;
-      }
-
-      console.log(`✅ Access allowed - ${activeDeviceCount + 1} total active devices`);
-      return true;
-      
+      return uniqueDevices.size < 2;
     } catch (err) {
       console.error('Error in checkConcurrentSessions:', err);
       return true;
@@ -215,9 +156,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     try {
       const ipAddress = await getClientIP();
       
-      // CONCURRENT SESSION TRACKING
-      // Records active session, will be cleaned up after 2 min of inactivity
-      const { error: recordError } = await supabase
+      await supabase
         .from('active_sessions')
         .upsert({
           user_id: usr.id,
@@ -228,15 +167,9 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           last_heartbeat: new Date().toISOString(),
           started_at: new Date().toISOString()
         }, {
-          onConflict: 'session_id',  // Update if same session reopens
+          onConflict: 'session_id',
           ignoreDuplicates: false
         });
-
-      if (recordError) {
-        console.error('❌ Error recording session:', recordError);
-      } else {
-        console.log('✅ Session recorded - will expire after 2 min of inactivity');
-      }
     } catch (err) {
       console.error('Error in recordAccessSession:', err);
     }
@@ -265,96 +198,65 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   }, []);
 
   useEffect(() => {
-    console.log("SecureGuideViewer mounted");
-    console.log("Props:", { guideId, user: user?.email, guideData, isInfluencer });
-
     const initializeViewer = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        // INSTANT DISPLAY for influencer access
+        // Influencer mode - instant display
         if (isInfluencer) {
-          console.log("🎁 Influencer mode - instant display");
-          
           if (!guideData || !guideData.file_url) {
             throw new Error("Guide data not provided");
           }
           
           setPdfUrl(guideData.file_url);
-          console.log("✅ PDF URL set:", guideData.file_url.substring(0, 50) + '...');
           
-          // Load PDF.js and render securely for mobile
           if (isMobile) {
-            console.log("📱 Loading PDF.js for mobile...");
             if (!window.pdfjsLib) {
               await preloadPdfJs();
             }
-            console.log("📱 Rendering first page...");
             await loadPdfWithPdfJs(guideData.file_url);
-            console.log("✅ First page rendered");
           }
           
           setLoading(false);
-          console.log("✅ Influencer viewer ready");
-          
           return;
         }
 
-        console.log("Step 1: Validating user");
+        // Regular purchase mode
         if (!user || !user.id || !user.email) {
           throw new Error("User not authenticated");
         }
 
         deviceIdRef.current = generateDeviceFingerprint();
-        // Use crypto for truly unique session ID
-        sessionIdRef.current = crypto.randomUUID ? crypto.randomUUID() : `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}_${Math.random().toString(36).substr(2, 9)}`;
-        console.log("Device/Session IDs generated");
+        sessionIdRef.current = crypto.randomUUID ? crypto.randomUUID() : `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-        console.log("Step 2: Verifying purchase");
         const hasAccess = await verifyPurchaseAccess(guideId, user);
         if (!hasAccess) {
           throw new Error("You have not purchased this guide.");
         }
-        console.log("✓ Purchase verified");
 
-        console.log("Step 3: Checking concurrent sessions");
         const canAccess = await checkConcurrentSessions(guideId, user, deviceIdRef.current);
         if (!canAccess) {
           throw new Error("Maximum device limit reached (2 devices). Please close this guide on another device.");
         }
-        console.log("✓ Concurrent session check passed");
 
-        console.log("Step 4: Fetching guide data");
         const { data: guide, error: guideError } = await supabase
           .from("guides")
           .select("*")
           .eq("id", guideId)
           .single();
 
-        if (guideError) {
-          console.error("Guide fetch error:", guideError);
-          throw new Error(`Failed to fetch guide: ${guideError.message}`);
-        }
-
-        if (!guide) {
+        if (guideError || !guide) {
           throw new Error("Guide not found");
         }
 
-        console.log("✓ Guide fetched:", guide);
-
-        console.log("Step 5: Recording session");
         await recordAccessSession(guideId, user, deviceIdRef.current, sessionIdRef.current);
-        console.log("✓ Session recorded");
 
-        console.log("Step 6: Getting PDF URL");
         let finalPdfUrl;
         
         if (guide.file_url && guide.file_url.includes("token=")) {
-          console.log("Using existing signed URL");
           finalPdfUrl = guide.file_url;
         } else {
-          console.log("Creating new signed URL");
           let filePath = guide.file_url;
           
           if (filePath.includes('/storage/v1/object/public/guides/')) {
@@ -366,8 +268,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
             filePath = parts[parts.length - 1].split('?')[0];
           }
 
-          console.log("File path:", filePath);
-
           const { data: signed, error: signErr } = await supabase.storage
             .from("guides")
             .createSignedUrl(filePath, 3600, {
@@ -375,25 +275,19 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
             });
 
           if (signErr) {
-            console.error("Signed URL error:", signErr);
             throw new Error(`Failed to create signed URL: ${signErr.message}`);
           }
 
           finalPdfUrl = signed.signedUrl;
         }
 
-        console.log("✅ PDF URL ready");
         setPdfUrl(finalPdfUrl);
         
-        // Load PDF.js and render for mobile
         if (isMobile) {
-          console.log("📱 Loading PDF.js for mobile...");
           if (!window.pdfjsLib) {
             await preloadPdfJs();
           }
-          console.log("📱 Rendering first page...");
           await loadPdfWithPdfJs(finalPdfUrl);
-          console.log("✅ First page rendered");
         }
         
         heartbeatRef.current = setInterval(() => {
@@ -401,7 +295,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         }, 30000);
 
         setLoading(false);
-        console.log("✓ Viewer initialized successfully");
 
       } catch (err) {
         console.error("Initialization error:", err);
@@ -413,7 +306,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     initializeViewer();
 
     return () => {
-      console.log("Cleaning up viewer");
       if (heartbeatRef.current) {
         clearInterval(heartbeatRef.current);
       }
@@ -440,24 +332,28 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
   };
 
-  // Load and render PDF with PDF.js
+  // Load PDF with PDF.js
   const loadPdfWithPdfJs = async (url) => {
     try {
-      const loadingTask = window.pdfjsLib.getDocument(url);
+      const loadingTask = window.pdfjsLib.getDocument({
+        url: url,
+        cMapUrl: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/',
+        cMapPacked: true
+      });
+      
       const pdf = await loadingTask.promise;
       setPdfDoc(pdf);
       setTotalPages(pdf.numPages);
-      console.log(`✅ PDF loaded: ${pdf.numPages} pages`);
       
       // Render first page
       await renderPage(pdf, 1);
     } catch (err) {
-      console.error('❌ Error loading PDF:', err);
+      console.error('Error loading PDF:', err);
       setError('Failed to load PDF document');
     }
   };
 
-  // Render page with 90deg rotation for portrait mobile
+  // Render page - NO ROTATION, normal portrait view
   const renderPage = async (pdf, pageNum) => {
     if (rendering || !pdf) return;
     
@@ -466,65 +362,67 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     try {
       const page = await pdf.getPage(pageNum);
       const container = canvasContainerRef.current;
-      if (!container) return;
+      if (!container) {
+        setRendering(false);
+        return;
+      }
 
-      // Get original page size
-      const originalViewport = page.getViewport({ scale: 1, rotation: 90 }); // Rotate 90 degrees
+      // Normal viewport (no rotation)
+      const viewport = page.getViewport({ scale: 1 });
       
-      // Calculate scale to fit screen height (since rotated)
-      const availableHeight = window.innerHeight - 120; // Account for header
-      const scale = availableHeight / originalViewport.height;
-      const viewport = page.getViewport({ scale, rotation: 90 });
+      // Calculate scale to fit container width
+      const containerWidth = Math.min(window.innerWidth - 32, 800);
+      const scale = containerWidth / viewport.width;
+      const scaledViewport = page.getViewport({ scale });
 
-      // Use 2x DPI for good quality
-      const outputScale = 2;
+      // Use 2.2x DPI for crisp display
+      const outputScale = 2.2;
 
-      // Create canvas
       const canvas = document.createElement('canvas');
       const context = canvas.getContext('2d', { alpha: false });
       
-      canvas.width = Math.floor(viewport.width * outputScale);
-      canvas.height = Math.floor(viewport.height * outputScale);
-      context.scale(outputScale, outputScale);
+      canvas.width = Math.floor(scaledViewport.width * outputScale);
+      canvas.height = Math.floor(scaledViewport.height * outputScale);
       
-      canvas.style.width = `${viewport.width}px`;
-      canvas.style.height = `${viewport.height}px`;
+      canvas.style.width = `${scaledViewport.width}px`;
+      canvas.style.height = `${scaledViewport.height}px`;
       canvas.style.display = 'block';
+      canvas.style.margin = '0 auto';
 
-      // Clear and append
+      // Clear container
       container.innerHTML = '';
       container.appendChild(canvas);
 
-      // Render
+      // Render with high quality
       await page.render({
         canvasContext: context,
-        viewport: viewport
+        viewport: scaledViewport,
+        transform: [outputScale, 0, 0, outputScale, 0, 0]
       }).promise;
       
       setCurrentPage(pageNum);
-      console.log(`✅ Page ${pageNum} rendered (rotated)`);
+      setRendering(false);
       
     } catch (err) {
-      console.error('❌ Error rendering page:', err);
-    } finally {
+      console.error('Error rendering page:', err);
       setRendering(false);
     }
   };
 
-  // Navigation handlers
+  // Navigation
   const goToPreviousPage = () => {
-    if (currentPage > 1 && pdfDoc) {
+    if (currentPage > 1 && pdfDoc && !rendering) {
       renderPage(pdfDoc, currentPage - 1);
     }
   };
 
   const goToNextPage = () => {
-    if (currentPage < totalPages && pdfDoc) {
+    if (currentPage < totalPages && pdfDoc && !rendering) {
       renderPage(pdfDoc, currentPage + 1);
     }
   };
 
-  // Security effect
+  // Security protections
   useEffect(() => {
     if (!pdfUrl) return;
 
@@ -578,9 +476,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     document.addEventListener('keydown', blockKeyboardShortcuts);
     document.addEventListener('selectstart', blockSelection);
     document.addEventListener('dragstart', blockSelection);
-    document.addEventListener('drop', blockSelection);
     document.addEventListener('copy', blockSelection);
-    document.addEventListener('cut', blockSelection);
 
     const preventPrint = (e) => {
       e.preventDefault();
@@ -595,9 +491,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       document.removeEventListener('keydown', blockKeyboardShortcuts);
       document.removeEventListener('selectstart', blockSelection);
       document.removeEventListener('dragstart', blockSelection);
-      document.removeEventListener('drop', blockSelection);
       document.removeEventListener('copy', blockSelection);
-      document.removeEventListener('cut', blockSelection);
       window.removeEventListener('beforeprint', preventPrint);
       if (style.parentNode) {
         style.parentNode.removeChild(style);
@@ -607,198 +501,59 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
   if (loading) {
     return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.95)',
-        color: '#fff',
-        flexDirection: 'column',
-        gap: '20px',
-        zIndex: 9999
-      }}>
-        <div style={{
-          width: '60px',
-          height: '60px',
-          border: '5px solid #333',
-          borderTop: '5px solid #fff',
-          borderRadius: '50%',
-          animation: 'spin 1s linear infinite'
-        }}></div>
-        <div style={{ fontSize: '18px' }}>Loading secure viewer...</div>
-        <div style={{ fontSize: '12px', color: '#888' }}>Verifying purchase and initializing</div>
-        <style>{`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-        `}</style>
+      <div className="viewer-loading">
+        <div className="loading-spinner"></div>
+        <div className="loading-text">Loading secure viewer...</div>
+        <div className="loading-subtext">Verifying purchase and initializing</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: 'rgba(0, 0, 0, 0.95)',
-        color: '#fff',
-        flexDirection: 'column',
-        gap: '20px',
-        padding: '20px',
-        textAlign: 'center',
-        zIndex: 9999
-      }}>
-        <div style={{ fontSize: '64px' }}>⚠️</div>
-        <div style={{ fontSize: '24px', fontWeight: 'bold' }}>Access Denied</div>
-        <div style={{ color: '#ff4444', maxWidth: '500px', fontSize: '16px' }}>{error}</div>
-        <button 
-          onClick={onClose}
-          style={{
-            marginTop: '20px',
-            padding: '12px 24px',
-            backgroundColor: '#444',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '16px',
-            fontWeight: '600'
-          }}
-          onMouseOver={(e) => e.target.style.backgroundColor = '#555'}
-          onMouseOut={(e) => e.target.style.backgroundColor = '#444'}
-        >
+      <div className="viewer-error">
+        <div className="error-icon">⚠️</div>
+        <div className="error-title">Access Denied</div>
+        <div className="error-message">{error}</div>
+        <button onClick={onClose} className="error-close-btn">
           Close
         </button>
       </div>
     );
   }
 
-  // Mobile: Secure page-by-page with canvas
+  // Mobile: Page-by-page canvas rendering
   if (isMobile && pdfDoc) {
     return (
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: '#2b2b2b',
-        zIndex: 9999,
-        display: 'flex',
-        flexDirection: 'column',
-        userSelect: 'none',
-        WebkitUserSelect: 'none',
-        WebkitTouchCallout: 'none'
-      }}>
-        {/* Header */}
-        <div style={{
-          padding: '12px 16px',
-          background: 'linear-gradient(to bottom, #1a1a1a, #0d0d0d)',
-          borderBottom: '1px solid #333',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          color: 'white',
-          boxShadow: '0 2px 10px rgba(0,0,0,0.5)',
-          flexShrink: 0
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '20px' }}>🔒</span>
+      <div className="secure-viewer-mobile">
+        <div className="viewer-header">
+          <div className="header-info">
+            <span className="header-icon">🔒</span>
             <div>
-              <div style={{ fontWeight: 'bold', fontSize: '14px' }}>Secure Viewer</div>
-              <div style={{ fontSize: '10px', color: '#888' }}>
-                Page {currentPage} of {totalPages}
-              </div>
+              <div className="header-title">Secure Viewer</div>
+              <div className="header-subtitle">Page {currentPage} of {totalPages}</div>
             </div>
           </div>
-          <button 
-            onClick={onClose}
-            style={{
-              background: '#dc2626',
-              color: 'white',
-              padding: '8px 16px',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontWeight: '600',
-              fontSize: '12px'
-            }}
-          >
-            Close
-          </button>
+          <button onClick={onClose} className="close-btn">Close</button>
         </div>
 
-        {/* PDF Canvas (Rotated 90° for landscape) */}
-        <div 
-          ref={canvasContainerRef}
-          style={{
-            flex: 1,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            overflow: 'hidden',
-            backgroundColor: '#2b2b2b'
-          }}
-        />
+        <div ref={canvasContainerRef} className="pdf-canvas-container" />
 
-        {/* Navigation Controls */}
-        <div style={{
-          padding: '12px 16px',
-          background: '#1a1a1a',
-          borderTop: '1px solid #333',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          gap: '16px',
-          flexShrink: 0
-        }}>
+        <div className="viewer-controls">
           <button
             onClick={goToPreviousPage}
-            disabled={currentPage === 1}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: currentPage === 1 ? '#333' : '#73160f',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: '600',
-              cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
-              opacity: currentPage === 1 ? 0.5 : 1
-            }}
+            disabled={currentPage === 1 || rendering}
+            className="nav-btn"
           >
             ← Previous
           </button>
-          <span style={{ color: 'white', fontSize: '14px', fontWeight: '600' }}>
+          <span className="page-indicator">
             {currentPage} / {totalPages}
           </span>
           <button
             onClick={goToNextPage}
-            disabled={currentPage === totalPages}
-            style={{
-              padding: '10px 20px',
-              backgroundColor: currentPage === totalPages ? '#333' : '#73160f',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '14px',
-              fontWeight: '600',
-              cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
-              opacity: currentPage === totalPages ? 0.5 : 1
-            }}
+            disabled={currentPage === totalPages || rendering}
+            className="nav-btn"
           >
             Next →
           </button>
@@ -807,85 +562,30 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     );
   }
 
-  // Desktop: Secure iframe (or canvas if needed)
+  // Desktop: iframe rendering
   return (
-    <div className="secure-pdf-viewer" style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: '#000',
-      zIndex: 9999,
-      display: 'flex',
-      flexDirection: 'column'
-    }}>
-      {/* Header */}
-      <div style={{
-        padding: '8px 16px',
-        background: 'linear-gradient(to bottom, #1a1a1a, #0d0d0d)',
-        borderBottom: '1px solid #333',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        color: 'white',
-        boxShadow: '0 2px 10px rgba(0,0,0,0.5)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '20px' }}>🔒</span>
+    <div className="secure-viewer-desktop">
+      <div className="viewer-header">
+        <div className="header-info">
+          <span className="header-icon">🔒</span>
           <div>
-            <div style={{ fontWeight: 'bold', fontSize: '14px' }}>Secure PDF Viewer</div>
-            <div style={{ fontSize: '10px', color: '#888' }}>Protected content</div>
+            <div className="header-title">Secure PDF Viewer</div>
+            <div className="header-subtitle">Protected content</div>
           </div>
         </div>
-        <button 
-          onClick={onClose}
-          style={{
-            background: '#dc2626',
-            color: 'white',
-            padding: '8px 16px',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontWeight: '600',
-            fontSize: '12px',
-            transition: 'background 0.2s'
-          }}
-          onMouseOver={(e) => e.target.style.background = '#b91c1c'}
-          onMouseOut={(e) => e.target.style.background = '#dc2626'}
-        >
-          Close
-        </button>
+        <button onClick={onClose} className="close-btn">Close</button>
       </div>
       
-      {/* Desktop: iframe with scrolling enabled */}
-      <div style={{ 
-        flex: 1, 
-        position: 'relative',
-        overflow: 'hidden',
-        display: 'flex', 
-        justifyContent: 'center', 
-        alignItems: 'center', 
-        backgroundColor: '#36454F',
-        padding: '20px'
-      }}>
+      <div className="pdf-iframe-container">
         {pdfUrl ? (
           <iframe 
-            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH&zoom=page-width`}
-            style={{
-              width: '100%',
-              height: '100%',
-              maxWidth: '95%',
-              maxHeight: '90%',
-              border: 'none',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-              backgroundColor: '#fff'
-            }}
+            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+            className="pdf-iframe"
             title="Secure PDF Viewer"
             allow="fullscreen"
           />
         ) : (
-          <div style={{ color: '#fff', fontSize: '18px' }}>Loading PDF...</div>
+          <div className="loading-text">Loading PDF...</div>
         )}
       </div>
     </div>
