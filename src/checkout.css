@@ -3,12 +3,16 @@
   min-height: 100vh;
   background: #fdfcf1;
   padding: 2rem 0;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 .checkout-container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 2rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .checkout-header {
@@ -83,6 +87,8 @@
   align-items: start;
   max-width: 800px;
   margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .checkout-form {
@@ -91,6 +97,8 @@
   padding: 2.5rem;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
   width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .form-step h2 {
@@ -105,6 +113,8 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 1.5rem;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .form-group {
@@ -127,6 +137,7 @@
   font-size: 1rem;
   transition: all 0.3s ease;
   box-sizing: border-box;
+  max-width: 100%;
 }
 
 .form-group input:focus {
