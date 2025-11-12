@@ -78,7 +78,7 @@
 
 .checkout-content {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 1.5fr 1fr;
   gap: 3rem;
   align-items: start;
   max-width: 100%;
@@ -496,6 +496,7 @@
 
   .checkout-content {
     gap: 4rem;
+    grid-template-columns: 1.5fr 1fr;
   }
 
   .checkout-form {
@@ -508,6 +509,7 @@
 
   .order-summary {
     padding: 2.5rem;
+    min-width: 400px;
   }
 
   .order-summary h2 {
@@ -523,7 +525,7 @@
   }
 
   .checkout-content {
-    grid-template-columns: 1.5fr 1fr;
+    grid-template-columns: 1.3fr 1fr;
     gap: 2.5rem;
   }
 
@@ -533,6 +535,7 @@
 
   .order-summary {
     padding: 2rem;
+    min-width: 320px;
   }
 }
 
