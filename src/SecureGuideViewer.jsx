@@ -190,17 +190,33 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   // Load ALL pages progressively
   const loadAllPages = useCallback(async (url) => {
     try {
-      if (!window.pdfjsLib) throw new Error('PDF.js not loaded');
+      console.log('📄 Starting to load all pages from:', url);
+      
+      if (!window.pdfjsLib) {
+        console.error('❌ PDF.js not loaded!');
+        throw new Error('PDF.js not loaded');
+      }
 
-      const pdf = await window.pdfjsLib.getDocument({ url }).promise;
+      console.log('📥 Fetching PDF document...');
+      const loadingTask = window.pdfjsLib.getDocument(url);
+      const pdf = await loadingTask.promise;
+      
+      console.log(`✅ PDF loaded with ${pdf.numPages} pages`);
       setTotalPages(pdf.numPages);
       
       const container = canvasContainerRef.current;
-      if (!container) return;
+      if (!container) {
+        console.error('❌ Container not found!');
+        return;
+      }
+
+      console.log('📱 Container found, starting progressive render...');
 
       // Render all pages progressively
       for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        // Small delay to prevent blocking
+        console.log(`Rendering page ${pageNum}/${pdf.numPages}...`);
+        
+        // Small delay to prevent blocking (except first page)
         if (pageNum > 1) {
           await new Promise(resolve => setTimeout(resolve, 50));
         }
@@ -228,30 +244,34 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
         // Append immediately (progressive display)
         container.appendChild(canvas);
+        console.log(`✅ Page ${pageNum} canvas created`);
 
-        // Render in background using requestIdleCallback
-        if (window.requestIdleCallback) {
-          window.requestIdleCallback(() => {
-            page.render({
-              canvasContext: context,
-              viewport: scaledViewport,
-              transform: [dpr, 0, 0, dpr, 0, 0]
-            }).promise.then(() => {
-              setLoadedPages(pageNum);
-            });
-          });
-        } else {
+        // Render
+        try {
           await page.render({
             canvasContext: context,
             viewport: scaledViewport,
             transform: [dpr, 0, 0, dpr, 0, 0]
           }).promise;
+          
           setLoadedPages(pageNum);
+          console.log(`✅ Page ${pageNum} rendered`);
+          
+          // Hide loading after first page
+          if (pageNum === 1) {
+            setLoading(false);
+            console.log('🎉 First page ready - hiding loader');
+          }
+        } catch (renderErr) {
+          console.error(`Error rendering page ${pageNum}:`, renderErr);
         }
       }
+      
+      console.log('🎉 All pages loaded successfully!');
     } catch (err) {
-      console.error('Error loading pages:', err);
-      setError('Failed to load PDF');
+      console.error('❌ Error loading pages:', err);
+      setError(`Failed to load PDF: ${err.message}`);
+      setLoading(false);
     }
   }, [isMobile]);
 
@@ -262,23 +282,33 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
     const initializeViewer = async () => {
       try {
+        console.log('🚀 Starting initialization');
+        console.log('isMobile:', isMobile);
+        console.log('isInfluencer:', isInfluencer);
+        
         setLoading(true);
         setError(null);
 
         // Influencer mode
         if (isInfluencer) {
+          console.log('Influencer mode');
           if (!guideData || !guideData.file_url) {
             throw new Error("Guide data not provided");
           }
           
+          console.log('PDF URL:', guideData.file_url);
           setPdfUrl(guideData.file_url);
           
           if (isMobile) {
+            console.log('📱 Loading for mobile...');
             await loadPdfJs();
+            console.log('✅ PDF.js loaded');
             await loadAllPages(guideData.file_url);
+            console.log('✅ All pages loaded');
           }
           
           setLoading(false);
+          console.log('✅ Viewer ready');
           return;
         }
 
@@ -334,11 +364,15 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           finalPdfUrl = signed.signedUrl;
         }
 
+        console.log('Final PDF URL:', finalPdfUrl);
         setPdfUrl(finalPdfUrl);
         
         if (isMobile) {
+          console.log('📱 Loading for mobile...');
           await loadPdfJs();
+          console.log('✅ PDF.js loaded');
           await loadAllPages(finalPdfUrl);
+          console.log('✅ All pages loaded');
         }
         
         heartbeatRef.current = setInterval(() => {
@@ -346,6 +380,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         }, 30000);
 
         setLoading(false);
+        console.log('✅ Viewer ready');
 
       } catch (err) {
         console.error("Init error:", err);
