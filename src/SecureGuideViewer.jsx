@@ -204,7 +204,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const preloadPdfJs = useCallback(async () => {
     if (window.pdfjsLib) {
       console.log('PDF.js already loaded');
-      setPdfJsLoaded(true);
       return;
     }
     
@@ -220,7 +219,6 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
           'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         setLoadingProgress(30);
-        setPdfJsLoaded(true);
         resolve();
       };
       script.onerror = (err) => {
@@ -631,8 +629,8 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
     const blockSelection = (e) => {
       if (e.target.tagName === 'CANVAS') {
-        e.preventDefault();
-        return false;
+      e.preventDefault();
+      return false;
       }
     };
 
