@@ -9,6 +9,15 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const deviceIdRef = useRef(null);
   const sessionIdRef = useRef(null);
   const heartbeatRef = useRef(null);
+  
+  const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth <= 768;
+  
+  // Mobile PDF states
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(0);
+  const [pageRendering, setPageRendering] = useState(false);
+  const pdfDocRef = useRef(null);
+  const canvasRef = useRef(null);
 
   const generateDeviceFingerprint = useCallback(() => {
     try {
@@ -102,6 +111,78 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     } catch {}
   }, []);
 
+  // Load PDF.js for mobile
+  const loadPdfJs = useCallback(() => {
+    return new Promise((resolve, reject) => {
+      if (window.pdfjsLib) {
+        resolve();
+        return;
+      }
+      
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      script.onload = () => {
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = 
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        resolve();
+      };
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }, []);
+
+  // Render a specific page
+  const renderPage = useCallback(async (pageNum) => {
+    if (!pdfDocRef.current || !canvasRef.current || pageRendering) return;
+    
+    try {
+      setPageRendering(true);
+      const page = await pdfDocRef.current.getPage(pageNum);
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      
+      // Get viewport
+      const viewport = page.getViewport({ scale: 1 });
+      
+      // Scale to fit mobile screen width with padding
+      const containerWidth = window.innerWidth - 32;
+      const scale = containerWidth / viewport.width;
+      const scaledViewport = page.getViewport({ scale: scale * 2.2 }); // 2.2x for crisp display
+      
+      // Set canvas size
+      canvas.width = scaledViewport.width;
+      canvas.height = scaledViewport.height;
+      
+      // Render
+      await page.render({
+        canvasContext: context,
+        viewport: scaledViewport
+      }).promise;
+      
+      setPageRendering(false);
+    } catch (err) {
+      console.error('Render error:', err);
+      setPageRendering(false);
+    }
+  }, [pageRendering]);
+
+  // Navigation
+  const goToPrev = useCallback(() => {
+    if (currentPage > 1) {
+      const newPage = currentPage - 1;
+      setCurrentPage(newPage);
+      renderPage(newPage);
+    }
+  }, [currentPage, renderPage]);
+
+  const goToNext = useCallback(() => {
+    if (currentPage < totalPages) {
+      const newPage = currentPage + 1;
+      setCurrentPage(newPage);
+      renderPage(newPage);
+    }
+  }, [currentPage, totalPages, renderPage]);
+
   // Initialize
   useEffect(() => {
     let mounted = true;
@@ -113,7 +194,19 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         // INFLUENCER MODE
         if (isInfluencer) {
           if (!guideData?.file_url) throw new Error("Guide data missing");
-          setPdfUrl(guideData.file_url);
+          const url = guideData.file_url;
+          setPdfUrl(url);
+          
+          // Load PDF.js for mobile
+          if (isMobile) {
+            await loadPdfJs();
+            const pdf = await window.pdfjsLib.getDocument(url).promise;
+            pdfDocRef.current = pdf;
+            setTotalPages(pdf.numPages);
+            // Render first page after a short delay to ensure canvas is ready
+            setTimeout(() => renderPage(1), 100);
+          }
+          
           setLoading(false);
           return;
         }
@@ -161,6 +254,15 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         if (!mounted) return;
         setPdfUrl(finalPdfUrl);
         
+        // Load PDF.js for mobile
+        if (isMobile) {
+          await loadPdfJs();
+          const pdf = await window.pdfjsLib.getDocument(finalPdfUrl).promise;
+          pdfDocRef.current = pdf;
+          setTotalPages(pdf.numPages);
+          setTimeout(() => renderPage(1), 100);
+        }
+        
         // Heartbeat
         heartbeatRef.current = setInterval(() => {
           updateHeartbeat(sessionIdRef.current);
@@ -184,7 +286,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       if (heartbeatRef.current) clearInterval(heartbeatRef.current);
       if (sessionIdRef.current) closeSession(sessionIdRef.current);
     };
-  }, [guideId, user, guideData, isInfluencer, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordSession, updateHeartbeat, closeSession]);
+  }, [guideId, user, guideData, isInfluencer, isMobile, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordSession, updateHeartbeat, closeSession, loadPdfJs, renderPage]);
 
   // Security
   useEffect(() => {
@@ -200,7 +302,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     const style = document.createElement('style');
     style.textContent = `
       @media print { body * { display: none !important; } }
-      .secure-pdf-viewer iframe {
+      .secure-pdf-viewer * {
         user-select: none !important;
         -webkit-user-select: none !important;
         -webkit-touch-callout: none !important;
@@ -242,14 +344,56 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     );
   }
 
-  // Universal viewer - works on ALL devices
+  // MOBILE: Canvas page-by-page viewer with navigation
+  if (isMobile) {
+    return (
+      <div className="secure-viewer-mobile secure-pdf-viewer">
+        <div className="viewer-header">
+          <div className="header-info">
+            <span className="header-icon">🔒</span>
+            <div>
+              <div className="header-title">Secure Viewer</div>
+              <div className="header-subtitle">Page {currentPage} of {totalPages}</div>
+            </div>
+          </div>
+          <button onClick={onClose} className="close-btn">✕</button>
+        </div>
+
+        <div className="pdf-canvas-container">
+          <canvas ref={canvasRef} className="pdf-canvas" />
+        </div>
+
+        <div className="viewer-controls">
+          <button
+            onClick={goToPrev}
+            disabled={currentPage === 1 || pageRendering}
+            className="nav-btn"
+          >
+            ← Prev
+          </button>
+          <span className="page-indicator">
+            {currentPage} / {totalPages}
+          </span>
+          <button
+            onClick={goToNext}
+            disabled={currentPage === totalPages || pageRendering}
+            className="nav-btn"
+          >
+            Next →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // DESKTOP: iframe viewer
   return (
-    <div className="secure-viewer secure-pdf-viewer">
+    <div className="secure-viewer-desktop secure-pdf-viewer">
       <div className="viewer-header">
         <div className="header-info">
           <span className="header-icon">🔒</span>
           <div>
-            <div className="header-title">Secure Viewer</div>
+            <div className="header-title">Secure PDF Viewer</div>
             <div className="header-subtitle">Protected content</div>
           </div>
         </div>
@@ -257,16 +401,12 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       </div>
       
       <div className="pdf-iframe-container">
-        {pdfUrl ? (
-          <iframe 
-            src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
-            className="pdf-iframe"
-            title="Secure PDF Viewer"
-            allow="fullscreen"
-          />
-        ) : (
-          <div className="loading-text">Loading...</div>
-        )}
+        <iframe 
+          src={`${pdfUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+          className="pdf-iframe"
+          title="Secure PDF Viewer"
+          allow="fullscreen"
+        />
       </div>
     </div>
   );
