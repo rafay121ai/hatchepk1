@@ -60,7 +60,7 @@ function Home() {
   return (
     <div className="home">
       {/* Hero Section */}
-      <section id="home" className={`hero ${isVisible ? 'fade-in' : ''}`}>
+      <section id="home" className={`hero ${isVisible ? 'fade-in' : ''}`} aria-label="Hero section">
         <div className="hero-content">
           <h1 className="hero-title">
             <span className="title-line">Take your</span>
@@ -301,7 +301,19 @@ function Home() {
           </p>
           
           <div className="affiliate-cards">
-            <div className="affiliate-card" onClick={navigateToAffiliateProgram}>
+            <div 
+              className="affiliate-card" 
+              onClick={navigateToAffiliateProgram}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  navigateToAffiliateProgram();
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label="Nano Influencers affiliate program - 1K to 10K followers"
+            >
               <div className="card-age">1K - 10K followers</div>
               <h3 className="card-title">Nano Influencers</h3>
               <p className="card-description">
@@ -327,7 +339,19 @@ function Home() {
               </div>
             </div>
             
-            <div className="affiliate-card featured" onClick={navigateToAffiliateProgram}>
+            <div 
+              className="affiliate-card featured" 
+              onClick={navigateToAffiliateProgram}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  navigateToAffiliateProgram();
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label="Micro Influencers affiliate program - 10K to 100K followers - Popular"
+            >
               <div className="popular-tag">Popular</div>
               <div className="card-age">10K - 100K followers</div>
               <h3 className="card-title">Micro Influencers</h3>
@@ -354,7 +378,19 @@ function Home() {
               </div>
             </div>
             
-            <div className="affiliate-card" onClick={navigateToAffiliateProgram}>
+            <div 
+              className="affiliate-card" 
+              onClick={navigateToAffiliateProgram}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  navigateToAffiliateProgram();
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label="Macro Influencers affiliate program - 100K+ followers"
+            >
               <div className="card-age">100K+ followers</div>
               <h3 className="card-title">Macro Influencers</h3>
               <p className="card-description">
@@ -407,12 +443,20 @@ function Home() {
               <button 
                 className="faq-question"
                 onClick={() => setOpenFaq(openFaq === 0 ? null : 0)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setOpenFaq(openFaq === 0 ? null : 0);
+                  }
+                }}
+                aria-expanded={openFaq === 0}
+                aria-controls="faq-answer-0"
               >
                 <span>Do I need experience to start?</span>
-                <span className="faq-icon">{openFaq === 0 ? '↑' : '↓'}</span>
+                <span className="faq-icon" aria-hidden="true">{openFaq === 0 ? '↑' : '↓'}</span>
               </button>
               {openFaq === 0 && (
-                <div className="faq-answer">
+                <div className="faq-answer" id="faq-answer-0">
                   <p>No! We offer guides for all levels, from absolute beginners to advanced learners. Our comprehensive e-books are designed to take you from zero to expert, with clear explanations and practical examples.</p>
                 </div>
               )}
@@ -422,12 +466,20 @@ function Home() {
               <button 
                 className="faq-question"
                 onClick={() => setOpenFaq(openFaq === 1 ? null : 1)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setOpenFaq(openFaq === 1 ? null : 1);
+                  }
+                }}
+                aria-expanded={openFaq === 1}
+                aria-controls="faq-answer-1"
               >
                 <span>What should I expect from the guides?</span>
-                <span className="faq-icon">{openFaq === 1 ? '↑' : '↓'}</span>
+                <span className="faq-icon" aria-hidden="true">{openFaq === 1 ? '↑' : '↓'}</span>
               </button>
               {openFaq === 1 && (
-                <div className="faq-answer">
+                <div className="faq-answer" id="faq-answer-1">
                   <p>Our e-guides are comprehensive digital resources with step-by-step instructions, visual examples, and actionable insights. Each guide includes downloadable materials, checklists, and practical exercises to reinforce your learning.</p>
                 </div>
               )}
@@ -437,12 +489,20 @@ function Home() {
               <button 
                 className="faq-question"
                 onClick={() => setOpenFaq(openFaq === 2 ? null : 2)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setOpenFaq(openFaq === 2 ? null : 2);
+                  }
+                }}
+                aria-expanded={openFaq === 2}
+                aria-controls="faq-answer-2"
               >
                 <span>Can I preview a guide before buying?</span>
-                <span className="faq-icon">{openFaq === 2 ? '↑' : '↓'}</span>
+                <span className="faq-icon" aria-hidden="true">{openFaq === 2 ? '↑' : '↓'}</span>
               </button>
               {openFaq === 2 && (
-                <div className="faq-answer">
+                <div className="faq-answer" id="faq-answer-2">
                   <p>Yes! We offer free sample chapters and previews for most guides. You can also start with our free beginner guides to get a feel for our content style and approach before making a purchase.</p>
                 </div>
               )}
@@ -452,12 +512,20 @@ function Home() {
               <button 
                 className="faq-question"
                 onClick={() => setOpenFaq(openFaq === 3 ? null : 3)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setOpenFaq(openFaq === 3 ? null : 3);
+                  }
+                }}
+                aria-expanded={openFaq === 3}
+                aria-controls="faq-answer-3"
               >
                 <span>How long do I have access to the guides?</span>
-                <span className="faq-icon">{openFaq === 3 ? '↑' : '↓'}</span>
+                <span className="faq-icon" aria-hidden="true">{openFaq === 3 ? '↑' : '↓'}</span>
               </button>
               {openFaq === 3 && (
-                <div className="faq-answer">
+                <div className="faq-answer" id="faq-answer-3">
                   <p>Once you purchase a guide, you have lifetime access! You can download and revisit the material anytime, and we regularly update our guides to keep them current with the latest information and best practices.</p>
                 </div>
               )}
@@ -467,12 +535,20 @@ function Home() {
               <button 
                 className="faq-question"
                 onClick={() => setOpenFaq(openFaq === 4 ? null : 4)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setOpenFaq(openFaq === 4 ? null : 4);
+                  }
+                }}
+                aria-expanded={openFaq === 4}
+                aria-controls="faq-answer-4"
               >
                 <span>Is there support if I need help?</span>
-                <span className="faq-icon">{openFaq === 4 ? '↑' : '↓'}</span>
+                <span className="faq-icon" aria-hidden="true">{openFaq === 4 ? '↑' : '↓'}</span>
               </button>
               {openFaq === 4 && (
-                <div className="faq-answer">
+                <div className="faq-answer" id="faq-answer-4">
                   <p>Absolutely! We provide community forums, direct support, and regular Q&A sessions. You're never alone in your learning journey - our community and support team are here to help you succeed with your guides.</p>
                 </div>
               )}

@@ -139,7 +139,7 @@ function App() {
       />
 
       {/* Routes with fade-in wrapper */}
-      <div className="page-content fade-in">
+      <main id="main-content" className="page-content fade-in">
         <ErrorBoundary>
           <Suspense fallback={<LoadingSpinner fullScreen message="Loading page..." />}>
             <Routes>
@@ -172,7 +172,7 @@ function App() {
             </Routes>
           </Suspense>
         </ErrorBoundary>
-      </div>
+      </main>
 
       {/* Footer */}
       <footer className="footer">
