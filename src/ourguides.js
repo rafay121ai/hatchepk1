@@ -380,7 +380,7 @@ function OurGuides() {
       {/* Header */}
       <section className="guides-header">
         <div className="guides-header-content">
-          <h1 className="guides-title">Premium How-To Guides for Pakistani Creators</h1>
+          <h1 className="guides-title">Learn. Evolve. Hatch.</h1>
           <p className="guides-subtitle">
             Expert-crafted step-by-step guides and tutorials to help you build influence, income, and identity. Learn from comprehensive e-guides designed for Pakistani entrepreneurs and content creators.
           </p>
