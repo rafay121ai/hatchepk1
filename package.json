@@ -23,7 +23,13 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "test:links": "node scripts/test-links.js",
+    "test:emails": "node scripts/test-email-endpoints.js",
+    "test:lighthouse": "node scripts/test-lighthouse.js",
+    "test:console": "node scripts/check-console-errors.js",
+    "test:seo": "node scripts/verify-seo.js",
+    "test:all": "npm run test:links && npm run test:emails && npm run test:console && npm run test:seo"
   },
   "eslintConfig": {
     "extends": [

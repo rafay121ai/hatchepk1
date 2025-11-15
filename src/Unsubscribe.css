@@ -1,0 +1,153 @@
+.unsubscribe-page {
+  min-height: 100vh;
+  background-color: #fdfcf1;
+  padding: 2rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.unsubscribe-container {
+  max-width: 600px;
+  width: 100%;
+  background: white;
+  border-radius: 16px;
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(115, 22, 15, 0.1);
+  text-align: center;
+}
+
+.unsubscribe-container h1 {
+  color: #73160f;
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  font-family: 'Georgia', serif;
+}
+
+.unsubscribe-subtitle {
+  color: #666;
+  font-size: 1rem;
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
+
+.unsubscribe-options {
+  background-color: #fdfcf1;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+  text-align: left;
+}
+
+.unsubscribe-options p {
+  color: #2c2c2c;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.unsubscribe-options ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.unsubscribe-options li {
+  margin-bottom: 0.75rem;
+}
+
+.unsubscribe-options a {
+  color: #73160f;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.unsubscribe-options a:hover {
+  text-decoration: underline;
+}
+
+.unsubscribe-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #73160f 0%, #8b1a13 100%);
+  color: white;
+}
+
+.btn-secondary {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.btn-danger {
+  background: #dc3545;
+  color: white;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.unsubscribe-success {
+  text-align: center;
+}
+
+.success-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #4caf50;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  margin: 0 auto 2rem;
+}
+
+.unsubscribe-success h1 {
+  color: #2c2c2c;
+  margin-bottom: 1rem;
+}
+
+.unsubscribe-success p {
+  color: #666;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.note {
+  font-size: 0.9rem;
+  color: #999;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .unsubscribe-actions {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+  }
+}
+

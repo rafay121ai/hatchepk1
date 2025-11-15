@@ -294,6 +294,18 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         
         setLoading(false);
         
+        // Schedule email automation (post-guide engagement and feedback)
+        if (user && guideData && !isInfluencer) {
+          try {
+            const { schedulePostGuideEmail, scheduleFeedbackEmail } = await import('./utils/emailAutomation');
+            await schedulePostGuideEmail(user, guideData);
+            await scheduleFeedbackEmail(user, guideData);
+          } catch (error) {
+            console.error('Error scheduling emails:', error);
+            // Don't block guide viewing if email scheduling fails
+          }
+        }
+        
         // Heartbeat
         heartbeatRef.current = setInterval(() => {
           updateHeartbeat(sessionIdRef.current);

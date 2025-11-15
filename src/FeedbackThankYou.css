@@ -1,0 +1,134 @@
+.feedback-thank-you-page {
+  min-height: 100vh;
+  background-color: #fdfcf1;
+  padding: 2rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thank-you-container {
+  max-width: 600px;
+  width: 100%;
+  background: white;
+  border-radius: 16px;
+  padding: 3rem 2rem;
+  box-shadow: 0 4px 20px rgba(115, 22, 15, 0.1);
+  text-align: center;
+}
+
+.thank-you-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.thank-you-icon {
+  font-size: 64px;
+  margin-bottom: 1.5rem;
+}
+
+.thank-you-container h1 {
+  color: #73160f;
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  font-family: 'Georgia', serif;
+}
+
+.thank-you-message {
+  color: #666;
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin-bottom: 2rem;
+}
+
+.rating-display {
+  background-color: #fdfcf1;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 2rem 0;
+  width: 100%;
+}
+
+.rating-label {
+  color: #2c2c2c;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+}
+
+.rating-stars {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  font-size: 2rem;
+}
+
+.star-filled {
+  color: #ffc107;
+}
+
+.star-empty {
+  color: #ddd;
+}
+
+.thank-you-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin: 2rem 0;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: none;
+  display: inline-block;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #73160f 0%, #8b1a13 100%);
+  color: white;
+}
+
+.btn-secondary {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.help-text {
+  color: #999;
+  font-size: 0.9rem;
+  margin-top: 2rem;
+}
+
+.help-text a {
+  color: #73160f;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.help-text a:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 768px) {
+  .thank-you-actions {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+  }
+}
+

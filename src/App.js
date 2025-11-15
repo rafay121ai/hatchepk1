@@ -23,6 +23,9 @@ const InfluencerAccess = lazy(() => import('./InfluencerAccess'));
 const InfluencerGuideViewer = lazy(() => import('./InfluencerGuideViewer'));
 const ResetPassword = lazy(() => import('./ResetPassword'));
 const Policies = lazy(() => import('./Policies'));
+const EmailPreferences = lazy(() => import('./EmailPreferences'));
+const Unsubscribe = lazy(() => import('./Unsubscribe'));
+const FeedbackThankYou = lazy(() => import('./FeedbackThankYou'));
 
 // Google Analytics
 const GA_TRACKING_ID = 'G-M8M2WM9PVN';
@@ -164,11 +167,16 @@ function App() {
               {/* Password Reset Route */}
               <Route path="/reset-password" element={<ResetPassword />} />
               
-              {/* Policy Routes */}
-              <Route path="/return-policy" element={<Policies />} />
-              <Route path="/privacy-policy" element={<Policies />} />
-              <Route path="/refund-policy" element={<Policies />} />
-              <Route path="/terms-conditions" element={<Policies />} />
+            {/* Policy Routes */}
+            <Route path="/return-policy" element={<Policies />} />
+            <Route path="/privacy-policy" element={<Policies />} />
+            <Route path="/refund-policy" element={<Policies />} />
+            <Route path="/terms-conditions" element={<Policies />} />
+            
+            {/* Email Management Routes */}
+            <Route path="/email-preferences" element={<EmailPreferences />} />
+            <Route path="/unsubscribe" element={<Unsubscribe />} />
+            <Route path="/feedback-thank-you" element={<FeedbackThankYou />} />
             </Routes>
           </Suspense>
         </ErrorBoundary>

@@ -151,12 +151,23 @@ function Auth({ onLogin, onClose }) {
           id: data.user.id,
           email: data.user.email,
           phone: phone,
+          firstName: email.split('@')[0], // Extract first name from email
           purchasedGuides: [],
           accessHistory: []
         };
         
         localStorage.setItem('user', JSON.stringify(userData));
         console.log('User registered successfully:', userData.email);
+        
+        // Send welcome email
+        try {
+          const { sendWelcomeEmail } = await import('./utils/emailAutomation');
+          await sendWelcomeEmail(userData);
+        } catch (error) {
+          console.error('Error sending welcome email:', error);
+          // Don't block registration if email fails
+        }
+        
         onLogin(userData);
       }
     } catch (error) {

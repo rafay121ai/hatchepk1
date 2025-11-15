@@ -5,6 +5,12 @@
       "maxDuration": 10
     }
   },
+  "crons": [
+    {
+      "path": "/api/emails/process-queue",
+      "schedule": "*/15 * * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*).(js|css|png|jpg|jpeg|gif|svg|webp|woff|woff2|ico)",
