@@ -71,6 +71,8 @@ export const trackEvent = (action, category, label, value) => {
 function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
+  const [displayLocation, setDisplayLocation] = useState(location);
+  const [transitionStage, setTransitionStage] = useState('fadeIn');
 
   // Enhanced toggle with body scroll lock
   const toggleMenu = () => {
@@ -134,31 +136,49 @@ function App() {
     };
   }, []);
 
-  // Scroll to top and close menu on route change
+  // Handle page transitions on route change
   useEffect(() => {
-    // Close menu on route change
-    closeMenu();
+    // If pathname changed, trigger fade-out transition
+    if (location.pathname !== displayLocation.pathname) {
+      setTransitionStage('fadeOut');
+    }
+  }, [location.pathname, displayLocation.pathname]);
 
-    // Scroll to top when route changes
-    // Small delay to ensure DOM is ready after route change
-    setTimeout(() => {
-      // If there's a hash in the URL, scroll to that element
-      if (location.hash) {
-        const element = document.querySelector(location.hash);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          return;
-        }
-      }
-      
-      // Otherwise, scroll to top
-      window.scrollTo({
-        top: 0,
-        left: 0,
-        behavior: 'smooth' // Smooth scroll on route change
-      });
-    }, 0);
-  }, [location.pathname]);
+  // Handle transition stages (fadeOut -> fadeIn)
+  useEffect(() => {
+    if (transitionStage === 'fadeOut') {
+      // After fade-out completes, update location and fade in
+      const timer = setTimeout(() => {
+        setDisplayLocation(location);
+        setTransitionStage('fadeIn');
+        
+        // Close menu on route change
+        closeMenu();
+
+        // Scroll to top when route changes
+        // Small delay to ensure DOM is ready after route change
+        setTimeout(() => {
+          // If there's a hash in the URL, scroll to that element
+          if (location.hash) {
+            const element = document.querySelector(location.hash);
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              return;
+            }
+          }
+          
+          // Otherwise, scroll to top
+          window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: 'smooth' // Smooth scroll on route change
+          });
+        }, 0);
+      }, 300); // Wait for fade-out animation (300ms)
+
+      return () => clearTimeout(timer);
+    }
+  }, [transitionStage, location, closeMenu]);
 
   return (
     <div className="App">
@@ -169,8 +189,8 @@ function App() {
         closeMenu={closeMenu} 
       />
 
-      {/* Routes with fade-in wrapper */}
-      <main id="main-content" className="page-content fade-in">
+      {/* Routes with transition animations */}
+      <main id="main-content" className={`page-content ${transitionStage}`}>
         <ErrorBoundary>
           <Suspense fallback={<LoadingSpinner fullScreen message="Loading page..." />}>
             <Routes>
