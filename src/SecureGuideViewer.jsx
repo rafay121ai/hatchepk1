@@ -132,7 +132,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
     });
   }, []);
 
-  // Progressive render: Fast preview (1.5x) then crisp upgrade (2.0x)
+  // Progressive render: Fast preview then crisp upgrade with device pixel ratio
   const renderPage = useCallback(async (pageNum) => {
     if (!pdfDocRef.current || !canvasRef.current) return;
     
@@ -142,15 +142,31 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       const canvas = canvasRef.current;
       const context = canvas.getContext('2d');
       
+      // Get device pixel ratio for high-DPI displays (2x, 3x on mobile)
+      const devicePixelRatio = window.devicePixelRatio || 1;
+      
       // Get base viewport
       const viewport = page.getViewport({ scale: 1 });
       const containerWidth = window.innerWidth - 32;
       const baseScale = containerWidth / viewport.width;
       
+      // Calculate optimal scale accounting for device pixel ratio
+      // Use 2x DPR for crisp rendering on high-DPI screens
+      const targetScale = baseScale * Math.min(devicePixelRatio, 2.5);
+      
       // PASS 1: Quick render at 1.5x (FAST - shows immediately)
       const quickViewport = page.getViewport({ scale: baseScale * 1.5 });
-      canvas.width = quickViewport.width;
-      canvas.height = quickViewport.height;
+      
+      // Set canvas internal size (actual pixels)
+      canvas.width = quickViewport.width * devicePixelRatio;
+      canvas.height = quickViewport.height * devicePixelRatio;
+      
+      // Set canvas display size (CSS pixels)
+      canvas.style.width = quickViewport.width + 'px';
+      canvas.style.height = quickViewport.height + 'px';
+      
+      // Scale context to match device pixel ratio
+      context.scale(devicePixelRatio, devicePixelRatio);
       
       await page.render({
         canvasContext: context,
@@ -159,7 +175,7 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       
       setRendering(false);
       
-      // PASS 2: Upgrade to 2.0x quality in background
+      // PASS 2: Upgrade to high-quality render in background
       setTimeout(async () => {
         if (!pdfDocRef.current || !canvasRef.current) return;
         
@@ -169,16 +185,29 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
           const upgradeCanvas = canvasRef.current;
           const upgradeContext = upgradeCanvas.getContext('2d');
           
-          const crispViewport = crispPage.getViewport({ scale: baseScale * 2.0 });
-          upgradeCanvas.width = crispViewport.width;
-          upgradeCanvas.height = crispViewport.height;
+          // Use target scale for crisp rendering
+          const crispViewport = crispPage.getViewport({ scale: targetScale });
+          
+          // Set canvas internal size (actual pixels) - higher resolution
+          upgradeCanvas.width = crispViewport.width * devicePixelRatio;
+          upgradeCanvas.height = crispViewport.height * devicePixelRatio;
+          
+          // Set canvas display size (CSS pixels)
+          upgradeCanvas.style.width = crispViewport.width + 'px';
+          upgradeCanvas.style.height = crispViewport.height + 'px';
+          
+          // Clear and reset context
+          upgradeContext.clearRect(0, 0, upgradeCanvas.width, upgradeCanvas.height);
+          upgradeContext.scale(devicePixelRatio, devicePixelRatio);
           
           await crispPage.render({
             canvasContext: upgradeContext,
             viewport: crispViewport
           }).promise;
           
-          console.log(`✨ Page ${pageNum} upgraded to 2.0x`);
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`✨ Page ${pageNum} upgraded to ${targetScale.toFixed(2)}x (DPR: ${devicePixelRatio})`);
+          }
         } catch (err) {
           console.error('Quality upgrade error:', err);
         }

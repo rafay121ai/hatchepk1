@@ -121,8 +121,11 @@
   height: auto;
   display: block;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  image-rendering: -webkit-optimize-contrast;
-  image-rendering: crisp-edges;
+  /* Use auto rendering for high-DPI displays - browser will optimize */
+  image-rendering: auto;
+  /* Ensure smooth rendering on high-DPI screens */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Navigation hint animation */
@@ -171,6 +174,12 @@
     max-height: 90vw;
     width: auto;
     height: auto;
+    /* Ensure crisp rendering on mobile */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Better image rendering for high-DPI */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: auto;
   }
   
   .pdf-canvas-container {
