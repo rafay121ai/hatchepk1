@@ -73,9 +73,9 @@ function InfluencerAccess() {
     setError('');
 
     try {
-      // Generate device fingerprint
+      // Generate stable device fingerprint (uses localStorage, persists across sessions)
       const deviceFingerprint = await generateDeviceFingerprint();
-      console.log('🔑 Generated device fingerprint');
+      console.log('🔑 Using device fingerprint');
 
       // Call validation API
       const response = await fetch('/api/influencer/validate-code', {

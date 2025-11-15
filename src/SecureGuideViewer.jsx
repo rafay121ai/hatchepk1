@@ -20,14 +20,37 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const pdfDocRef = useRef(null);
   const canvasRef = useRef(null);
 
+  // Generate stable device fingerprint - uses localStorage to persist across sessions
   const generateDeviceFingerprint = useCallback(() => {
     try {
-      return btoa(JSON.stringify({
-        ua: navigator.userAgent,
-        screen: `${window.screen.width}x${window.screen.height}`
-      })).substring(0, 100);
+      // Check if we already have a device ID stored
+      let deviceId = localStorage.getItem('hatche_device_id');
+      
+      if (!deviceId) {
+        // Generate new stable device ID
+        const fingerprint = btoa(JSON.stringify({
+          ua: navigator.userAgent,
+          screen: `${window.screen.width}x${window.screen.height}`,
+          lang: navigator.language,
+          platform: navigator.platform,
+          // Add timestamp to make it unique, but store it so it persists
+          created: Date.now()
+        })).substring(0, 100);
+        
+        // Create a more stable ID by combining fingerprint with a random component
+        deviceId = `device_${fingerprint}_${Date.now()}`;
+        localStorage.setItem('hatche_device_id', deviceId);
+      }
+      
+      return deviceId;
     } catch {
-      return `fallback_${Date.now()}`;
+      // Fallback: try to get existing or create new
+      let deviceId = localStorage.getItem('hatche_device_id');
+      if (!deviceId) {
+        deviceId = `fallback_${Date.now()}`;
+        localStorage.setItem('hatche_device_id', deviceId);
+      }
+      return deviceId;
     }
   }, []);
 
@@ -75,16 +98,37 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
   const checkConcurrentSessions = useCallback(async (gId, usr, deviceId) => {
     try {
       const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+      
+      // First: Clean up stale sessions (older than 2 minutes)
       await supabase.from('active_sessions').delete()
         .eq('user_id', usr.id).eq('guide_id', gId).lt('last_heartbeat', twoMinAgo);
       
+      // Second: Remove any old sessions from the SAME device_id
+      // This ensures if the same device reopens, it replaces the old session
+      await supabase.from('active_sessions').delete()
+        .eq('user_id', usr.id)
+        .eq('guide_id', gId)
+        .eq('device_id', deviceId);
+      
+      // Third: Get all active sessions (excluding stale ones)
       const { data: sessions } = await supabase.from('active_sessions').select('device_id')
-        .eq('user_id', usr.id).eq('guide_id', gId).gte('last_heartbeat', twoMinAgo);
+        .eq('user_id', usr.id)
+        .eq('guide_id', gId)
+        .gte('last_heartbeat', twoMinAgo);
 
+      // Count unique device IDs (excluding current device)
       const devices = new Set();
-      sessions?.forEach(s => { if (s.device_id !== deviceId) devices.add(s.device_id); });
+      sessions?.forEach(s => { 
+        if (s.device_id !== deviceId) {
+          devices.add(s.device_id); 
+        }
+      });
+      
+      // Allow if less than 2 OTHER devices are active
       return devices.size < 2;
-    } catch {
+    } catch (err) {
+      console.error('Error checking concurrent sessions:', err);
+      // On error, allow access (fail open)
       return true;
     }
   }, []);
@@ -392,10 +436,57 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
 
     init();
 
-    return () => {
+    // Cleanup function
+    const cleanup = () => {
       mounted = false;
-      if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-      if (sessionIdRef.current) closeSession(sessionIdRef.current);
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current);
+        heartbeatRef.current = null;
+      }
+      if (sessionIdRef.current) {
+        closeSession(sessionIdRef.current);
+        sessionIdRef.current = null;
+      }
+    };
+
+    // Handle tab close/navigation - cleanup session
+    const handleBeforeUnload = () => {
+      if (sessionIdRef.current) {
+        const sessionId = sessionIdRef.current;
+        // Try to close session synchronously (best effort)
+        // Note: Async operations may not complete on beforeunload
+        closeSession(sessionId);
+      }
+    };
+
+    // Handle visibility change (tab switch, minimize, etc.)
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Tab is hidden - pause heartbeat but keep session
+        if (heartbeatRef.current) {
+          clearInterval(heartbeatRef.current);
+          heartbeatRef.current = null;
+        }
+      } else {
+        // Tab is visible again - resume heartbeat
+        if (sessionIdRef.current && !heartbeatRef.current) {
+          heartbeatRef.current = setInterval(() => {
+            updateHeartbeat(sessionIdRef.current);
+          }, 30000);
+          // Immediate heartbeat on resume
+          updateHeartbeat(sessionIdRef.current);
+        }
+      }
+    };
+
+    // Register event listeners
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      cleanup();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [guideId, user, guideData, isInfluencer, isMobile, generateDeviceFingerprint, verifyPurchaseAccess, checkConcurrentSessions, recordSession, updateHeartbeat, closeSession, loadPdfJs, renderPage]);
 
