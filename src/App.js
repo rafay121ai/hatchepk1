@@ -1,35 +1,45 @@
 import './App.css';
-import Home from './Home';
-import AboutUs from './aboutus';
-import Affiliate from './affiliate';
-import OurGuides from './ourguides';
-import YourGuides from './YourGuides';
-import Checkout from './checkout';
-import AffiliateDashboard from './AffiliateDashboard';
-import PaymentSuccess from './PaymentSuccess';
-import PaymentFailure from './PaymentFailure';
-import InfluencerAccess from './InfluencerAccess';
-import InfluencerGuideViewer from './InfluencerGuideViewer';
-import ResetPassword from './ResetPassword';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { testSupabaseConnection } from './supabaseTest';
 import { initializeReferralTracking } from './referralUtils';
 import { AuthProvider } from './AuthContext';
 import { initializeDatabase } from './databaseUtils';
 import ProtectedRoute from './ProtectedRoute';
 import Navigation from './Navigation';
-import DatabaseTest from './DatabaseTest';
-import Policies from './Policies';
 import ErrorBoundary from './components/ErrorBoundary';
+import LoadingSpinner from './components/LoadingSpinner';
+
+// Lazy load all route components for code splitting
+const Home = lazy(() => import('./Home'));
+const AboutUs = lazy(() => import('./aboutus'));
+const Affiliate = lazy(() => import('./affiliate'));
+const OurGuides = lazy(() => import('./ourguides'));
+const YourGuides = lazy(() => import('./YourGuides'));
+const Checkout = lazy(() => import('./checkout'));
+const AffiliateDashboard = lazy(() => import('./AffiliateDashboard'));
+const PaymentSuccess = lazy(() => import('./PaymentSuccess'));
+const PaymentFailure = lazy(() => import('./PaymentFailure'));
+const InfluencerAccess = lazy(() => import('./InfluencerAccess'));
+const InfluencerGuideViewer = lazy(() => import('./InfluencerGuideViewer'));
+const ResetPassword = lazy(() => import('./ResetPassword'));
+const Policies = lazy(() => import('./Policies'));
 
 // Google Analytics
 const GA_TRACKING_ID = 'G-M8M2WM9PVN';
 
-// Initialize Google Analytics
+// Initialize Google Analytics (handles deferred loading)
 const initGA = () => {
-  if (typeof window !== 'undefined' && window.gtag) {
-    window.gtag('config', GA_TRACKING_ID);
+  if (typeof window !== 'undefined') {
+    // Wait for gtag to be available (since it's deferred)
+    const checkGtag = () => {
+      if (window.gtag) {
+        window.gtag('config', GA_TRACKING_ID);
+      } else {
+        // Retry after a short delay if gtag isn't loaded yet
+        setTimeout(checkGtag, 100);
+      }
+    };
+    checkGtag();
   }
 };
 
@@ -90,7 +100,7 @@ function App() {
     document.body.classList.remove('menu-open');
   };
 
-  // Initialize referral tracking, test Supabase connection, and initialize database
+  // Initialize referral tracking and database
   useEffect(() => {
     // Initialize Google Analytics
     initGA();
@@ -101,12 +111,8 @@ function App() {
       console.log('Referral tracking initialized with ID:', referralId);
     }
     
-    // Test Supabase connection and initialize database
-    const runTests = async () => {
-      await testSupabaseConnection();
-      await initializeDatabase();
-    };
-    runTests();
+    // Initialize database
+    initializeDatabase();
 
     // Cleanup: ensure body scroll is reset on unmount
     return () => {
@@ -135,35 +141,36 @@ function App() {
       {/* Routes with fade-in wrapper */}
       <div className="page-content fade-in">
         <ErrorBoundary>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/about-us" element={<AboutUs />} />
-            <Route path="/our-guides" element={<OurGuides />} />
-            <Route path="/your-guides" element={<YourGuides />} />
-            <Route path="/affiliate-program" element={<Affiliate />} />
-            <Route path="/checkout" element={
-              <ProtectedRoute>
-                <Checkout />
-              </ProtectedRoute>
-            } />
-            <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
-            <Route path="/database-test" element={<DatabaseTest />} />
-            <Route path="/payment-success" element={<PaymentSuccess />} />
-            <Route path="/payment-failure" element={<PaymentFailure />} />
-            
-            {/* Hidden Influencer Access Routes */}
-            <Route path="/influencer-access" element={<InfluencerAccess />} />
-            <Route path="/influencer-guide/:guideSlug" element={<InfluencerGuideViewer />} />
-            
-            {/* Password Reset Route */}
-            <Route path="/reset-password" element={<ResetPassword />} />
-            
-            {/* Policy Routes */}
-            <Route path="/return-policy" element={<Policies />} />
-            <Route path="/privacy-policy" element={<Policies />} />
-            <Route path="/refund-policy" element={<Policies />} />
-            <Route path="/terms-conditions" element={<Policies />} />
-          </Routes>
+          <Suspense fallback={<LoadingSpinner fullScreen message="Loading page..." />}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/about-us" element={<AboutUs />} />
+              <Route path="/our-guides" element={<OurGuides />} />
+              <Route path="/your-guides" element={<YourGuides />} />
+              <Route path="/affiliate-program" element={<Affiliate />} />
+              <Route path="/checkout" element={
+                <ProtectedRoute>
+                  <Checkout />
+                </ProtectedRoute>
+              } />
+              <Route path="/affiliate-dashboard" element={<AffiliateDashboard />} />
+              <Route path="/payment-success" element={<PaymentSuccess />} />
+              <Route path="/payment-failure" element={<PaymentFailure />} />
+              
+              {/* Hidden Influencer Access Routes */}
+              <Route path="/influencer-access" element={<InfluencerAccess />} />
+              <Route path="/influencer-guide/:guideSlug" element={<InfluencerGuideViewer />} />
+              
+              {/* Password Reset Route */}
+              <Route path="/reset-password" element={<ResetPassword />} />
+              
+              {/* Policy Routes */}
+              <Route path="/return-policy" element={<Policies />} />
+              <Route path="/privacy-policy" element={<Policies />} />
+              <Route path="/refund-policy" element={<Policies />} />
+              <Route path="/terms-conditions" element={<Policies />} />
+            </Routes>
+          </Suspense>
         </ErrorBoundary>
       </div>
 

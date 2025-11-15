@@ -1,14 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <!-- Google Tag Manager -->
-    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-    })(window,document,'script','dataLayer','GTM-PT8CMT5J');</script>
-    <!-- End Google Tag Manager -->
-    
     <meta charset="utf-8" />
     <link rel="icon" type="image/png" href="%PUBLIC_URL%/hatche-favicon.png?v=2" />
     <link rel="shortcut icon" type="image/png" href="%PUBLIC_URL%/hatche-favicon.png?v=2" />
@@ -19,13 +11,36 @@
       content="Hatche - Your guide to building influence, income, and identity. Premium guides for Pakistani creators and entrepreneurs."
     />
     
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-M8M2WM9PVN"></script>
+    <!-- Google Tag Manager - Deferred to load after page content -->
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-M8M2WM9PVN');
+      // Defer GTM loading until after page load
+      window.addEventListener('load', function() {
+        (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+        new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+        j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.defer=true;j.src=
+        'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+        })(window,document,'script','dataLayer','GTM-PT8CMT5J');
+      });
+    </script>
+    
+    <!-- Google tag (gtag.js) - Deferred to load after page content -->
+    <script>
+      // Defer gtag loading until after page load
+      window.addEventListener('load', function() {
+        var script = document.createElement('script');
+        script.async = true;
+        script.defer = true;
+        script.src = 'https://www.googletagmanager.com/gtag/js?id=G-M8M2WM9PVN';
+        document.head.appendChild(script);
+        
+        script.onload = function() {
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          window.gtag = gtag;
+          gtag('js', new Date());
+          gtag('config', 'G-M8M2WM9PVN');
+        };
+      });
     </script>
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/hatche-favicon.png?v=2" />
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
