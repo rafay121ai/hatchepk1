@@ -140,38 +140,65 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
       setRendering(true);
       const page = await pdfDocRef.current.getPage(pageNum);
       const canvas = canvasRef.current;
-      const context = canvas.getContext('2d');
       
       // Get device pixel ratio for high-DPI displays (2x, 3x on mobile)
-      const devicePixelRatio = window.devicePixelRatio || 1;
+      const devicePixelRatio = Math.min(window.devicePixelRatio || 1, 3); // Cap at 3x to prevent memory issues
       
-      // Get base viewport
-      const viewport = page.getViewport({ scale: 1 });
-      const containerWidth = window.innerWidth - 32;
-      const baseScale = containerWidth / viewport.width;
+      // Get base viewport - account for rotation on mobile
+      const baseViewport = page.getViewport({ scale: 1 });
       
-      // Calculate optimal scale accounting for device pixel ratio
-      // Use 2x DPR for crisp rendering on high-DPI screens
-      const targetScale = baseScale * Math.min(devicePixelRatio, 2.5);
+      // For mobile, we rotate 90deg, so use height for width calculation
+      const containerWidth = isMobile ? window.innerHeight - 100 : window.innerWidth - 32;
+      const containerHeight = isMobile ? window.innerWidth - 100 : window.innerHeight - 200;
       
-      // PASS 1: Quick render at 1.5x (FAST - shows immediately)
-      const quickViewport = page.getViewport({ scale: baseScale * 1.5 });
+      // Calculate scale to fit container
+      const scaleX = containerWidth / baseViewport.width;
+      const scaleY = containerHeight / baseViewport.height;
+      const baseScale = Math.min(scaleX, scaleY);
       
-      // Set canvas internal size (actual pixels)
-      canvas.width = quickViewport.width * devicePixelRatio;
-      canvas.height = quickViewport.height * devicePixelRatio;
+      // For crisp rendering, multiply by device pixel ratio
+      // Use 2x minimum for mobile, up to device limit
+      const renderScale = baseScale * Math.max(devicePixelRatio, isMobile ? 2 : 1);
+      const quickScale = baseScale * Math.max(devicePixelRatio * 0.8, isMobile ? 1.5 : 1);
       
-      // Set canvas display size (CSS pixels)
-      canvas.style.width = quickViewport.width + 'px';
-      canvas.style.height = quickViewport.height + 'px';
+      // PASS 1: Quick render (FAST - shows immediately)
+      const quickViewport = page.getViewport({ scale: quickScale });
       
-      // Scale context to match device pixel ratio
+      // Calculate actual pixel dimensions
+      const outputWidth = Math.floor(quickViewport.width);
+      const outputHeight = Math.floor(quickViewport.height);
+      
+      // Set canvas internal resolution (actual pixels) - MUST be integers
+      canvas.width = outputWidth * devicePixelRatio;
+      canvas.height = outputHeight * devicePixelRatio;
+      
+      // Set canvas display size (CSS pixels) - MUST match viewport exactly
+      canvas.style.width = outputWidth + 'px';
+      canvas.style.height = outputHeight + 'px';
+      
+      // Get context with optimal settings
+      const context = canvas.getContext('2d', { 
+        alpha: false,
+        desynchronized: true // Better performance
+      });
+      
+      // Reset transform and scale for DPR
+      context.setTransform(1, 0, 0, 1, 0, 0);
       context.scale(devicePixelRatio, devicePixelRatio);
       
-      await page.render({
+      // Fill with white background
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, outputWidth, outputHeight);
+      
+      // Render PDF page
+      const renderContext = {
         canvasContext: context,
-        viewport: quickViewport
-      }).promise;
+        viewport: quickViewport,
+        // Optional: enable text layer for better text rendering
+        enableWebGL: false
+      };
+      
+      await page.render(renderContext).promise;
       
       setRendering(false);
       
@@ -180,44 +207,58 @@ export default function SecureGuideViewer({ guideId, user, onClose, guideData, i
         if (!pdfDocRef.current || !canvasRef.current) return;
         
         try {
-          // Re-get the page to ensure fresh reference
+          // Re-get the page
           const crispPage = await pdfDocRef.current.getPage(pageNum);
           const upgradeCanvas = canvasRef.current;
-          const upgradeContext = upgradeCanvas.getContext('2d');
           
-          // Use target scale for crisp rendering
-          const crispViewport = crispPage.getViewport({ scale: targetScale });
+          // Use higher scale for crisp rendering
+          const crispViewport = crispPage.getViewport({ scale: renderScale });
           
-          // Set canvas internal size (actual pixels) - higher resolution
-          upgradeCanvas.width = crispViewport.width * devicePixelRatio;
-          upgradeCanvas.height = crispViewport.height * devicePixelRatio;
+          // Calculate actual pixel dimensions
+          const crispWidth = Math.floor(crispViewport.width);
+          const crispHeight = Math.floor(crispViewport.height);
+          
+          // Set canvas internal resolution (actual pixels)
+          upgradeCanvas.width = crispWidth * devicePixelRatio;
+          upgradeCanvas.height = crispHeight * devicePixelRatio;
           
           // Set canvas display size (CSS pixels)
-          upgradeCanvas.style.width = crispViewport.width + 'px';
-          upgradeCanvas.style.height = crispViewport.height + 'px';
+          upgradeCanvas.style.width = crispWidth + 'px';
+          upgradeCanvas.style.height = crispHeight + 'px';
           
-          // Clear and reset context
-          upgradeContext.clearRect(0, 0, upgradeCanvas.width, upgradeCanvas.height);
+          // Get context
+          const upgradeContext = upgradeCanvas.getContext('2d', { 
+            alpha: false,
+            desynchronized: true
+          });
+          
+          // Reset and scale
+          upgradeContext.setTransform(1, 0, 0, 1, 0, 0);
           upgradeContext.scale(devicePixelRatio, devicePixelRatio);
           
+          // Fill with white background
+          upgradeContext.fillStyle = '#ffffff';
+          upgradeContext.fillRect(0, 0, crispWidth, crispHeight);
+          
+          // Render at higher quality
           await crispPage.render({
             canvasContext: upgradeContext,
             viewport: crispViewport
           }).promise;
           
           if (process.env.NODE_ENV === 'development') {
-            console.log(`✨ Page ${pageNum} upgraded to ${targetScale.toFixed(2)}x (DPR: ${devicePixelRatio})`);
+            console.log(`✨ Page ${pageNum} upgraded: ${crispWidth}x${crispHeight} @ ${devicePixelRatio}x DPR`);
           }
         } catch (err) {
           console.error('Quality upgrade error:', err);
         }
-      }, 150);
+      }, 300);
       
     } catch (err) {
       console.error('Render error:', err);
       setRendering(false);
     }
-  }, []);
+  }, [isMobile]);
 
   // Navigation
   const goToPrev = useCallback(() => {
