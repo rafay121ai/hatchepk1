@@ -105,11 +105,11 @@ function App() {
 
   // Initialize referral tracking and database
   useEffect(() => {
-    // Scroll to top on page reload
+    // Scroll to top on page reload with smooth animation
     window.scrollTo({
       top: 0,
       left: 0,
-      behavior: 'instant' // Instant scroll on reload
+      behavior: 'smooth' // Smooth scroll on reload
     });
 
     // Initialize Google Analytics
