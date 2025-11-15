@@ -105,6 +105,13 @@ function App() {
 
   // Initialize referral tracking and database
   useEffect(() => {
+    // Scroll to top on page reload
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'instant' // Instant scroll on reload
+    });
+
     // Initialize Google Analytics
     initGA();
     
@@ -127,9 +134,30 @@ function App() {
     };
   }, []);
 
-  // Close menu on route change
+  // Scroll to top and close menu on route change
   useEffect(() => {
+    // Close menu on route change
     closeMenu();
+
+    // Scroll to top when route changes
+    // Small delay to ensure DOM is ready after route change
+    setTimeout(() => {
+      // If there's a hash in the URL, scroll to that element
+      if (location.hash) {
+        const element = document.querySelector(location.hash);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return;
+        }
+      }
+      
+      // Otherwise, scroll to top
+      window.scrollTo({
+        top: 0,
+        left: 0,
+        behavior: 'smooth' // Smooth scroll on route change
+      });
+    }, 0);
   }, [location.pathname]);
 
   return (
