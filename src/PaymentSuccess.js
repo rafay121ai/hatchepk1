@@ -69,10 +69,11 @@ function PaymentSuccess() {
             
             // Send order confirmation email
             try {
-              await fetch('/api/emails/send-order-confirmation', {
+              await fetch('/api/emails/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                  emailType: 'order-confirmation',
                   customerName: pendingOrder.customer_name,
                   customerEmail: pendingOrder.customer_email,
                   guideTitle: pendingOrder.product_name,

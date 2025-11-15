@@ -257,10 +257,11 @@ function Affiliate() {
 
         // Send welcome email
         try {
-          await fetch('/api/emails/send-affiliate-welcome', {
+          await fetch('/api/emails/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              emailType: 'affiliate-welcome',
               name: formData.name,
               email: formData.email,
               refId: 'Pending Approval', // Will get actual ID after approval

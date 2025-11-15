@@ -6,12 +6,7 @@ const { URL } = require('url');
 
 const BASE_URL = process.env.SITE_URL || 'https://hatchepk.com';
 const EMAIL_ENDPOINTS = [
-  '/api/emails/send-welcome',
-  '/api/emails/send-post-guide-engagement',
-  '/api/emails/send-feedback-request',
-  '/api/emails/send-re-engagement',
-  '/api/emails/send-order-confirmation',
-  '/api/emails/send-affiliate-welcome',
+  '/api/emails/send', // Unified email endpoint
 ];
 
 const testResults = [];
@@ -22,6 +17,7 @@ function testEndpoint(path) {
     const client = url.protocol === 'https:' ? https : http;
 
     const postData = JSON.stringify({
+      emailType: 'welcome',
       email: 'test@example.com',
       firstName: 'Test',
     });

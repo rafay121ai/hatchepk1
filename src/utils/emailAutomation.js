@@ -6,12 +6,13 @@
  */
 export const sendWelcomeEmail = async (userData) => {
   try {
-    const response = await fetch('/api/emails/send-welcome', {
+    const response = await fetch('/api/emails/send', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
+        emailType: 'welcome',
         firstName: userData.firstName || userData.name || 'Learner',
         email: userData.email,
         topGuideUrl: 'https://hatchepk.com/our-guides'

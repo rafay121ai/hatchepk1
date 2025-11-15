@@ -111,11 +111,12 @@ module.exports = async (req, res) => {
         // Send order confirmation email (ONLY on successful payment)
         try {
           const emailResponse = await fetch(process.env.VERCEL_URL 
-            ? `https://${process.env.VERCEL_URL}/api/emails/send-order-confirmation`
-            : 'https://hatchepk.com/api/emails/send-order-confirmation', {
+            ? `https://${process.env.VERCEL_URL}/api/emails/send`
+            : 'https://hatchepk.com/api/emails/send', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              emailType: 'order-confirmation',
               customerName: customerName,
               customerEmail: customerEmail,
               guideTitle: productName,

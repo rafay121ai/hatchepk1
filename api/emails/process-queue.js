@@ -81,26 +81,12 @@ module.exports = async function handler(req, res) {
           continue;
         }
 
-        // Map email type to API endpoint
-        const emailEndpoints = {
-          'post-guide-engagement': '/api/emails/send-post-guide-engagement',
-          'feedback-request': '/api/emails/send-feedback-request',
-          're-engagement': '/api/emails/send-re-engagement'
-        };
-
-        const endpoint = emailEndpoints[emailItem.email_type];
-        if (!endpoint) {
-          console.warn(`Unknown email type: ${emailItem.email_type}`);
-          await supabase
-            .from('email_queue')
-            .update({ status: 'failed', reason: 'unknown_type' })
-            .eq('id', emailItem.id);
-          failed++;
-          continue;
-        }
+        // Use unified email endpoint
+        const endpoint = '/api/emails/send';
 
         // Send email via internal API call
         const emailData = {
+          emailType: emailItem.email_type,
           ...emailItem.email_data,
           email: emailItem.user_email
         };
