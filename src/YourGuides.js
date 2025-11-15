@@ -4,6 +4,7 @@ import { supabase } from './supabaseClient';
 import { enforceSessionLimit } from './deviceUtils';
 import SecureGuideViewer from './SecureGuideViewer';
 import './YourGuides.css';
+import { SEO, Breadcrumb } from './components';
 
 function YourGuides() {
   const { user } = useAuth();
@@ -146,6 +147,16 @@ function YourGuides() {
 
   return (
     <div className="your-guides-page">
+      <SEO
+        title="Your Guides - Access Your Purchased Tutorials | Hatche"
+        description="Access your purchased premium guides and continue your learning journey. View all your how-to guides and step-by-step tutorials in one place."
+        keywords="my guides, purchased guides, access guides, learning dashboard, tutorial access"
+        url="https://hatchepk.com/your-guides"
+      />
+      <Breadcrumb items={[
+        { label: 'Home', path: '/' },
+        { label: 'Your Guides', path: '/your-guides' }
+      ]} />
       {showSecureViewer && (
         <SecureGuideViewer 
           guideId={selectedGuideId} 
@@ -181,14 +192,21 @@ function YourGuides() {
             {userGuides.map((guide) => (
               <div key={guide.id} className="guide-card">
                 <div className="guide-cover">
-                  <img src={guide.cover} alt={guide.title} />
+                  <img 
+                    src={guide.cover} 
+                    alt={guide.title}
+                    loading="lazy"
+                    decoding="async"
+                    width="400"
+                    height="300"
+                  />
                   <div className="guide-status">
                     <span className="status-badge">Owned</span>
                   </div>
                 </div>
                 
                 <div className="guide-content">
-                  <h3 className="guide-title">{guide.title}</h3>
+                  <h2 className="guide-title">{guide.title}</h2>
                   <p className="guide-description">{guide.description}</p>
                   
                   <div className="guide-meta">

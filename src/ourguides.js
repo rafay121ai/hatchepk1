@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import './ourguides.css';
 import { useAuth } from './AuthContext';
 import { supabase } from './supabaseClient';
+import { SEO, Breadcrumb } from './components';
 
 function OurGuides() {
   const navigate = useNavigate();
@@ -31,43 +32,20 @@ function OurGuides() {
   useEffect(() => {
     const loadGuides = async () => {
       try {
-        console.log('Fetching guides from database...');
-        console.log('Supabase client:', supabase);
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Fetching guides from database...');
+        }
         
-        // Test user_sessions table access (non-blocking, background only)
-        console.log('Testing user_sessions table access in background...');
-        setTimeout(() => {
-          supabase.from('user_sessions').select('*').limit(1)
-            .then(({ data: sessionsData, error: sessionsError }) => {
-              console.log('User sessions response:', sessionsData, sessionsError);
-              if (sessionsError) {
-                console.warn('User sessions error (non-critical):', sessionsError.message);
-              }
-            })
-            .catch(sessionsErr => {
-              console.warn('User sessions catch error (non-critical):', sessionsErr.message);
-            });
-        }, 1000);
-        
-        // Test basic connection first
-        const { data: testData, error: testError } = await supabase
-          .from('guides')
-          .select('count')
-          .limit(1);
-        console.log('Connection test:', { testData, testError });
-        
-        // Fetch guides from the database
+        // Fetch guides from the database with pagination
         const { data: guidesData, error } = await supabase
           .from('guides')
           .select('*')
-          .order('created_at', { ascending: false });
+          .order('created_at', { ascending: false })
+          .limit(12); // Limit initial load for performance
           
-        console.log('Guides response:', guidesData, error);
-        console.log('Database response:', { guidesData, error });
-        console.log('Number of guides found:', guidesData?.length || 0);
-        console.log('First guide data:', guidesData?.[0]);
-        console.log('User authentication status:', user ? 'Authenticated' : 'Not authenticated');
-        console.log('Loading guides regardless of authentication status...');
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Guides response:', guidesData?.length || 0, 'guides');
+        }
 
         if (error) {
           console.error('Error fetching guides:', error);
@@ -341,8 +319,46 @@ function OurGuides() {
     }
   }, [location.state]);
 
+  // Generate schema markup for guides page
+  const guidesSchema = {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "name": "Premium Guides for Pakistani Creators",
+    "description": "Expert-crafted e-guides to help Pakistani creators build influence, income, and identity",
+    "itemListElement": guides.map((guide, index) => ({
+      "@type": "ListItem",
+      "position": index + 1,
+      "item": {
+        "@type": "Course",
+        "name": guide.title,
+        "description": guide.description,
+        "provider": {
+          "@type": "Organization",
+          "name": "Hatche",
+          "url": "https://hatchepk.com"
+        },
+        "offers": {
+          "@type": "Offer",
+          "price": guide.price,
+          "priceCurrency": "PKR"
+        }
+      }
+    }))
+  };
+
   return (
     <div className="our-guides-page">
+      <SEO
+        title="Premium Guides for Pakistani Creators | How-To Guides & Tutorials | Hatche"
+        description="Discover premium how-to guides and step-by-step tutorials for Pakistani creators. Expert-crafted e-guides on entrepreneurship, content creation, and building your online business. Start learning today!"
+        keywords="how-to guides, step-by-step tutorials, Pakistani creators, entrepreneurship guides, content creation, online business, digital guides, premium tutorials"
+        url="https://hatchepk.com/our-guides"
+        schema={guidesSchema}
+      />
+      <Breadcrumb items={[
+        { label: 'Home', path: '/' },
+        { label: 'Our Guides', path: '/our-guides' }
+      ]} />
       {showSuccessMessage && (
         <div className="success-message">
           <div className="success-content">
@@ -364,9 +380,9 @@ function OurGuides() {
       {/* Header */}
       <section className="guides-header">
         <div className="guides-header-content">
-          <h1 className="guides-title">Our Premium Guides</h1>
+          <h1 className="guides-title">Premium How-To Guides for Pakistani Creators</h1>
           <p className="guides-subtitle">
-            Expert-crafted e-guides to accelerate your learning journey
+            Expert-crafted step-by-step guides and tutorials to help you build influence, income, and identity. Learn from comprehensive e-guides designed for Pakistani entrepreneurs and content creators.
           </p>
         </div>
       </section>
@@ -382,7 +398,14 @@ function OurGuides() {
             guides.map((guide, index) => (
               <div key={guide.id} className="guide-card">
                 <div className="guide-cover">
-                  <img src={guide.cover} alt={guide.title} />
+                  <img 
+                    src={guide.cover} 
+                    alt={guide.title}
+                    loading="lazy"
+                    decoding="async"
+                    width="400"
+                    height="300"
+                  />
                   {(visibleCards.has(index) || isMobile) && (
                     <div className="guide-overlay">
                       <button 
@@ -415,7 +438,7 @@ function OurGuides() {
                     </div>
                   </div>
                   
-                  <h3 className="guide-title">{guide.title}</h3>
+                  <h2 className="guide-title">{guide.title}</h2>
                   <p className="guide-description">{guide.description}</p>
                   
                   <div className="guide-stats">

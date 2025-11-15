@@ -488,6 +488,10 @@ function Checkout() {
                 src="/creatortitle.png" 
                 alt={guide.title}
                 className="summary-image"
+                loading="lazy"
+                decoding="async"
+                width="200"
+                height="150"
               />
               <div className="summary-details">
                 <h3>{guide.title}</h3>

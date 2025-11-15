@@ -1,3 +1,18 @@
 # https://www.robotstxt.org/robotstxt.html
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /api/
+Disallow: /checkout
+Disallow: /affiliate-dashboard
+Disallow: /your-guides
+Disallow: /influencer-access
+Disallow: /influencer-guide/
+Disallow: /reset-password
+Disallow: /payment-success
+Disallow: /payment-failure
+
+# Sitemap
+Sitemap: https://hatchepk.com/sitemap.xml
+
+# Crawl-delay (optional, adjust as needed)
+Crawl-delay: 1

@@ -3,5 +3,7 @@
 
 export { Button } from './Button';
 export { LoadingSpinner } from './LoadingSpinner';
-export { ErrorBoundary } from './ErrorBoundary';
+export { default as ErrorBoundary } from './ErrorBoundary';
 export { Toast } from './Toast';
+export { SEO } from './SEO';
+export { Breadcrumb } from './Breadcrumb';

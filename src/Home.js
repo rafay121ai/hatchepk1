@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Home.css';
+import { SEO } from './components';
 
 function Home() {
   const navigate = useNavigate();
@@ -57,8 +58,28 @@ function Home() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Homepage schema markup
+  const homepageSchema = {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "Hatche",
+    "url": "https://hatchepk.com",
+    "description": "Premium guides for Pakistani creators and entrepreneurs",
+    "potentialAction": {
+      "@type": "SearchAction",
+      "target": "https://hatchepk.com/our-guides?search={search_term_string}",
+      "query-input": "required name=search_term_string"
+    }
+  };
+
   return (
     <div className="home">
+      <SEO
+        title="Hatche - Premium Guides for Pakistani Creators | How-To Tutorials"
+        description="Premium how-to guides and step-by-step tutorials for Pakistani creators. Build influence, income, and identity with expert-crafted e-guides on entrepreneurship and content creation."
+        keywords="Pakistani creators, how-to guides, step-by-step tutorials, entrepreneurship, content creation, online business, digital guides, premium tutorials"
+        schema={homepageSchema}
+      />
       {/* Hero Section */}
       <section id="home" className={`hero ${isVisible ? 'fade-in' : ''}`} aria-label="Hero section">
         <div className="hero-content">

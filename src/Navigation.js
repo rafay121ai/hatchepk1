@@ -92,7 +92,14 @@ function Navigation({ isMenuOpen, toggleMenu, closeMenu }) {
       <header className="navbar">
         <div className="logo-container">
           <Link to="/">
-            <img src="/HATCHE800.png" alt="Hatche Logo" className="logo" />
+            <img 
+              src="/HATCHE800.png" 
+              alt="Hatche Logo" 
+              className="logo"
+              width="200"
+              height="60"
+              fetchPriority="high"
+            />
           </Link>
         </div>
 
